@@ -18,6 +18,9 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
+import { SetupAccountDto } from './dto/setup-account.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import type { AccessTokenPayload } from './types/jwt-payload.type';
 
@@ -80,5 +83,29 @@ export class AuthController {
   ): Promise<void> {
     const token = req.cookies['refresh_token'] ?? '';
     await this.authService.logout(token, res);
+  }
+
+  @Post('setup')
+  @Public()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Activate account and set password using setup token from email' })
+  async setup(@Body() dto: SetupAccountDto): Promise<void> {
+    await this.authService.setupAccount(dto.token, dto.password);
+  }
+
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Request a password reset email (always returns 204)' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Set new password using reset token from email' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto.token, dto.password);
   }
 }

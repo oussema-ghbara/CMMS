@@ -36,6 +36,9 @@ export const configSchema = Joi.object({
   THROTTLE_TTL: Joi.number().default(60_000),
   THROTTLE_LIMIT: Joi.number().default(100),
 
+  // App base URL (used in email links)
+  APP_URL: Joi.string().uri().default('http://localhost:3000'),
+
   // CORS (required only in production)
   CORS_ORIGIN: Joi.string().when('NODE_ENV', {
     is: 'production',

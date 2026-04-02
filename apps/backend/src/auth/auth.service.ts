@@ -2,8 +2,10 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
   Inject,
   Logger,
+  forwardRef,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -14,9 +16,11 @@ import * as bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { Role } from '@gmao/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { SystemConfigService } from '../system-config/system-config.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import type { AccessTokenPayload, RefreshTokenPayload } from './types/jwt-payload.type';
 import type { AuthResponseDto } from './dto/auth-response.dto';
+import type { UsersService } from '../users/users.service';
 
 const RT_PREFIX = 'rt:';
 const RT_SET_PREFIX = 'rt-set:';
@@ -40,7 +44,11 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly cfg: ConfigService,
+    private readonly systemConfig: SystemConfigService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    // forwardRef because AuthModule ↔ UsersModule import each other
+    @Inject(forwardRef(() => require('../users/users.service').UsersService))
+    private readonly usersService: UsersService,
   ) {}
 
   /**
@@ -177,5 +185,43 @@ export class AuthService {
       sameSite: 'strict',
       path: '/api/v1/auth',
     });
+  }
+
+  async setupAccount(token: string, password: string): Promise<void> {
+    const { userId, jti } = await this.usersService.consumeSetupToken(token).catch(() => {
+      throw new UnauthorizedException('auth.invalidOrExpiredToken');
+    });
+
+    const violation = await this.systemConfig.validatePassword(password);
+    if (violation) throw new BadRequestException(violation);
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, isActive: true },
+    });
+    await this.usersService.markTokenUsed('setup:', userId, jti);
+    this.logger.log(`Account setup complete for user ${userId}`);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    // Fire-and-forget — no enumeration
+    await this.usersService.generateResetToken(email).catch((err: unknown) =>
+      this.logger.error('forgotPassword error', err),
+    );
+  }
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    const { userId, jti } = await this.usersService.consumeResetToken(token).catch(() => {
+      throw new UnauthorizedException('auth.invalidOrExpiredToken');
+    });
+
+    const violation = await this.systemConfig.validatePassword(password);
+    if (violation) throw new BadRequestException(violation);
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.usersService.markTokenUsed('reset:', userId, jti);
+    this.logger.log(`Password reset complete for user ${userId}`);
   }
 }

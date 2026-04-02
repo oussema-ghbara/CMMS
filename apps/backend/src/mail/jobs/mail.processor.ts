@@ -27,6 +27,7 @@ function getTemplate(name: string): HandlebarsTemplateDelegate {
 const SUBJECT_MAP: Record<string, string> = {
   'setup-account': 'Configurer votre compte GMAO',
   'password-reset': 'Réinitialisation de votre mot de passe GMAO',
+  'certificate-expiry': '[GMAO] Certificat de conformité expirant',
 };
 
 @Processor(MAIL_QUEUE)

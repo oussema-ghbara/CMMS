@@ -1,0 +1,921 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  REQUESTER
+  TECHNICIAN
+  SUPERVISOR
+  STOREKEEPER
+}
+
+enum AssetCriticality {
+  CRITICAL
+  STANDARD
+  NON_CRITICAL
+}
+
+enum AssetStatus {
+  OPERATIONAL
+  IN_MAINTENANCE
+  MAINTENANCE_BLOCKED
+  OUT_OF_SERVICE
+  DECOMMISSIONED
+}
+
+enum WorkOrderType {
+  CORRECTIVE
+  PREVENTIVE
+}
+
+enum WorkOrderPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum WorkOrderStatus {
+  DRAFT
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  PENDING_VALIDATION
+  CLOSED
+  CANCELLED
+}
+
+enum WorkOrderSource {
+  PROBLEM_REPORT
+  DIRECT_CREATION
+  PREVENTIVE_PLAN
+}
+
+enum AssignmentRole {
+  PRINCIPAL
+  CONTRIBUTOR
+}
+
+enum InterventionActionType {
+  INSPECTION
+  REPAIR
+  REPLACEMENT
+  CALIBRATION
+  LUBRICATION
+  CLEANING
+}
+
+enum InterventionResult {
+  RESOLVED
+  PARTIALLY_RESOLVED
+  NEEDS_FOLLOW_UP
+  COULD_NOT_INTERVENE
+}
+
+enum OnHoldReasonType {
+  MISSING_PART
+  EXTERNAL_CONTRACTOR
+  ACCESS_DENIED
+  OTHER
+}
+
+enum ChecklistItemStatus {
+  PENDING
+  DONE
+  ANOMALY_DETECTED
+  NOT_APPLICABLE
+}
+
+enum ChecklistTaskType {
+  INSPECTION
+  MEASUREMENT
+  LUBRICATION
+  CLEANING
+  REPLACEMENT
+  CALIBRATION
+  ADJUSTMENT
+}
+
+enum UrgencyPerception {
+  MACHINE_STOPPED
+  ABNORMAL_BEHAVIOR
+  MINOR_ISSUE
+}
+
+enum ProblemReportStatus {
+  PENDING
+  CONVERTED
+  REJECTED
+  DEFERRED
+  ARCHIVED
+}
+
+enum ReportRejectionReason {
+  INVALID_REPORT
+  UNSUPPORTED_EQUIPMENT
+  ALREADY_ADDRESSED
+  DUPLICATE_EXISTING_WO
+  OUT_OF_MAINTENANCE_SCOPE
+}
+
+enum ReportArchiveReason {
+  RESOLVED_SPONTANEOUSLY
+  EQUIPMENT_DECOMMISSIONED
+  SUBMITTED_IN_ERROR
+  REPLACED_BY_OTHER_WO
+  MANAGEMENT_DECISION
+}
+
+enum PartUnit {
+  PIECE
+  LITER
+  KG
+  METER
+  OTHER
+}
+
+enum PartRequestStatus {
+  PENDING
+  FULFILLED
+  PARTIALLY_FULFILLED
+  REJECTED
+}
+
+enum PartRequestRejectionReason {
+  OUT_OF_STOCK
+  NOT_APPLICABLE
+  INCORRECT_REQUEST
+  OTHER
+}
+
+enum StockMovementType {
+  INCOMING
+  OUTGOING
+  ADJUSTMENT
+  RETURN
+}
+
+enum StockAdjustmentReason {
+  PHYSICAL_DAMAGE
+  COUNTING_ERROR
+  LOSS_OR_THEFT
+  SUPPLIER_ERROR
+  OTHER
+}
+
+enum CertificateType {
+  PRESSURE_VESSEL
+  ELECTRICAL_INSTALLATION
+  LIFTING_EQUIPMENT
+  FIRE_SAFETY
+  OTHER
+}
+
+enum CertificateStatus {
+  VALID
+  EXPIRING_SOON
+  EXPIRED
+}
+
+enum DocumentEntityType {
+  ASSET
+  PART
+  PREVENTIVE_PLAN
+  WORK_ORDER
+  INTERVENTION
+}
+
+enum DocumentType {
+  TECHNICAL_MANUAL
+  SCHEMATIC
+  INSTALLATION_REPORT
+  SAFETY_DATA_SHEET
+  SPECIFICATION_SHEET
+  PROCEDURE_DOCUMENT
+  CONTRACTOR_REPORT
+  PHOTO
+}
+
+enum PreventiveFrequencyType {
+  FIXED_INTERVAL_DAYS
+  CALENDAR
+}
+
+enum NotificationType {
+  REPORT_CONFIRMED
+  REPORT_CONVERTED_TO_WO
+  REPORT_REJECTED
+  REPORT_ARCHIVED
+  LINKED_WO_CLOSED
+  WO_ASSIGNED
+  WO_REASSIGNED_FROM
+  WO_REASSIGNED_TO
+  PROMOTED_TO_PRINCIPAL
+  PART_REQUEST_FULFILLED
+  PART_REQUEST_REJECTED
+  CLOSURE_REJECTED
+  DUE_DATE_APPROACHING
+  WO_RESUMED
+  CONTRIBUTOR_BLOCK_RECEIVED
+  SYNC_CONFLICT
+  WO_CANCELLED_NOTIFY
+  ASSET_DECOMMISSIONED_NOTIFY
+  NEW_PROBLEM_REPORT
+  REQUESTER_COMMENT_ADDED
+  WO_ON_HOLD
+  WO_PENDING_VALIDATION
+  WO_OVERDUE
+  WO_AUTO_ESCALATED
+  DEFERRED_REPORT_REMINDER
+  CONTRACTOR_DATE_OVERDUE
+  ACCESS_RETRY_APPROACHING
+  VALIDATION_REMINDER_24H
+  PREVENTIVE_PLAN_GENERATED
+  CERTIFICATE_EXPIRING
+  UNASSIGNED_PLAN_WO
+  FOLLOW_UP_PROMPT
+  DAILY_SUMMARY
+  NEW_PART_REQUEST
+  STOCK_BELOW_MINIMUM
+  PENDING_REQUEST_CANCELLED
+  PART_RETURN_PROMPT
+  SCHEDULED_JOB_FAILED
+  NOTIFICATION_DELIVERY_FAILED
+}
+
+enum WOCancellationReason {
+  DUPLICATE
+  EQUIPMENT_DECOMMISSIONED
+  RESOLVED_OTHERWISE
+  CREATED_IN_ERROR
+  EXTERNAL_DECISION
+}
+
+enum WOReassignmentReason {
+  TECHNICIAN_OVERLOADED
+  TECHNICIAN_ABSENT
+  SPECIFIC_SKILL_REQUIRED
+  PRIORITY_CONFLICT
+  OTHER
+}
+
+enum ValidationRejectionReason {
+  INSUFFICIENT_DESCRIPTION
+  PARTS_USED_MISMATCH
+  INCONSISTENT_TIME
+  INCOMPLETE_CHECKLIST
+  OTHER
+}
+
+model User {
+  id                        String                   @id @default(cuid())
+  email                     String                   @unique
+  name                      String
+  passwordHash              String
+  roles                     Role[]
+  hourlyRate                Decimal?                 @db.Decimal(10, 2)
+  isActive                  Boolean                  @default(true)
+  emailNotificationsEnabled Boolean                  @default(true)
+  lastLoginAt               DateTime?
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+
+  workOrderAssignments    WorkOrderAssignment[]
+  interventionLogs        InterventionLog[]
+  problemReports          ProblemReport[]
+  reportComments          ProblemReportComment[]
+  partRequests            PartRequest[]
+  stockMovements          StockMovement[]
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  documents               Document[]
+  certificates            ComplianceCertificate[]
+  createdWorkOrders       WorkOrder[]              @relation("WOCreatedBy")
+  cancelledWorkOrders     WorkOrder[]              @relation("WOCancelledBy")
+  validatedWorkOrders     WorkOrder[]              @relation("WOValidatedBy")
+  statusLogs              WorkOrderStatusLog[]
+  priorityLogs            WorkOrderPriorityLog[]
+  validationActions       WorkOrderValidation[]
+  reassignments           WorkOrderReassignment[]
+  assetStatusLogs         AssetStatusLog[]
+  processedReports        ProblemReport[]          @relation("ReportProcessedBy")
+  processedPartRequests   PartRequest[]            @relation("PartRequestProcessedBy")
+  defaultForPlans         PreventivePlan[]         @relation("PlanDefaultTechnician")
+  configChanges           SystemConfig[]           @relation("ConfigUpdatedBy")
+  completedChecklistItems WorkOrderChecklistItem[]
+  principalWorkOrders     WorkOrder[]              @relation("WOPrincipal")
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedById String?
+  updatedBy   User?    @relation("ConfigUpdatedBy", fields: [updatedById], references: [id])
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actor       User     @relation(fields: [actorId], references: [id])
+  actionType  String
+  targetType  String
+  targetId    String
+  valueBefore Json?
+  valueAfter  Json?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model Location {
+  id          String     @id @default(cuid())
+  name        String
+  code        String?
+  description String?
+  level       Int
+  fullPath    String
+  parentId    String?
+  parent      Location?  @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children    Location[] @relation("LocationHierarchy")
+  assets      Asset[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
+  @@index([level])
+}
+
+model AssetCategory {
+  id                     String                  @id @default(cuid())
+  name                   String
+  description            String?
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  checklistTemplateItems ChecklistTemplateItem[]
+  assets                 Asset[]
+}
+
+model ChecklistTemplateItem {
+  id                     String            @id @default(cuid())
+  categoryId             String
+  category               AssetCategory     @relation(fields: [categoryId], references: [id])
+  description            String
+  taskType               ChecklistTaskType
+  expectedCondition      String?
+  isMandatory            Boolean           @default(false)
+  sortOrder              Int
+  autoCreateCorrectiveWO Boolean           @default(false)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  @@index([categoryId, sortOrder])
+}
+
+model Asset {
+  id                 String                  @id @default(cuid())
+  name               String
+  description        String?
+  serialNumber       String?
+  manufacturer       String?
+  model              String?
+  installationDate   DateTime?
+  warrantyExpiration DateTime?
+  qrCodeIdentifier   String                  @unique
+  categoryId         String
+  category           AssetCategory           @relation(fields: [categoryId], references: [id])
+  locationId         String
+  location           Location                @relation(fields: [locationId], references: [id])
+  parentId           String?
+  parent             Asset?                  @relation("AssetHierarchy", fields: [parentId], references: [id])
+  children           Asset[]                 @relation("AssetHierarchy")
+  criticality        AssetCriticality        @default(STANDARD)
+  status             AssetStatus             @default(OPERATIONAL)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  workOrders      WorkOrder[]
+  statusLogs      AssetStatusLog[]
+  certificates    ComplianceCertificate[]
+  preventivePlans PreventivePlan[]
+  problemReports  ProblemReport[]
+
+  @@index([categoryId])
+  @@index([locationId])
+  @@index([status])
+  @@index([criticality])
+  @@index([qrCodeIdentifier])
+  @@index([parentId])
+}
+
+model AssetStatusLog {
+  id          String      @id @default(cuid())
+  assetId     String
+  asset       Asset       @relation(fields: [assetId], references: [id])
+  fromStatus  AssetStatus
+  toStatus    AssetStatus
+  reason      String?
+  actorId     String
+  actor       User        @relation(fields: [actorId], references: [id])
+  workOrderId String?
+  workOrder   WorkOrder?  @relation(fields: [workOrderId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([assetId, createdAt])
+  @@index([workOrderId])
+}
+
+model ComplianceCertificate {
+  id               String            @id @default(cuid())
+  assetId          String
+  asset            Asset             @relation(fields: [assetId], references: [id])
+  certificateType  CertificateType
+  otherType        String?
+  issuingAuthority String
+  issueDate        DateTime
+  expirationDate   DateTime
+  status           CertificateStatus @default(VALID)
+  documentId       String?           @unique
+  document         Document?         @relation("CertificateDocument", fields: [documentId], references: [id])
+  createdById      String
+  createdBy        User              @relation(fields: [createdById], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([assetId])
+  @@index([expirationDate])
+  @@index([status])
+}
+
+model WorkOrder {
+  id                                String                  @id @default(cuid())
+  referenceNumber                   String                  @unique
+  type                              WorkOrderType
+  status                            WorkOrderStatus         @default(DRAFT)
+  priority                          WorkOrderPriority
+  sourceType                        WorkOrderSource
+  description                       String
+  internalNotes                     String?
+  capturedLocationPath              String
+  estimatedDurationMinutes          Int?
+  dueDate                           DateTime?
+  sourceReportId                    String?
+  sourceReport                      ProblemReport?          @relation(fields: [sourceReportId], references: [id])
+  sourcePlanId                      String?
+  sourcePlan                        PreventivePlan?         @relation(fields: [sourcePlanId], references: [id])
+  followUpFromId                    String?
+  followUpFrom                      WorkOrder?              @relation("WOFollowUp", fields: [followUpFromId], references: [id])
+  followUps                         WorkOrder[]             @relation("WOFollowUp")
+  triggeredByChecklistItemId        String?
+  triggeredByChecklistItem          WorkOrderChecklistItem? @relation("TriggeredWO", fields: [triggeredByChecklistItemId], references: [id])
+  assetId                           String
+  asset                             Asset                   @relation(fields: [assetId], references: [id])
+  principalTechnicianId             String?
+  principalTechnician               User?                   @relation("WOPrincipal", fields: [principalTechnicianId], references: [id])
+  contractorCost                    Decimal                 @default(0) @db.Decimal(12, 2)
+  contractorCostCaptured            Boolean                 @default(true)
+  simultaneousMaintenanceAuthorized Boolean                 @default(false)
+  simultaneousMaintenanceReason     String?
+  cancellationReason                WOCancellationReason?
+  cancellationDetail                String?
+  cancelledById                     String?
+  cancelledBy                       User?                   @relation("WOCancelledBy", fields: [cancelledById], references: [id])
+  cancelledAt                       DateTime?
+  postCancellationAssetStatus       AssetStatus?
+  createdById                       String
+  createdBy                         User                    @relation("WOCreatedBy", fields: [createdById], references: [id])
+  validatedById                     String?
+  validatedBy                       User?                   @relation("WOValidatedBy", fields: [validatedById], references: [id])
+  validatedAt                       DateTime?
+  closedAt                          DateTime?
+  createdAt                         DateTime                @default(now())
+  updatedAt                         DateTime                @updatedAt
+
+  assignments       WorkOrderAssignment[]
+  statusLogs        WorkOrderStatusLog[]
+  priorityLogs      WorkOrderPriorityLog[]
+  validationActions WorkOrderValidation[]
+  reassignments     WorkOrderReassignment[]
+  interventionLogs  InterventionLog[]
+  onHoldPeriods     OnHoldPeriod[]
+  checklistItems    WorkOrderChecklistItem[]
+  partRequests      PartRequest[]
+  stockMovements    StockMovement[]
+  assetStatusLogs   AssetStatusLog[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([assetId])
+  @@index([sourceType])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([type, status])
+  @@index([assetId, type, status])
+  @@index([principalTechnicianId, status])
+}
+
+model WorkOrderStatusLog {
+  id          String           @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder        @relation(fields: [workOrderId], references: [id])
+  fromStatus  WorkOrderStatus?
+  toStatus    WorkOrderStatus
+  actorId     String?
+  actor       User?            @relation(fields: [actorId], references: [id])
+  label       String?
+  createdAt   DateTime         @default(now())
+
+  @@index([workOrderId, createdAt])
+}
+
+model WorkOrderPriorityLog {
+  id               String            @id @default(cuid())
+  workOrderId      String
+  workOrder        WorkOrder         @relation(fields: [workOrderId], references: [id])
+  fromPriority     WorkOrderPriority
+  toPriority       WorkOrderPriority
+  actorId          String?
+  actor            User?             @relation(fields: [actorId], references: [id])
+  isAutoEscalation Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+
+  @@index([workOrderId, createdAt])
+}
+
+model WorkOrderAssignment {
+  id           String                 @id @default(cuid())
+  workOrderId  String
+  workOrder    WorkOrder              @relation(fields: [workOrderId], references: [id])
+  technicianId String
+  technician   User                   @relation(fields: [technicianId], references: [id])
+  role         AssignmentRole
+  isActive     Boolean                @default(true)
+  assignedAt   DateTime               @default(now())
+  removedAt    DateTime?
+  blockFlags   ContributorBlockFlag[]
+
+  @@index([workOrderId, isActive])
+  @@index([technicianId, isActive])
+  @@index([workOrderId, role, isActive])
+}
+
+model ContributorBlockFlag {
+  id           String              @id @default(cuid())
+  assignmentId String
+  assignment   WorkOrderAssignment @relation(fields: [assignmentId], references: [id])
+  reasonType   OnHoldReasonType
+  detail       String?
+  isResolved   Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  resolvedAt   DateTime?
+
+  @@index([assignmentId])
+}
+
+model WorkOrderValidation {
+  id              String                     @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder                  @relation(fields: [workOrderId], references: [id])
+  action          String
+  rejectionReason ValidationRejectionReason?
+  rejectionDetail String?
+  validatorId     String
+  validator       User                       @relation(fields: [validatorId], references: [id])
+  createdAt       DateTime                   @default(now())
+
+  @@index([workOrderId, createdAt])
+}
+
+model WorkOrderReassignment {
+  id               String               @id @default(cuid())
+  workOrderId      String
+  workOrder        WorkOrder            @relation(fields: [workOrderId], references: [id])
+  fromTechnicianId String
+  toTechnicianId   String
+  reason           WOReassignmentReason
+  reasonDetail     String?
+  performedById    String
+  performedBy      User                 @relation(fields: [performedById], references: [id])
+  createdAt        DateTime             @default(now())
+
+  @@index([workOrderId])
+}
+
+model InterventionLog {
+  id                    String              @id @default(cuid())
+  workOrderId           String
+  workOrder             WorkOrder           @relation(fields: [workOrderId], references: [id])
+  technicianId          String
+  technician            User                @relation(fields: [technicianId], references: [id])
+  startedAt             DateTime            @default(now())
+  endedAt               DateTime?
+  activeDurationMinutes Int?
+  hourlyRateAtTime      Decimal?            @db.Decimal(10, 2)
+  result                InterventionResult?
+  resultExplanation     String?
+  isReassignmentRemnant Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  actions      InterventionAction[]
+  offListParts OffListPartUsage[]
+
+  @@index([workOrderId, technicianId])
+  @@index([workOrderId, createdAt])
+}
+
+model InterventionAction {
+  id             String                 @id @default(cuid())
+  interventionId String
+  intervention   InterventionLog        @relation(fields: [interventionId], references: [id])
+  actionType     InterventionActionType
+  detail         String?
+  createdAt      DateTime               @default(now())
+
+  @@index([interventionId])
+}
+
+model OffListPartUsage {
+  id             String          @id @default(cuid())
+  interventionId String
+  intervention   InterventionLog @relation(fields: [interventionId], references: [id])
+  name           String
+  quantity       Int
+  createdAt      DateTime        @default(now())
+
+  @@index([interventionId])
+}
+
+model OnHoldPeriod {
+  id                          String           @id @default(cuid())
+  workOrderId                 String
+  workOrder                   WorkOrder        @relation(fields: [workOrderId], references: [id])
+  reasonType                  OnHoldReasonType
+  detail                      String?
+  linkedPartRequestId         String?
+  linkedPartRequest           PartRequest?     @relation(fields: [linkedPartRequestId], references: [id])
+  expectedResolutionDate      DateTime?
+  retryDate                   DateTime?
+  supervisorAssetStatusChoice AssetStatus?
+  supervisorResolutionNote    String?
+  startedAt                   DateTime         @default(now())
+  resumedAt                   DateTime?
+  createdAt                   DateTime         @default(now())
+
+  @@index([workOrderId])
+  @@index([reasonType])
+}
+
+model PreventivePlan {
+  id                       String                       @id @default(cuid())
+  assetId                  String
+  asset                    Asset                        @relation(fields: [assetId], references: [id])
+  title                    String
+  description              String?
+  frequencyType            PreventiveFrequencyType
+  intervalDays             Int?
+  calendarExpression       String?
+  estimatedDurationMinutes Int?
+  defaultTechnicianId      String?
+  defaultTechnician        User?                        @relation("PlanDefaultTechnician", fields: [defaultTechnicianId], references: [id])
+  isActive                 Boolean                      @default(true)
+  nextDueAt                DateTime?
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+
+  checklistItems      PreventivePlanChecklistItem[]
+  generatedWorkOrders WorkOrder[]
+
+  @@index([assetId])
+  @@index([isActive, nextDueAt])
+}
+
+model PreventivePlanChecklistItem {
+  id                     String            @id @default(cuid())
+  planId                 String
+  plan                   PreventivePlan    @relation(fields: [planId], references: [id])
+  description            String
+  taskType               ChecklistTaskType
+  expectedCondition      String?
+  isMandatory            Boolean           @default(false)
+  sortOrder              Int
+  autoCreateCorrectiveWO Boolean           @default(false)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  workOrderItems WorkOrderChecklistItem[]
+
+  @@index([planId, sortOrder])
+}
+
+model WorkOrderChecklistItem {
+  id                     String                       @id @default(cuid())
+  workOrderId            String
+  workOrder              WorkOrder                    @relation(fields: [workOrderId], references: [id])
+  sourcePlanItemId       String?
+  sourcePlanItem         PreventivePlanChecklistItem? @relation(fields: [sourcePlanItemId], references: [id])
+  description            String
+  taskType               ChecklistTaskType
+  expectedCondition      String?
+  isMandatory            Boolean                      @default(false)
+  sortOrder              Int
+  autoCreateCorrectiveWO Boolean                      @default(false)
+  status                 ChecklistItemStatus          @default(PENDING)
+  completedById          String?
+  completedBy            User?                        @relation(fields: [completedById], references: [id])
+  completedAt            DateTime?
+  anomalyDescription     String?
+  notApplicableReason    String?
+  isLockedByHold         Boolean                      @default(false)
+  triggeredWorkOrders    WorkOrder[]                  @relation("TriggeredWO")
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+
+  @@index([workOrderId, sortOrder])
+}
+
+model Part {
+  id                    String          @id @default(cuid())
+  name                  String
+  referenceCode         String          @unique
+  description           String?
+  unit                  PartUnit
+  currentStock          Int             @default(0)
+  minimumStockThreshold Int             @default(0)
+  warehouseLocation     String?
+  unitCost              Decimal         @default(0) @db.Decimal(12, 2)
+  isActive              Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  stockMovements StockMovement[]
+  partRequests   PartRequest[]
+
+  @@index([referenceCode])
+  @@index([isActive])
+  @@index([currentStock])
+}
+
+model PartRequest {
+  id                    String                      @id @default(cuid())
+  workOrderId           String
+  workOrder             WorkOrder                   @relation(fields: [workOrderId], references: [id])
+  requesterId           String
+  requester             User                        @relation(fields: [requesterId], references: [id])
+  partId                String?
+  part                  Part?                       @relation(fields: [partId], references: [id])
+  offCatalogDescription String?
+  quantityRequested     Int
+  quantityFulfilled     Int                         @default(0)
+  note                  String?
+  status                PartRequestStatus           @default(PENDING)
+  rejectionReason       PartRequestRejectionReason?
+  rejectionDetail       String?
+  processedById         String?
+  processedBy           User?                       @relation("PartRequestProcessedBy", fields: [processedById], references: [id])
+  processedAt           DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  linkedOnHoldPeriods OnHoldPeriod[]
+  stockMovements      StockMovement[]
+
+  @@index([workOrderId])
+  @@index([status])
+  @@index([partId])
+  @@index([requesterId])
+}
+
+model StockMovement {
+  id                   String                 @id @default(cuid())
+  partId               String
+  part                 Part                   @relation(fields: [partId], references: [id])
+  type                 StockMovementType
+  quantity             Int
+  isPositiveAdjustment Boolean?
+  unitCostAtTime       Decimal?               @db.Decimal(12, 2)
+  workOrderId          String?
+  workOrder            WorkOrder?             @relation(fields: [workOrderId], references: [id])
+  partRequestId        String?
+  partRequest          PartRequest?           @relation(fields: [partRequestId], references: [id])
+  supplierReference    String?
+  receivedDate         DateTime?
+  adjustmentReason     StockAdjustmentReason?
+  adjustmentDetail     String?
+  note                 String?
+  performedById        String
+  performedBy          User                   @relation(fields: [performedById], references: [id])
+  createdAt            DateTime               @default(now())
+
+  @@index([partId, createdAt])
+  @@index([workOrderId])
+  @@index([type])
+  @@index([partId, type])
+}
+
+model ProblemReport {
+  id                     String                 @id @default(cuid())
+  referenceNumber        String                 @unique
+  assetId                String
+  asset                  Asset                  @relation(fields: [assetId], references: [id])
+  reporterId             String
+  reporter               User                   @relation(fields: [reporterId], references: [id])
+  description            String
+  urgencyPerception      UrgencyPerception
+  status                 ProblemReportStatus    @default(PENDING)
+  processedById          String?
+  processedBy            User?                  @relation("ReportProcessedBy", fields: [processedById], references: [id])
+  processedAt            DateTime?
+  rejectionReason        ReportRejectionReason?
+  rejectionDetail        String?
+  deferredAt             DateTime?
+  deferNote              String?
+  archiveReason          ReportArchiveReason?
+  replacedByWorkOrderRef String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  derivedWorkOrders WorkOrder[]
+  comments          ProblemReportComment[]
+
+  @@index([status])
+  @@index([assetId])
+  @@index([reporterId])
+  @@index([createdAt])
+  @@index([status, deferredAt])
+}
+
+model ProblemReportComment {
+  id                       String        @id @default(cuid())
+  reportId                 String
+  report                   ProblemReport @relation(fields: [reportId], references: [id])
+  authorId                 String
+  author                   User          @relation(fields: [authorId], references: [id])
+  content                  String
+  acknowledgedBySupervisor Boolean       @default(false)
+  createdAt                DateTime      @default(now())
+
+  @@index([reportId, createdAt])
+}
+
+model Document {
+  id               String                 @id @default(cuid())
+  entityType       DocumentEntityType
+  entityId         String
+  documentType     DocumentType
+  fileName         String
+  filePath         String
+  fileSize         Int?
+  mimeType         String?
+  version          Int                    @default(1)
+  isCurrentVersion Boolean                @default(true)
+  replacedById     String?
+  uploadedById     String
+  uploadedBy       User                   @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime               @default(now())
+
+  certificate ComplianceCertificate? @relation("CertificateDocument")
+
+  @@index([entityType, entityId])
+  @@index([entityType, entityId, isCurrentVersion])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  recipient   User             @relation(fields: [recipientId], references: [id])
+  type        NotificationType
+  title       String
+  summary     String
+  entityType  String?
+  entityId    String?
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  emailSent   Boolean          @default(false)
+  emailSentAt DateTime?
+  emailFailed Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId, isRead, createdAt])
+  @@index([recipientId, createdAt])
+  @@index([type])
+  @@index([emailFailed])
+}

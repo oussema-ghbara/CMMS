@@ -13,6 +13,8 @@ import { SystemConfigModule } from './system-config/system-config.module';
 import { UsersModule } from './users/users.module';
 import { StorageModule } from './storage/storage.module';
 import { AssetsModule } from './assets/assets.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -54,7 +56,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     MailModule,
     UsersModule,
     StorageModule,
+    NotificationsModule,
     AssetsModule,
+    WorkOrdersModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

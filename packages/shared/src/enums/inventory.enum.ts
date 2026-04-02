@@ -1,0 +1,36 @@
+export enum PartUnit {
+  PIECE = 'PIECE',
+  LITER = 'LITER',
+  KG = 'KG',
+  METER = 'METER',
+  OTHER = 'OTHER',
+}
+
+export enum PartRequestStatus {
+  PENDING = 'PENDING',
+  FULFILLED = 'FULFILLED',
+  PARTIALLY_FULFILLED = 'PARTIALLY_FULFILLED',
+  REJECTED = 'REJECTED',
+}
+
+export enum PartRequestRejectionReason {
+  OUT_OF_STOCK = 'OUT_OF_STOCK',
+  NOT_APPLICABLE = 'NOT_APPLICABLE',
+  INCORRECT_REQUEST = 'INCORRECT_REQUEST',
+  OTHER = 'OTHER',
+}
+
+export enum StockMovementType {
+  INCOMING = 'INCOMING',
+  OUTGOING = 'OUTGOING',
+  ADJUSTMENT = 'ADJUSTMENT',
+  RETURN = 'RETURN',
+}
+
+export enum StockAdjustmentReason {
+  PHYSICAL_DAMAGE = 'PHYSICAL_DAMAGE',
+  COUNTING_ERROR = 'COUNTING_ERROR',
+  LOSS_OR_THEFT = 'LOSS_OR_THEFT',
+  SUPPLIER_ERROR = 'SUPPLIER_ERROR',
+  OTHER = 'OTHER',
+}

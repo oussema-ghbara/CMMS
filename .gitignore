@@ -11,8 +11,7 @@ out/
 # Turbo
 .turbo/
 
-# Lockfile — commit this in a real project, but excluding here per setup instructions
-pnpm-lock.yaml
+# Lock file is committed for reproducible installs
 
 # Environment
 .env

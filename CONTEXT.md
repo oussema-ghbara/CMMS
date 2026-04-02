@@ -30,8 +30,12 @@ Tech stack decisions: stack.pdf
   - [x] SystemConfigModule — password policy, 14 config keys seeded
   - [x] UsersModule — Admin CRUD, setup token flow, deactivate/reactivate, resend setup
   - [x] Auth endpoints: /auth/setup, /auth/forgot-password, /auth/reset-password
-- [ ] AssetsModule (next)
-- [ ] WorkOrdersModule
+  - [x] StorageModule — MinIO/S3 wrapper, multi-bucket, presigned URLs
+  - [x] NotificationsModule — in-app + email notifications, global
+  - [x] AssetsModule — locations, categories, assets, certificates, documents
+  - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist
+- [x] AssetsModule — locations, categories, assets, certificates, documents, storage
+- [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist
 - [ ] InventoryModule
 - [ ] PreventivePlansModule
 - [ ] ReportsModule

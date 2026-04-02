@@ -8,6 +8,7 @@ import { ConfigModule } from './config/config.module';
 import { RedisModule } from './redis/redis.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { MailModule } from './mail/mail.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -45,6 +46,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     RedisModule,
     PrismaModule,
     AuthModule,
+    MailModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

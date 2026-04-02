@@ -23,6 +23,7 @@ export const configSchema = Joi.object({
   MINIO_BUCKET_DOCUMENTS: Joi.string().default('documents'),
   MINIO_BUCKET_PHOTOS: Joi.string().default('photos'),
   MINIO_BUCKET_PDFS: Joi.string().default('pdfs'),
+  MINIO_BUCKET_REPORTS: Joi.string().default('pdfs'), // alias kept for compatibility
 
   // SMTP
   SMTP_HOST: Joi.string().required(),

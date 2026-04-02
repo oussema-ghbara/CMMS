@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -887,8 +886,10 @@ model Document {
   mimeType         String?
   version          Int                    @default(1)
   isCurrentVersion Boolean                @default(true)
-  replacedById     String?
-  uploadedById     String
+  replacedById    String?  @unique
+  replacedBy      Document? @relation("DocumentVersionChain", fields: [replacedById], references: [id])
+  replacesDoc     Document? @relation("DocumentVersionChain")
+  uploadedById    String
   uploadedBy       User                   @relation(fields: [uploadedById], references: [id])
   createdAt        DateTime               @default(now())
 

@@ -19,6 +19,7 @@ import type { AccessTokenPayload, RefreshTokenPayload } from './types/jwt-payloa
 import type { AuthResponseDto } from './dto/auth-response.dto';
 
 const RT_PREFIX = 'rt:';
+const RT_SET_PREFIX = 'rt-set:';
 const RT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 // Dummy hash used to keep validateUser constant-time when user is not found.
@@ -89,7 +90,10 @@ export class AuthService {
     if (!user) throw new ForbiddenException('auth.accountInactive');
 
     // Token rotation: revoke old, issue new
-    await this.redis.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
+    const pipeline = this.redis.pipeline();
+    pipeline.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
+    pipeline.srem(`${RT_SET_PREFIX}${payload.sub}`, payload.jti);
+    await pipeline.exec();
     const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(user);
     await this.storeRefreshToken(user.id, refreshJti);
 
@@ -102,7 +106,10 @@ export class AuthService {
       const payload = await this.jwt.verifyAsync<RefreshTokenPayload>(rawRefreshToken, {
         secret: this.cfg.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
-      await this.redis.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
+      const pipeline = this.redis.pipeline();
+      pipeline.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
+      pipeline.srem(`${RT_SET_PREFIX}${payload.sub}`, payload.jti);
+      await pipeline.exec();
     } catch {
       // Token may be expired or invalid — still clear the cookie
       this.logger.warn('Logout called with invalid refresh token — clearing cookie anyway');
@@ -112,8 +119,12 @@ export class AuthService {
 
   /** Revokes all refresh tokens for a user. Called on account deactivation. */
   async revokeAllUserTokens(userId: string): Promise<void> {
-    const keys = await this.redis.keys(`${RT_PREFIX}${userId}:*`);
-    if (keys.length > 0) await this.redis.del(...keys);
+    const jtis = await this.redis.smembers(`${RT_SET_PREFIX}${userId}`);
+    if (jtis.length === 0) return;
+    const pipeline = this.redis.pipeline();
+    jtis.forEach((jti) => pipeline.del(`${RT_PREFIX}${userId}:${jti}`));
+    pipeline.del(`${RT_SET_PREFIX}${userId}`);
+    await pipeline.exec();
   }
 
   private async issueTokenPair(user: User): Promise<TokenPair> {
@@ -142,7 +153,11 @@ export class AuthService {
   }
 
   private async storeRefreshToken(userId: string, jti: string): Promise<void> {
-    await this.redis.setex(`${RT_PREFIX}${userId}:${jti}`, RT_TTL_SECONDS, '1');
+    const pipeline = this.redis.pipeline();
+    pipeline.setex(`${RT_PREFIX}${userId}:${jti}`, RT_TTL_SECONDS, '1');
+    pipeline.sadd(`${RT_SET_PREFIX}${userId}`, jti);
+    pipeline.expire(`${RT_SET_PREFIX}${userId}`, RT_TTL_SECONDS);
+    await pipeline.exec();
   }
 
   private attachRefreshCookie(res: Response, token: string): void {

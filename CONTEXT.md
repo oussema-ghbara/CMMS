@@ -36,7 +36,7 @@ Tech stack decisions: stack.pdf
   - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
 - [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist
-- [ ] InventoryModule
+- [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [ ] PreventivePlansModule
 - [ ] ReportsModule
 - [ ] apps/web — Next.js (not started)

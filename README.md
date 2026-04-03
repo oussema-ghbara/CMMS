@@ -104,8 +104,8 @@ npx prisma studio    # visual DB browser
 | UsersModule | done — Admin CRUD, setup token flow, deactivate/reactivate |
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
 | AssetsModule | done — locations, categories, assets, certificates, documents |
-| WorkOrdersModule | not started |
-| InventoryModule | not started |
+| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist |
+| InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | not started |
 | ReportsModule | not started |
 

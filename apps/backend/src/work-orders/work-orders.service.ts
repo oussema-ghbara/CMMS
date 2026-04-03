@@ -3,6 +3,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PartRequestsService } from '../inventory/part-requests.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
 import { CancelWorkOrderDto } from './dto/cancel-work-order.dto';
@@ -18,6 +19,7 @@ export class WorkOrdersService {
     private readonly repo: WorkOrdersRepository,
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly partRequests: PartRequestsService,
   ) {}
 
   findAll(query: WorkOrderQueryDto) {
@@ -144,6 +146,9 @@ export class WorkOrdersService {
         entityId: id,
       })),
     );
+
+    // Cancel pending part requests and prompt return of fulfilled parts
+    await this.partRequests.handleWorkOrderCancellation(id, actorId);
 
     return updated;
   }

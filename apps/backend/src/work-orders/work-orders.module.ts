@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { WorkOrdersController } from './work-orders.controller';
-import { WorkOrder } from '@gmao/db';
 import { WorkOrdersService } from './work-orders.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { AssignmentService } from './assignment.service';
@@ -9,9 +8,10 @@ import { OnHoldService } from './on-hold.service';
 import { ValidationService } from './validation.service';
 import { ChecklistService } from './checklist.service';
 import { AssetsModule } from '../assets/assets.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [AssetsModule],
+  imports: [AssetsModule, InventoryModule],
   controllers: [WorkOrdersController],
   providers: [
     WorkOrdersService,

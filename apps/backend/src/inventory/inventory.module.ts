@@ -1,0 +1,14 @@
+import { Module } from '@nestjs/common';
+import { PartsController } from './parts.controller';
+import { PartRequestsController } from './part-requests.controller';
+import { StockController } from './stock.controller';
+import { InventoryService } from './inventory.service';
+import { PartRequestsService } from './part-requests.service';
+import { InventoryRepository } from './inventory.repository';
+
+@Module({
+  controllers: [PartsController, PartRequestsController, StockController],
+  providers: [InventoryService, PartRequestsService, InventoryRepository],
+  exports: [InventoryService, PartRequestsService],
+})
+export class InventoryModule {}

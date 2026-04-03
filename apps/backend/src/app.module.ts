@@ -15,6 +15,7 @@ import { StorageModule } from './storage/storage.module';
 import { AssetsModule } from './assets/assets.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -59,6 +60,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     NotificationsModule,
     AssetsModule,
     WorkOrdersModule,
+    InventoryModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

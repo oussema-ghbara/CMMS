@@ -102,9 +102,7 @@ export class WorkOrdersRepository {
       });
       const referenceNumber = `WO-${year}-${String(count + 1).padStart(6, '0')}`;
 
-      const status = dto.principalTechnicianId
-        ? WorkOrderStatus.ASSIGNED
-        : WorkOrderStatus.OPEN;
+      const status = WorkOrderStatus.DRAFT;
 
       const wo = await tx.workOrder.create({
         data: {
@@ -119,7 +117,6 @@ export class WorkOrdersRepository {
           estimatedDurationMinutes: dto.estimatedDurationMinutes,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
           assetId: dto.assetId,
-          principalTechnicianId: dto.principalTechnicianId,
           sourceReportId,
           sourcePlanId,
           createdById: actorId,
@@ -130,21 +127,8 @@ export class WorkOrdersRepository {
         data: { workOrderId: wo.id, toStatus: status, actorId, label: 'Created' },
       });
 
-      if (dto.principalTechnicianId) {
-        await tx.workOrderAssignment.create({
-          data: { workOrderId: wo.id, technicianId: dto.principalTechnicianId, role: 'PRINCIPAL' },
-        });
-      }
-
-      if (dto.contributorIds?.length) {
-        await tx.workOrderAssignment.createMany({
-          data: dto.contributorIds.map((technicianId) => ({
-            workOrderId: wo.id,
-            technicianId,
-            role: 'CONTRIBUTOR' as const,
-          })),
-        });
-      }
+      // Assignments are created exclusively through the assign endpoint (OPEN → ASSIGNED).
+      // A freshly created WO is always DRAFT — no technician assignment at this stage.
 
       return wo;
     });

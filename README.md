@@ -106,7 +106,7 @@ npx prisma studio    # visual DB browser
 | AssetsModule | done — locations, categories, assets, certificates, documents |
 | WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
-| PreventivePlansModule | not started |
+| PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
 | ReportsModule | not started |
 
 ## Architecture rules

@@ -41,12 +41,7 @@ export class WorkOrdersService {
       throw new BadRequestException('Cannot create a work order for a decommissioned asset');
     }
 
-    if (dto.principalTechnicianId) {
-      await this.assertActiveTechnician(dto.principalTechnicianId);
-    }
-    for (const id of dto.contributorIds ?? []) {
-      await this.assertActiveTechnician(id);
-    }
+    // Technician validation happens in AssignmentService at the OPEN → ASSIGNED transition.
 
     const wo = await this.repo.create(
       dto,
@@ -55,29 +50,7 @@ export class WorkOrdersService {
       asset.location.fullPath,
     );
 
-    if (dto.principalTechnicianId) {
-      await this.notifications.notify({
-        recipientId: dto.principalTechnicianId,
-        type: NotificationType.WO_ASSIGNED,
-        title: 'New work order assigned',
-        summary: `You are principal technician on ${wo.referenceNumber}`,
-        entityType: 'WorkOrder',
-        entityId: wo.id,
-      });
-    }
-
-    if (dto.contributorIds?.length) {
-      await this.notifications.notifyMany(
-        dto.contributorIds.map((id) => ({
-          recipientId: id,
-          type: NotificationType.WO_ASSIGNED,
-          title: 'New work order assigned',
-          summary: `You are contributor on ${wo.referenceNumber}`,
-          entityType: 'WorkOrder',
-          entityId: wo.id,
-        })),
-      );
-    }
+    // Notifications are sent by AssignmentService when the WO transitions OPEN → ASSIGNED.
 
     return wo;
   }

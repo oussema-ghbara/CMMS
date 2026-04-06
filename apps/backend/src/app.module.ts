@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-// ScheduleModule imported when first @Cron() job is added (BullMQ scheduler)
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { ConfigModule } from './config/config.module';
@@ -16,6 +16,7 @@ import { AssetsModule } from './assets/assets.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { PreventivePlansModule } from './preventive-plans/preventive-plans.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -50,6 +51,7 @@ import { RolesGuard } from './common/guards/roles.guard';
       }),
     }),
 
+    ScheduleModule.forRoot(),
     RedisModule,
     PrismaModule,
     SystemConfigModule,
@@ -61,6 +63,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     AssetsModule,
     WorkOrdersModule,
     InventoryModule,
+    PreventivePlansModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

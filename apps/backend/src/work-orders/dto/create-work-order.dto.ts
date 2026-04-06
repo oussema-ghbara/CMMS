@@ -1,5 +1,5 @@
 import {
-  IsString, IsEnum, IsOptional, IsDateString, IsInt, Min, IsArray, MaxLength,
+  IsString, IsEnum, IsOptional, IsDateString, IsInt, Min, MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { WorkOrderType, WorkOrderPriority } from '@gmao/shared';
@@ -27,17 +27,6 @@ export class CreateWorkOrderDto {
   @ApiProperty()
   @IsString()
   assetId: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  principalTechnicianId?: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  contributorIds?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -46,6 +46,7 @@ Tech stack decisions: stack.pdf
 - [x] Storekeeper module (web) — /storekeeper inventory catalog (list/filter/pagination + create/edit + activate/deactivate)
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
+- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + priority update action with terminal-state guard)
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

@@ -161,6 +161,23 @@ Expected behavior:
 - Action results update both detail and list states without page reload
 - Empty and error states render correctly when applicable
 
+## Supervisor work orders module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!` (has SUPERVISOR role)
+- Validate page:
+  - `http://localhost:3001/supervisor/work-orders`
+
+Expected behavior:
+
+- Work orders list loads with search, status/type/priority filters, and pagination
+- Priority can be updated from the row action for non-terminal work orders
+- Priority update refreshes the list without a page reload
+- Priority update action is disabled for `CLOSED` and `CANCELLED` work orders
+- Empty and error states render correctly when applicable
+
 ## Admin module testing
 
 After backend and web are both running:

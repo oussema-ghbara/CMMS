@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "loginButton": "Se connecter",
+    "loginLoading": "Connexion en cours...",
+    "invalidCredentials": "Identifiants invalides. Veuillez réessayer.",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "welcome": "Bienvenue dans GMAO",
+    "subtitle": "Gestion de la Maintenance Assistée par Ordinateur"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "workOrders": "Ordres de travail",
+    "assets": "Équipements",
+    "reports": "Signalements",
+    "preventivePlans": "Plans préventifs",
+    "inventory": "Inventaire",
+    "users": "Utilisateurs",
+    "systemConfig": "Configuration",
+    "auditLog": "Journal d'audit",
+    "analytics": "Analytiques"
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "add": "Ajouter",
+    "search": "Rechercher...",
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "success": "Opération réussie",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "of": "sur",
+    "noData": "Aucune donnée disponible",
+    "actions": "Actions",
+    "status": "Statut",
+    "date": "Date",
+    "name": "Nom",
+    "description": "Description",
+    "type": "Type",
+    "priority": "Priorité",
+    "required": "Ce champ est obligatoire",
+    "active": "Actif",
+    "inactive": "Inactif"
+  },
+  "roles": {
+    "ADMIN": "Administrateur",
+    "SUPERVISOR": "Superviseur",
+    "TECHNICIAN": "Technicien",
+    "STOREKEEPER": "Magasinier",
+    "REQUESTER": "Demandeur"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "Aucune notification",
+    "markAllRead": "Tout marquer comme lu"
+  }
+}

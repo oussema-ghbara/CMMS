@@ -6,3 +6,6 @@ export * from './enums/inventory.enum';
 export * from './enums/problem-report.enum';
 export * from './enums/notification.enum';
 export * from './enums/document.enum';
+export * from './types/auth.types';
+export * from './types/user.types';
+export * from './types/pagination.types';

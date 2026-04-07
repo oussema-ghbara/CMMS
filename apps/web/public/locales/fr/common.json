@@ -63,5 +63,66 @@
     "title": "Notifications",
     "noNotifications": "Aucune notification",
     "markAllRead": "Tout marquer comme lu"
+  },
+  "storekeeperPartRequests": {
+    "title": "Demandes de pièces",
+    "subtitle": "Traitez les demandes des techniciens et mettez à jour le stock.",
+    "total": "{{count}} demande(s)",
+    "filters": {
+      "allStatuses": "Tous les statuts"
+    },
+    "columns": {
+      "createdAt": "Créée le",
+      "workOrder": "Ordre de travail",
+      "part": "Pièce",
+      "requester": "Demandeur",
+      "quantity": "Quantité",
+      "status": "Statut"
+    },
+    "status": {
+      "PENDING": "En attente",
+      "FULFILLED": "Traitée",
+      "PARTIALLY_FULFILLED": "Partiellement traitée",
+      "REJECTED": "Rejetée"
+    },
+    "rejectionReason": {
+      "OUT_OF_STOCK": "Rupture de stock",
+      "NOT_APPLICABLE": "Non applicable",
+      "INCORRECT_REQUEST": "Demande incorrecte",
+      "OTHER": "Autre"
+    },
+    "actions": {
+      "fulfill": "Traiter",
+      "reject": "Rejeter"
+    },
+    "labels": {
+      "noAsset": "Aucun équipement",
+      "offCatalogUnknown": "Demande hors catalogue",
+      "quantityRequested": "Demandée: {{value}}",
+      "quantityFulfilled": "Traitée: {{value}}"
+    },
+    "states": {
+      "empty": "Aucune demande trouvée",
+      "error": "Impossible de charger les demandes"
+    },
+    "pagination": "Page {{page}} / {{totalPages}}",
+    "fulfillDialog": {
+      "title": "Traiter la demande",
+      "description": "Confirmez la quantité à délivrer.",
+      "quantity": "Quantité à traiter"
+    },
+    "rejectDialog": {
+      "title": "Rejeter la demande",
+      "description": "Indiquez la raison de rejet.",
+      "reason": "Raison",
+      "detail": "Détail (optionnel)"
+    },
+    "toasts": {
+      "fulfillSuccess": "Demande traitée",
+      "fulfillError": "Erreur lors du traitement",
+      "rejectSuccess": "Demande rejetée",
+      "rejectError": "Erreur lors du rejet",
+      "invalidQuantity": "La quantité doit être supérieure à 0"
+    }
   }
 }

@@ -33,6 +33,47 @@ export interface CreatePartPayload {
 
 export type UpdatePartPayload = Partial<CreatePartPayload>;
 
+export interface InventoryAnalyticsPartRef {
+  id: string;
+  name: string;
+  referenceCode: string;
+  unitCost?: string;
+}
+
+export interface InventoryAnalyticsTopByQuantityItem {
+  part: InventoryAnalyticsPartRef | null;
+  totalQuantity: number;
+}
+
+export interface InventoryAnalyticsTopByCostItem {
+  part: InventoryAnalyticsPartRef | null;
+  totalCost: number;
+}
+
+export interface InventoryAnalyticsRequestMetrics {
+  total: number;
+  fulfilled: number;
+  partiallyFulfilled: number;
+  rejected: number;
+  pending: number;
+  fulfilmentRate: number;
+  avgProcessingMinutes: number | null;
+}
+
+export interface InventoryAnalyticsResponse {
+  periodDays: number;
+  consumption: {
+    topByQuantity: InventoryAnalyticsTopByQuantityItem[];
+    topByCost: InventoryAnalyticsTopByCostItem[];
+  };
+  replenishment: Array<{
+    partId: string;
+    timesTriggered: number;
+  }>;
+  deadStock: PartCatalogItem[];
+  requests: InventoryAnalyticsRequestMetrics;
+}
+
 export const inventoryApi = {
   getParts: (params?: {
     search?: string;
@@ -50,4 +91,7 @@ export const inventoryApi = {
   deactivatePart: (id: string) => api.patch<PartCatalogItem>(`/parts/${id}/deactivate`).then((r) => r.data),
 
   activatePart: (id: string) => api.patch<PartCatalogItem>(`/parts/${id}/activate`).then((r) => r.data),
+
+  getAnalytics: (params?: { periodDays?: number; deadStockDays?: number }) =>
+    api.get<InventoryAnalyticsResponse>('/stock/analytics', { params }).then((r) => r.data),
 };

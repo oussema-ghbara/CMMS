@@ -19,6 +19,7 @@
     "reports": "Signalements",
     "preventivePlans": "Plans préventifs",
     "inventory": "Inventaire",
+    "partRequests": "Demandes de pièces",
     "users": "Utilisateurs",
     "systemConfig": "Configuration",
     "auditLog": "Journal d'audit",
@@ -124,6 +125,35 @@
       "rejectSuccess": "Demande rejetée",
       "rejectError": "Erreur lors du rejet",
       "invalidQuantity": "La quantité doit être supérieure à 0"
+    }
+  },
+  "supervisorDashboard": {
+    "title": "Tableau de bord",
+    "subtitle": "Suivez rapidement la charge de maintenance, les validations en attente et les signalements a traiter.",
+    "states": {
+      "error": "Certaines donnees n'ont pas pu etre chargees."
+    },
+    "cards": {
+      "totalWorkOrders": {
+        "title": "Ordres de travail",
+        "description": "Nombre total d'OT enregistres",
+        "cta": "Voir les ordres de travail"
+      },
+      "activeWorkOrders": {
+        "title": "OT actifs",
+        "description": "Assignes, en cours ou en attente",
+        "cta": "Ouvrir le suivi des OT"
+      },
+      "pendingValidation": {
+        "title": "A valider",
+        "description": "Clotures soumises en attente de validation",
+        "cta": "Reviser les validations"
+      },
+      "pendingReports": {
+        "title": "Signalements ouverts",
+        "description": "Signalements en attente ou differes",
+        "cta": "Traiter les signalements"
+      }
     }
   },
   "supervisorReports": {
@@ -453,6 +483,141 @@
       "reorderError": "Impossible de réordonner les éléments"
     }
   },
+  "supervisorAssets": {
+    "title": "Équipements",
+    "subtitle": "Gérez les équipements, leur criticité, leur statut et leur historique de maintenance.",
+    "total": "{{count}} équipement(s)",
+    "pagination": "Page {{page}} / {{totalPages}}",
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom ou numéro de série",
+      "allStatuses": "Tous les statuts",
+      "allCriticalities": "Toutes les criticités",
+      "allCategories": "Toutes les catégories",
+      "apply": "Appliquer",
+      "reset": "Réinitialiser"
+    },
+    "columns": {
+      "asset": "Équipement",
+      "category": "Catégorie",
+      "location": "Emplacement",
+      "criticality": "Criticité",
+      "status": "Statut",
+      "qrCode": "QR Code"
+    },
+    "criticality": {
+      "CRITICAL": "Critique",
+      "STANDARD": "Standard",
+      "NON_CRITICAL": "Non critique"
+    },
+    "status": {
+      "OPERATIONAL": "Opérationnel",
+      "IN_MAINTENANCE": "En maintenance",
+      "MAINTENANCE_BLOCKED": "Maintenance bloquée",
+      "OUT_OF_SERVICE": "Hors service",
+      "DECOMMISSIONED": "Déclassé"
+    },
+    "certificateStatus": {
+      "VALID": "Valide",
+      "EXPIRING_SOON": "Expire bientôt",
+      "EXPIRED": "Expiré"
+    },
+    "certificateType": {
+      "PRESSURE_VESSEL": "Appareil sous pression",
+      "ELECTRICAL_INSTALLATION": "Installation électrique",
+      "LIFTING_EQUIPMENT": "Équipement de levage",
+      "FIRE_SAFETY": "Sécurité incendie",
+      "OTHER": "Autre"
+    },
+    "actions": {
+      "create": "Nouvel équipement",
+      "edit": "Modifier",
+      "view": "Voir le détail",
+      "transitionStatus": "Changer le statut",
+      "setOperational": "Remettre en service",
+      "setOutOfService": "Mettre hors service",
+      "decommission": "Déclasser"
+    },
+    "states": {
+      "empty": "Aucun équipement trouvé",
+      "error": "Impossible de charger les équipements",
+      "detailError": "Impossible de charger le détail de l'équipement",
+      "historyEmpty": "Aucun historique de statut disponible"
+    },
+    "form": {
+      "createTitle": "Nouvel équipement",
+      "createDescription": "Créez un nouvel équipement dans le système.",
+      "editTitle": "Modifier l'équipement",
+      "editDescription": "Mettez à jour les informations de l'équipement.",
+      "name": "Nom",
+      "category": "Catégorie",
+      "categoryPlaceholder": "Sélectionnez une catégorie",
+      "location": "Emplacement",
+      "locationPlaceholder": "Sélectionnez un emplacement",
+      "criticality": "Criticité",
+      "description": "Description",
+      "serialNumber": "Numéro de série",
+      "manufacturer": "Fabricant",
+      "model": "Modèle",
+      "installationDate": "Date d'installation",
+      "warrantyExpiration": "Expiration de la garantie",
+      "parent": "Équipement parent",
+      "parentPlaceholder": "Aucun équipement parent",
+      "section": {
+        "identification": "Identification",
+        "technical": "Informations techniques",
+        "hierarchy": "Hiérarchie"
+      }
+    },
+    "detail": {
+      "title": "Détail de l'équipement",
+      "info": "Informations",
+      "qrCode": "Code QR",
+      "serialNumber": "Numéro de série",
+      "manufacturer": "Fabricant",
+      "model": "Modèle",
+      "installationDate": "Date d'installation",
+      "warrantyExpiration": "Expiration garantie",
+      "parent": "Équipement parent",
+      "category": "Catégorie",
+      "location": "Emplacement",
+      "noWarranty": "Garantie non définie",
+      "noInstallationDate": "Date non définie",
+      "noSerialNumber": "Non défini",
+      "noParent": "Aucun équipement parent",
+      "statusHistory": "Historique des statuts",
+      "statusHistoryDescription": "Les 20 derniers changements de statut.",
+      "statusTransitions": "Transitions de statut",
+      "statusTransitionsDescription": "Changez manuellement le statut de l'équipement.",
+      "certificates": "Certificats de conformité",
+      "certificatesEmpty": "Aucun certificat enregistré",
+      "children": "Sous-composants",
+      "childrenEmpty": "Aucun sous-composant"
+    },
+    "statusTransition": {
+      "setOutOfServiceTitle": "Mettre hors service",
+      "setOutOfServiceDescription": "Cet équipement sera marqué comme hors service. Indiquez un motif.",
+      "decommissionTitle": "Déclasser l'équipement",
+      "decommissionDescription": "Cette action est irréversible. Tous les ordres de travail ouverts seront annulés.",
+      "setOperationalTitle": "Remettre en service",
+      "setOperationalDescription": "Confirmez la remise en service de l'équipement.",
+      "reasonLabel": "Motif",
+      "reasonPlaceholder": "Décrivez la raison du changement de statut",
+      "confirmDecommission": "Je confirme le déclassement définitif"
+    },
+    "validation": {
+      "nameRequired": "Le nom est requis",
+      "categoryRequired": "La catégorie est requise",
+      "locationRequired": "L'emplacement est requis"
+    },
+    "toasts": {
+      "createSuccess": "Équipement créé",
+      "createError": "Impossible de créer l'équipement",
+      "updateSuccess": "Équipement mis à jour",
+      "updateError": "Impossible de mettre à jour l'équipement",
+      "statusSuccess": "Statut de l'équipement mis à jour",
+      "statusError": "Impossible de changer le statut"
+    }
+  },
   "storekeeperInventory": {
     "title": "Inventaire",
     "subtitle": "Gérez le catalogue des pièces et leur disponibilité.",
@@ -530,6 +695,61 @@
       "activateError": "Erreur lors de la réactivation",
       "deactivateSuccess": "Pièce désactivée",
       "deactivateError": "Erreur lors de la désactivation"
+    }
+  },
+  "storekeeperAnalytics": {
+    "title": "Analytiques inventaire",
+    "subtitle": "Suivez la consommation des pièces, la performance de traitement des demandes et les signaux de réapprovisionnement.",
+    "filters": {
+      "periodDays": "Fenêtre (jours)",
+      "deadStockDays": "Stock mort (jours)",
+      "apply": "Appliquer",
+      "reset": "Réinitialiser"
+    },
+    "kpi": {
+      "totalRequests": "Demandes sur la période",
+      "fulfilmentRate": "Taux de traitement",
+      "avgProcessingMinutes": "Temps moyen de traitement (min)",
+      "deadStockCount": "Pièces en stock mort"
+    },
+    "sections": {
+      "topConsumption": "Top consommation (quantité)",
+      "topConsumptionDescription": "Pièces les plus consommées via les mouvements sortants.",
+      "topCost": "Top consommation (coût)",
+      "topCostDescription": "Pièces les plus coûteuses sur la période.",
+      "requestBreakdown": "Traitement des demandes",
+      "requestBreakdownDescription": "Répartition des demandes selon leur état de traitement.",
+      "replenishment": "Signaux de réapprovisionnement",
+      "replenishmentDescription": "Fréquence des franchissements sous seuil minimum.",
+      "deadStock": "Stock mort",
+      "deadStockDescription": "Pièces actives sans mouvement sortant sur la fenêtre définie."
+    },
+    "requests": {
+      "fulfilled": "Traitées",
+      "partiallyFulfilled": "Partiellement traitées",
+      "rejected": "Rejetées",
+      "pending": "En attente"
+    },
+    "columns": {
+      "part": "Pièce",
+      "reference": "Référence",
+      "quantity": "Quantité",
+      "cost": "Coût",
+      "partId": "ID pièce",
+      "timesTriggered": "Occurrences",
+      "stock": "Stock",
+      "minimum": "Seuil min.",
+      "unitCost": "Coût unitaire"
+    },
+    "labels": {
+      "windowSummary": "Période: {{periodDays}} j | Stock mort: {{deadStockDays}} j",
+      "unknownPart": "Pièce inconnue",
+      "notAvailable": "Non disponible",
+      "endpointNote": "Source: /stock/analytics (backend)"
+    },
+    "states": {
+      "error": "Impossible de charger les analytiques d'inventaire",
+      "empty": "Aucune donnée disponible pour cette période"
     }
   }
 }

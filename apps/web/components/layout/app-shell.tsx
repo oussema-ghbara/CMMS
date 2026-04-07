@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronRight,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Role } from '@gmao/shared';
@@ -35,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: Role[];
@@ -43,69 +44,69 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    label: 'Tableau de bord',
+    labelKey: 'nav.dashboard',
     href: '/supervisor',
     icon: LayoutDashboard,
     roles: [Role.SUPERVISOR],
   },
   {
-    label: 'Ordres de travail',
+    labelKey: 'nav.workOrders',
     href: '/supervisor/work-orders',
     icon: ClipboardList,
     roles: [Role.SUPERVISOR],
   },
   {
-    label: 'Équipements',
+    labelKey: 'nav.assets',
     href: '/supervisor/assets',
     icon: Wrench,
     roles: [Role.SUPERVISOR],
   },
   {
-    label: 'Signalements',
+    labelKey: 'nav.reports',
     href: '/supervisor/reports',
     icon: AlertCircle,
     roles: [Role.SUPERVISOR],
   },
   {
-    label: 'Plans préventifs',
+    labelKey: 'nav.preventivePlans',
     href: '/supervisor/preventive-plans',
     icon: CalendarClock,
     roles: [Role.SUPERVISOR],
   },
-  {
-    label: 'Analytiques',
-    href: '/supervisor/analytics',
-    icon: BarChart3,
-    roles: [Role.SUPERVISOR],
-  },
   // Storekeeper
   {
-    label: 'Inventaire',
+    labelKey: 'nav.inventory',
     href: '/storekeeper',
     icon: Package,
     roles: [Role.STOREKEEPER],
   },
   {
-    label: 'Demandes de pièces',
+    labelKey: 'nav.partRequests',
     href: '/storekeeper/part-requests',
     icon: ClipboardList,
     roles: [Role.STOREKEEPER],
   },
+  {
+    labelKey: 'nav.analytics',
+    href: '/storekeeper/analytics',
+    icon: BarChart3,
+    roles: [Role.STOREKEEPER],
+  },
   // Admin
   {
-    label: 'Utilisateurs',
+    labelKey: 'nav.users',
     href: '/admin',
     icon: Users,
     roles: [Role.ADMIN],
   },
   {
-    label: 'Configuration',
+    labelKey: 'nav.systemConfig',
     href: '/admin/system-config',
     icon: Settings,
     roles: [Role.ADMIN],
   },
   {
-    label: "Journal d'audit",
+    labelKey: 'nav.auditLog',
     href: '/admin/audit-log',
     icon: BarChart3,
     roles: [Role.ADMIN],
@@ -122,6 +123,7 @@ function getInitials(name: string) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
   const { user, clearAuth } = useAuthStore();
@@ -173,7 +175,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
+                {t(item.labelKey)}
                 {isActive && <ChevronRight className="ml-auto h-3 w-3 opacity-60" />}
               </Link>
             );
@@ -199,15 +201,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="text-sm font-medium leading-none">{user?.name}</span>
                   <span className="text-xs text-sidebar-foreground/60 mt-0.5">
                     {user?.roles
-                      .map((r) =>
-                        r === Role.ADMIN
-                          ? 'Administrateur'
-                          : r === Role.SUPERVISOR
-                            ? 'Superviseur'
-                            : r === Role.STOREKEEPER
-                              ? 'Magasinier'
-                              : r,
-                      )
+                      .map((r) => t(`roles.${r}`))
                       .join(', ')}
                   </span>
                 </div>
@@ -221,7 +215,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="text-destructive focus:text-destructive"
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Déconnexion
+                {t('auth.logout')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -232,7 +226,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-16 items-center justify-end border-b bg-background px-6 gap-2">
-          <Button variant="ghost" size="icon" aria-label="Notifications">
+          <Button variant="ghost" size="icon" aria-label={t('notifications.title')}>
             <Bell className="h-5 w-5" />
             <Badge
               variant="destructive"

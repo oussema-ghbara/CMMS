@@ -8,7 +8,7 @@ Tech stack decisions: stack.pdf
 
 ## Stack
 - Backend: NestJS (TypeScript)
-- Web: Next.js (not started)
+- Web: Next.js (App Router)
 - Mobile: Expo React Native (not started)
 - Database: PostgreSQL via Prisma ORM
 - Cache/Queue: Redis + BullMQ
@@ -40,7 +40,9 @@ Tech stack decisions: stack.pdf
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
-- [ ] apps/web — Next.js (not started)
+- [x] apps/web — Next.js started (auth + protected layouts + admin pages)
+- [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
+- [x] Admin module (web) — users management, system config panel, audit log table
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations
@@ -59,8 +61,9 @@ Tech stack decisions: stack.pdf
 | tech@gmao.local | Admin1234! | TECHNICIAN |
 
 ## API
-- Base URL: http://localhost:3001/api/v1
-- Swagger: http://localhost:3001/api/docs
+- Base URL (recommended split): http://localhost:3000/api/v1
+- Swagger (recommended split): http://localhost:3000/api/docs
+- Frontend: http://localhost:3001
 - MailHog: http://localhost:8025
 - MinIO: http://localhost:9001
 
@@ -84,9 +87,10 @@ Tech stack decisions: stack.pdf
 ## How to resume work
 1. cd ~/gmao
 2. docker compose up -d
-3. pnpm --filter @gmao/backend dev
-4. Verify backend: pnpm smoke:backend
-5. Quick auth check: curl -s -X POST http://localhost:3001/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@gmao.local","password":"Admin1234!"}' | jq .accessToken
+3. PORT=3000 APP_URL=http://localhost:3001 pnpm --filter @gmao/backend dev
+4. NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
+5. Verify backend: pnpm smoke:backend
+6. Quick auth check: curl -s -X POST http://localhost:3000/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@gmao.local","password":"Admin1234!"}' | jq .accessToken
 
 ## Git conventions
 Branch: feat/short-description, fix/short-description, chore/short-description

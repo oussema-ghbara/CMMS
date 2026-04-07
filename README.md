@@ -2,7 +2,7 @@
 
 Computerized Maintenance Management System — PFE project.
 
-Turborepo monorepo. TypeScript throughout. NestJS backend, Next.js web (not started), Expo mobile (not started).
+Turborepo monorepo. TypeScript throughout. NestJS backend, Next.js web, Expo mobile (not started).
 
 ## Prerequisites
 
@@ -19,22 +19,32 @@ cp .env.example .env
 docker compose up -d
 pnpm install
 cd packages/db && pnpm db:generate && pnpm db:migrate && npx prisma db seed && cd ../..
-pnpm --filter @gmao/backend dev
+
+# terminal 1 (backend)
+PORT=3000 APP_URL=http://localhost:3001 pnpm --filter @gmao/backend dev
+
+# terminal 2 (web)
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
 ```
 
-Swagger is available at http://localhost:3001/api/docs once the backend is running.
+Swagger is available at http://localhost:3000/api/docs when backend runs on port 3000.
 
 ## Resuming work
 ```bash
 docker compose up -d
-pnpm --filter @gmao/backend dev
+
+# terminal 1
+PORT=3000 APP_URL=http://localhost:3001 pnpm --filter @gmao/backend dev
+
+# terminal 2
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
 ```
 
 ## Monorepo structure
 ```
 apps/
-  backend/     NestJS API — the only app currently active
-  web/         Next.js — not started
+  backend/     NestJS API
+  web/         Next.js web application
   mobile/      Expo React Native — not started
 packages/
   shared/      Domain enums shared across all apps
@@ -70,8 +80,9 @@ docker compose down -v   # stop and delete volumes (destroys data)
 | MinIO API | localhost:9000 |
 | MinIO console | http://localhost:9001 |
 | MailHog | http://localhost:8025 |
-| Backend API | http://localhost:3001/api/v1 |
-| Swagger | http://localhost:3001/api/docs |
+| Backend API | http://localhost:3000/api/v1 |
+| Swagger | http://localhost:3000/api/docs |
+| Frontend | http://localhost:3001 |
 
 ## Database
 ```bash
@@ -108,6 +119,26 @@ npx prisma studio    # visual DB browser
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
 | ReportsModule | done — problem report lifecycle, comments, conversion, defer/reopen, reject, archive |
+| AdminModule | done — system config endpoints and paginated audit log |
+
+## Admin module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `admin@gmao.local` / `Admin1234!`
+- Validate pages:
+  - `http://localhost:3001/admin`
+  - `http://localhost:3001/admin/system-config`
+  - `http://localhost:3001/admin/audit-log`
+
+API checks (replace token with a real bearer token):
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/admin/system-config
+curl -X PATCH -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"value":"10"}' http://localhost:3000/api/v1/admin/system-config/PASSWORD_MIN_LENGTH
+curl -H "Authorization: Bearer <token>" "http://localhost:3000/api/v1/admin/audit-log?page=1&limit=25"
+```
 
 ## Architecture rules
 

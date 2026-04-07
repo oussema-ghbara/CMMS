@@ -124,5 +124,84 @@
       "rejectError": "Erreur lors du rejet",
       "invalidQuantity": "La quantité doit être supérieure à 0"
     }
+  },
+  "storekeeperInventory": {
+    "title": "Inventaire",
+    "subtitle": "Gérez le catalogue des pièces et leur disponibilité.",
+    "total": "{{count}} pièce(s)",
+    "pagination": "Page {{page}} / {{totalPages}}",
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom, référence ou description",
+      "apply": "Appliquer",
+      "reset": "Réinitialiser",
+      "allStatuses": "Tous les statuts",
+      "active": "Actifs",
+      "inactive": "Inactifs"
+    },
+    "columns": {
+      "part": "Pièce",
+      "reference": "Référence",
+      "unit": "Unité",
+      "stock": "Stock",
+      "minimum": "Seuil min.",
+      "location": "Emplacement",
+      "status": "Statut"
+    },
+    "status": {
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "units": {
+      "PIECE": "Pièce",
+      "LITER": "Litre",
+      "KG": "Kg",
+      "METER": "Mètre",
+      "OTHER": "Autre"
+    },
+    "labels": {
+      "noDescription": "Aucune description",
+      "noLocation": "Non défini",
+      "lowStock": "Stock bas"
+    },
+    "actions": {
+      "create": "Nouvelle pièce",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "activate": "Réactiver",
+      "deactivate": "Désactiver"
+    },
+    "states": {
+      "empty": "Aucune pièce trouvée",
+      "error": "Impossible de charger les pièces"
+    },
+    "dialog": {
+      "createTitle": "Nouvelle pièce",
+      "editTitle": "Modifier la pièce"
+    },
+    "form": {
+      "name": "Nom",
+      "referenceCode": "Code de référence",
+      "description": "Description",
+      "unit": "Unité",
+      "minimumStockThreshold": "Seuil de stock minimum",
+      "unitCost": "Coût unitaire",
+      "warehouseLocation": "Emplacement magasin"
+    },
+    "validation": {
+      "name": "Le nom est requis",
+      "referenceCode": "Le code de référence est requis",
+      "minimumStockThreshold": "Le seuil minimum doit être supérieur ou égal à 0",
+      "unitCost": "Le coût unitaire doit être supérieur ou égal à 0"
+    },
+    "toasts": {
+      "createSuccess": "Pièce créée",
+      "createError": "Erreur lors de la création",
+      "updateSuccess": "Pièce mise à jour",
+      "updateError": "Erreur lors de la mise à jour",
+      "activateSuccess": "Pièce réactivée",
+      "activateError": "Erreur lors de la réactivation",
+      "deactivateSuccess": "Pièce désactivée",
+      "deactivateError": "Erreur lors de la désactivation"
+    }
   }
 }

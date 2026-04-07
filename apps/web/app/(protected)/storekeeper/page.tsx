@@ -1,8 +1,19 @@
+'use client';
+
+import { useTranslation } from 'react-i18next';
+import { InventoryCatalog } from '@/components/storekeeper/inventory-catalog';
+
 export default function StorekeeperPage() {
+  const { t } = useTranslation();
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Inventaire</h1>
-      <p className="text-muted-foreground">Module en cours de développement.</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{t('storekeeperInventory.title')}</h1>
+        <p className="text-muted-foreground">{t('storekeeperInventory.subtitle')}</p>
+      </div>
+
+      <InventoryCatalog />
     </div>
   );
 }

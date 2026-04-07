@@ -324,6 +324,135 @@
       "priorityUpdateError": "Impossible de mettre à jour la priorité"
     }
   },
+  "supervisorPreventivePlans": {
+    "title": "Plans préventifs",
+    "subtitle": "Gérez les plans de maintenance préventive, leur activation et leurs modèles de checklist.",
+    "total": "{{count}} plan(s) préventif(s)",
+    "filters": {
+      "assetSearchPlaceholder": "Rechercher un équipement",
+      "allAssets": "Tous les équipements",
+      "allStatuses": "Tous les statuts",
+      "active": "Actifs",
+      "inactive": "Inactifs",
+      "reset": "Réinitialiser"
+    },
+    "columns": {
+      "title": "Titre",
+      "asset": "Équipement",
+      "frequency": "Fréquence",
+      "nextDueAt": "Prochaine génération",
+      "defaultTechnician": "Technicien par défaut",
+      "status": "Statut"
+    },
+    "frequencyType": {
+      "FIXED_INTERVAL_DAYS": "Intervalle fixe",
+      "CALENDAR": "Calendrier"
+    },
+    "taskType": {
+      "INSPECTION": "Inspection",
+      "MEASUREMENT": "Mesure",
+      "LUBRICATION": "Lubrification",
+      "CLEANING": "Nettoyage",
+      "REPLACEMENT": "Remplacement",
+      "CALIBRATION": "Étalonnage",
+      "ADJUSTMENT": "Ajustement"
+    },
+    "labels": {
+      "intervalDays": "Tous les {{count}} jour(s)",
+      "unassigned": "Non assigné"
+    },
+    "actions": {
+      "create": "Nouveau plan",
+      "view": "Voir",
+      "editPlan": "Modifier le plan",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "triggerNow": "Déclencher maintenant"
+    },
+    "states": {
+      "empty": "Aucun plan préventif trouvé",
+      "error": "Impossible de charger les plans préventifs",
+      "detailEmpty": "Sélectionnez un plan pour afficher son détail"
+    },
+    "pagination": "Page {{page}} / {{totalPages}}",
+    "form": {
+      "createTitle": "Nouveau plan préventif",
+      "createDescription": "Créez un plan préventif pour un équipement.",
+      "editTitle": "Modifier le plan préventif",
+      "editDescription": "Ajustez les paramètres du plan sans changer l'équipement cible.",
+      "asset": "Équipement",
+      "assetPlaceholder": "Sélectionnez un équipement",
+      "title": "Titre",
+      "description": "Description",
+      "frequencyType": "Type de fréquence",
+      "intervalDays": "Intervalle en jours",
+      "calendarExpression": "Expression calendrier (cron)",
+      "estimatedDurationMinutes": "Durée estimée (minutes)",
+      "defaultTechnician": "Technicien par défaut",
+      "defaultTechnicianPlaceholder": "Aucun technicien par défaut",
+      "firstDueAt": "Première génération planifiée"
+    },
+    "detail": {
+      "title": "Détail du plan",
+      "description": "Consultez le modèle de checklist et les paramètres opérationnels.",
+      "asset": "Équipement",
+      "frequency": "Fréquence",
+      "intervalDaysValue": "Intervalle: {{count}} jour(s)",
+      "nextDueAt": "Prochaine génération",
+      "estimatedDuration": "Durée estimée: {{count}} min",
+      "status": "Statut",
+      "descriptionLabel": "Description",
+      "checklistCount": "{{count}} élément(s)"
+    },
+    "checklist": {
+      "title": "Checklist du plan",
+      "subtitle": "Les éléments peuvent être réordonnés par glisser-déposer ou avec les flèches.",
+      "empty": "Aucun élément de checklist pour ce plan.",
+      "addAction": "Ajouter un élément",
+      "addTitle": "Ajouter un élément de checklist",
+      "addDescription": "Définissez une nouvelle tâche pour ce plan.",
+      "editTitle": "Modifier l'élément de checklist",
+      "editDescription": "Ajustez la tâche existante.",
+      "fields": {
+        "description": "Description de la tâche",
+        "taskType": "Type de tâche",
+        "expectedCondition": "Condition ou valeur attendue",
+        "isMandatory": "Élément obligatoire",
+        "autoCreateCorrectiveWO": "Créer automatiquement un OT correctif en cas d'anomalie"
+      },
+      "mandatory": "Obligatoire",
+      "autoCreateCorrectiveWO": "OT correctif auto",
+      "expectedCondition": "Condition attendue : {{value}}",
+      "noExpectedCondition": "Aucune condition attendue définie",
+      "dragHandle": "Déplacer l'élément",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "deleteConfirm": "Supprimer cet élément de checklist ?"
+    },
+    "validation": {
+      "checklistDescriptionRequired": "La description est obligatoire"
+    },
+    "toasts": {
+      "createSuccess": "Plan préventif créé",
+      "createError": "Impossible de créer le plan",
+      "updateSuccess": "Plan préventif mis à jour",
+      "updateError": "Impossible de mettre à jour le plan",
+      "activateSuccess": "Plan activé",
+      "activateError": "Impossible d'activer le plan",
+      "deactivateSuccess": "Plan désactivé",
+      "deactivateError": "Impossible de désactiver le plan",
+      "triggerSuccess": "La génération a été déclenchée",
+      "triggerSuccessWithJob": "La génération a été déclenchée (job {{jobId}})",
+      "triggerError": "Impossible de déclencher la génération",
+      "itemCreateSuccess": "Élément de checklist ajouté",
+      "itemCreateError": "Impossible d'ajouter l'élément",
+      "itemUpdateSuccess": "Élément de checklist mis à jour",
+      "itemUpdateError": "Impossible de mettre à jour l'élément",
+      "itemDeleteSuccess": "Élément supprimé",
+      "itemDeleteError": "Impossible de supprimer l'élément",
+      "reorderError": "Impossible de réordonner les éléments"
+    }
+  },
   "storekeeperInventory": {
     "title": "Inventaire",
     "subtitle": "Gérez le catalogue des pièces et leur disponibilité.",

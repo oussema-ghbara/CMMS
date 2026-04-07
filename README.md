@@ -178,6 +178,27 @@ Expected behavior:
 - Priority update action is disabled for `CLOSED` and `CANCELLED` work orders
 - Empty and error states render correctly when applicable
 
+## Supervisor preventive plans module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!` (has SUPERVISOR role)
+- Validate page:
+  - `http://localhost:3001/supervisor/preventive-plans`
+
+Expected behavior:
+
+- Preventive plans list loads with asset search, asset filter, status filter, and pagination
+- Plan creation works with asset selection, frequency configuration, and optional default technician
+- Plan edit works for existing plans without changing the target asset
+- Plan detail dialog shows asset, frequency, next generation date, duration, status, and checklist summary
+- Activate/deactivate actions update plan status without a page reload
+- Trigger-now action is available for active plans and shows success feedback
+- Checklist item add/edit/delete actions persist and refresh the detail view
+- Checklist reorder works with drag-and-drop and arrow controls
+- Empty and error states render correctly when applicable
+
 ## Admin module testing
 
 After backend and web are both running:

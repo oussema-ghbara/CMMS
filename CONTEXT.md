@@ -38,7 +38,8 @@ Tech stack decisions: stack.pdf
 - [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
-- [ ] ReportsModule
+- [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
+- [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
 - [ ] apps/web — Next.js (not started)
 - [ ] apps/mobile — Expo (not started)
 
@@ -84,7 +85,8 @@ Tech stack decisions: stack.pdf
 1. cd ~/gmao
 2. docker compose up -d
 3. pnpm --filter @gmao/backend dev
-4. Verify: curl -s -X POST http://localhost:3001/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@gmao.local","password":"Admin1234!"}' | jq .accessToken
+4. Verify backend: pnpm smoke:backend
+5. Quick auth check: curl -s -X POST http://localhost:3001/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@gmao.local","password":"Admin1234!"}' | jq .accessToken
 
 ## Git conventions
 Branch: feat/short-description, fix/short-description, chore/short-description

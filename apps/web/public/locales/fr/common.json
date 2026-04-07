@@ -260,6 +260,70 @@
         "archiveError": "Impossible d'archiver le signalement"
       }
     },
+  "supervisorWorkOrders": {
+    "title": "Ordres de travail",
+    "subtitle": "Suivez les ordres de travail et ajustez leur priorité selon la situation opérationnelle.",
+    "total": "{{count}} ordre(s) de travail",
+    "filters": {
+      "searchPlaceholder": "Rechercher par référence ou description",
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types",
+      "allPriorities": "Toutes les priorités",
+      "apply": "Appliquer",
+      "reset": "Réinitialiser"
+    },
+    "columns": {
+      "createdAt": "Créé le",
+      "reference": "Référence",
+      "asset": "Équipement",
+      "technician": "Technicien principal",
+      "type": "Type",
+      "priority": "Priorité",
+      "status": "Statut",
+      "dueDate": "Échéance"
+    },
+    "types": {
+      "CORRECTIVE": "Correctif",
+      "PREVENTIVE": "Préventif"
+    },
+    "priority": {
+      "CRITICAL": "Critique",
+      "HIGH": "Haute",
+      "MEDIUM": "Moyenne",
+      "LOW": "Basse"
+    },
+    "status": {
+      "DRAFT": "Brouillon",
+      "OPEN": "Ouvert",
+      "ASSIGNED": "Assigné",
+      "IN_PROGRESS": "En cours",
+      "ON_HOLD": "En attente",
+      "PENDING_VALIDATION": "En attente de validation",
+      "CLOSED": "Clôturé",
+      "CANCELLED": "Annulé"
+    },
+    "labels": {
+      "unassigned": "Non assigné"
+    },
+    "actions": {
+      "changePriority": "Modifier la priorité"
+    },
+    "states": {
+      "empty": "Aucun ordre de travail trouvé",
+      "error": "Impossible de charger les ordres de travail"
+    },
+    "pagination": "Page {{page}} / {{totalPages}}",
+    "dialog": {
+      "title": "Modifier la priorité",
+      "description": "Ajustez la priorité de l'ordre de travail {{reference}}.",
+      "descriptionEmpty": "Ajustez la priorité de l'ordre de travail sélectionné.",
+      "priorityLabel": "Nouvelle priorité"
+    },
+    "toasts": {
+      "priorityUpdateSuccess": "Priorité mise à jour",
+      "priorityUpdateError": "Impossible de mettre à jour la priorité"
+    }
+  },
   "storekeeperInventory": {
     "title": "Inventaire",
     "subtitle": "Gérez le catalogue des pièces et leur disponibilité.",

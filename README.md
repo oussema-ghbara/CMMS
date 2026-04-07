@@ -141,6 +141,26 @@ Expected behavior:
 - Fulfill action updates request status and quantity fulfilled
 - Reject action stores rejection reason/detail
 
+## Supervisor reports module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!` (has SUPERVISOR role)
+- Validate page:
+  - `http://localhost:3001/supervisor/reports`
+
+Expected behavior:
+
+- Reports list loads with search, status filter, urgency filter, and pagination
+- Detail dialog opens for each report with summary, comments, and linked work orders
+- Comment posting works and acknowledged comments are visibly marked
+- Supervisor actions are available according to report status:
+  - PENDING: convert, reject, defer, archive
+  - DEFERRED: reopen, archive
+- Action results update both detail and list states without page reload
+- Empty and error states render correctly when applicable
+
 ## Admin module testing
 
 After backend and web are both running:

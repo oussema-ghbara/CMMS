@@ -45,6 +45,7 @@ Tech stack decisions: stack.pdf
 - [x] Admin module (web) — users management, system config panel, audit log table
 - [x] Storekeeper module (web) — /storekeeper inventory catalog (list/filter/pagination + create/edit + activate/deactivate)
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)
+- [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

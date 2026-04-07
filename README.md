@@ -128,10 +128,13 @@ After backend and web are both running:
 - Open http://localhost:3001/login
 - Login with `supervisor@gmao.local` / `Admin1234!` (has STOREKEEPER role)
 - Validate page:
+  - `http://localhost:3001/storekeeper`
   - `http://localhost:3001/storekeeper/part-requests`
 
 Expected behavior:
 
+- Inventory catalog loads with search, status filter, pagination, create/edit dialogs, and activate/deactivate actions
+- Low-stock rows show a visible warning badge when stock is below the minimum threshold
 - Queue table loads when requests exist
 - Empty state appears when queue is empty
 - Status filter works

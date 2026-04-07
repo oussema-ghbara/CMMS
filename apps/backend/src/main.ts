@@ -43,7 +43,7 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
   }
 
-  const port = configService.get<number>('PORT', 3001);
+  const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
   app.get(Logger).log(`GMAO API listening on port ${port}`, 'Bootstrap');
 }

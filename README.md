@@ -130,6 +130,7 @@ After backend and web are both running:
 - Validate page:
   - `http://localhost:3001/storekeeper`
   - `http://localhost:3001/storekeeper/part-requests`
+  - `http://localhost:3001/storekeeper/analytics`
 
 Expected behavior:
 
@@ -140,6 +141,10 @@ Expected behavior:
 - Status filter works
 - Fulfill action updates request status and quantity fulfilled
 - Reject action stores rejection reason/detail
+- Analytics page loads KPI cards (request volume, fulfilment rate, average processing time, dead-stock count)
+- Analytics filters apply and reset correctly for period and dead-stock windows
+- Analytics sections render correctly (top consumption by quantity/cost, request breakdown, replenishment signals, dead stock)
+- Analytics page shows explicit loading/error/empty states
 
 ## Supervisor reports module testing
 
@@ -197,6 +202,23 @@ Expected behavior:
 - Trigger-now action is available for active plans and shows success feedback
 - Checklist item add/edit/delete actions persist and refresh the detail view
 - Checklist reorder works with drag-and-drop and arrow controls
+- Empty and error states render correctly when applicable
+
+## Supervisor assets module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!` (has SUPERVISOR role)
+- Validate page:
+  - `http://localhost:3001/supervisor/assets`
+
+Expected behavior:
+
+- Assets list loads with search, status/criticality/category filters, and pagination
+- Asset create/edit dialog supports all main fields (identity, technical details, hierarchy)
+- Asset detail dialog shows technical data, certificates, children, and status history
+- Status transition actions work according to current status (operational/out-of-service/decommission)
 - Empty and error states render correctly when applicable
 
 ## Admin module testing

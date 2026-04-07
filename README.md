@@ -107,7 +107,7 @@ npx prisma studio    # visual DB browser
 | WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
-| ReportsModule | not started |
+| ReportsModule | done — problem report lifecycle, comments, conversion, defer/reopen, reject, archive |
 
 ## Architecture rules
 
@@ -146,3 +146,13 @@ Scopes: backend, web, mobile, shared, infra
 Example: `feat(backend): add BullMQ job for preventive WO generation`
 
 Commits must be atomic. Do not mix features and fixes in the same commit.
+
+## Smoke tests
+
+Run the backend smoke test after starting the API and seeding the database:
+
+```bash
+pnpm smoke:backend
+```
+
+This covers auth, work orders, preventive plans, and the report module lifecycle.

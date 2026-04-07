@@ -27,6 +27,7 @@
   "common": {
     "save": "Enregistrer",
     "cancel": "Annuler",
+    "close": "Fermer",
     "delete": "Supprimer",
     "edit": "Modifier",
     "create": "Créer",
@@ -125,6 +126,140 @@
       "invalidQuantity": "La quantité doit être supérieure à 0"
     }
   },
+  "supervisorReports": {
+      "title": "Signalements",
+      "subtitle": "Analysez les signalements et déclenchez le traitement approprié sans quitter le flux de supervision.",
+      "total": "{{count}} signalement(s)",
+      "filters": {
+        "searchPlaceholder": "Rechercher par référence, description, équipement ou demandeur",
+        "allStatuses": "Tous les statuts",
+        "allUrgencies": "Toutes les urgences",
+        "apply": "Appliquer",
+        "reset": "Réinitialiser"
+      },
+      "columns": {
+        "createdAt": "Créé le",
+        "reference": "Référence",
+        "asset": "Équipement",
+        "reporter": "Déclaré par",
+        "urgency": "Urgence",
+        "status": "Statut",
+        "workOrder": "OT lié"
+      },
+      "status": {
+        "PENDING": "En attente",
+        "CONVERTED": "Converti",
+        "REJECTED": "Rejeté",
+        "DEFERRED": "Différé",
+        "ARCHIVED": "Archivé"
+      },
+      "urgency": {
+        "MACHINE_STOPPED": "Machine arrêtée",
+        "ABNORMAL_BEHAVIOR": "Comportement anormal",
+        "MINOR_ISSUE": "Incident mineur"
+      },
+      "priorities": {
+        "CRITICAL": "Critique",
+        "HIGH": "Haute",
+        "MEDIUM": "Moyenne",
+        "LOW": "Basse"
+      },
+      "rejectionReasons": {
+        "INVALID_REPORT": "Signalement invalide",
+        "UNSUPPORTED_EQUIPMENT": "Équipement non pris en charge",
+        "ALREADY_ADDRESSED": "Déjà traité",
+        "DUPLICATE_EXISTING_WO": "Doublon d'OT existant",
+        "OUT_OF_MAINTENANCE_SCOPE": "Hors du périmètre maintenance"
+      },
+      "archiveReasons": {
+        "RESOLVED_SPONTANEOUSLY": "Résolu spontanément",
+        "EQUIPMENT_DECOMMISSIONED": "Équipement mis hors service",
+        "SUBMITTED_IN_ERROR": "Signalement envoyé par erreur",
+        "REPLACED_BY_OTHER_WO": "Remplacé par un autre OT",
+        "MANAGEMENT_DECISION": "Décision de gestion"
+      },
+      "actions": {
+        "view": "Voir",
+        "convert": "Convertir",
+        "reject": "Rejeter",
+        "defer": "Différer",
+        "archive": "Archiver",
+        "reopen": "Rouvrir",
+        "addComment": "Publier le commentaire",
+        "acknowledge": "Accuser réception"
+      },
+      "states": {
+        "loading": "Chargement des signalements...",
+        "empty": "Aucun signalement trouvé",
+        "error": "Impossible de charger les signalements",
+        "detailLoading": "Chargement du détail...",
+        "detailError": "Impossible de charger le détail du signalement",
+        "commentsEmpty": "Aucun commentaire",
+        "workOrdersEmpty": "Aucun ordre de travail lié"
+      },
+      "pagination": "Page {{page}} / {{totalPages}}",
+      "detail": {
+        "title": "Détail du signalement",
+        "summary": "Résumé",
+        "report": "Signalement",
+        "asset": "Équipement",
+        "reporter": "Déclaré par",
+        "processedBy": "Traité par",
+        "processedAt": "Traité le",
+        "linkedWorkOrder": "OT remplacé",
+        "rejectedReason": "Raison du rejet",
+        "deferNote": "Note de différé",
+        "archiveReason": "Motif d'archivage",
+        "comments": "Commentaires",
+        "commentsDescription": "Consultez l'historique et ajoutez une note de supervision.",
+        "commentAcknowledged": "Pris en compte",
+        "addCommentTitle": "Nouveau commentaire",
+        "commentPlaceholder": "Ajouter une remarque de supervision",
+        "linkedWorkOrders": "Ordres de travail liés",
+        "actions": "Actions",
+        "actionsDescription": "Les actions disponibles dépendent du statut courant du signalement.",
+        "convertTitle": "Convertir en ordre de travail",
+        "convertDescription": "Créez un ordre de travail correctif à partir du signalement.",
+        "rejectTitle": "Rejeter le signalement",
+        "rejectDescription": "Marquez le signalement comme non traitable dans sa forme actuelle.",
+        "deferTitle": "Différer le signalement",
+        "deferDescription": "Conservez le signalement pour traitement ultérieur.",
+        "archiveTitle": "Archiver le signalement",
+        "archiveDescription": "Retirez le signalement du flux actif tout en conservant son historique.",
+        "reopenTitle": "Rouvrir le signalement",
+        "reopenDescription": "Remettez un signalement différé dans l'état en attente.",
+        "priority": "Priorité",
+        "description": "Description OT",
+        "internalNotes": "Notes internes",
+        "estimatedDurationMinutes": "Durée estimée (min)",
+        "dueDate": "Date d'échéance",
+        "reason": "Raison",
+        "detail": "Détail",
+        "note": "Note",
+        "archiveReasonLabel": "Motif d'archivage"
+      },
+      "validation": {
+        "commentRequired": "Le commentaire est obligatoire",
+        "convertDescriptionRequired": "La description de l'OT est obligatoire",
+        "estimatedDurationInvalid": "La durée estimée doit être un entier strictement positif"
+      },
+      "toasts": {
+        "commentAdded": "Commentaire publié",
+        "commentAddError": "Impossible d'ajouter le commentaire",
+        "commentAcknowledged": "Commentaire pris en compte",
+        "commentAcknowledgeError": "Impossible d'accuser réception du commentaire",
+        "convertSuccess": "Signalement converti en ordre de travail",
+        "convertError": "Impossible de convertir le signalement",
+        "rejectSuccess": "Signalement rejeté",
+        "rejectError": "Impossible de rejeter le signalement",
+        "deferSuccess": "Signalement différé",
+        "deferError": "Impossible de différer le signalement",
+        "reopenSuccess": "Signalement rouvert",
+        "reopenError": "Impossible de rouvrir le signalement",
+        "archiveSuccess": "Signalement archivé",
+        "archiveError": "Impossible d'archiver le signalement"
+      }
+    },
   "storekeeperInventory": {
     "title": "Inventaire",
     "subtitle": "Gérez le catalogue des pièces et leur disponibilité.",

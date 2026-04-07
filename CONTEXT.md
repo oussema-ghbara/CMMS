@@ -43,6 +43,7 @@ Tech stack decisions: stack.pdf
 - [x] apps/web — Next.js started (auth + protected layouts + admin pages)
 - [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
 - [x] Admin module (web) — users management, system config panel, audit log table
+- [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

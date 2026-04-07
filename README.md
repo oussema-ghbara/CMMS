@@ -121,6 +121,23 @@ npx prisma studio    # visual DB browser
 | ReportsModule | done — problem report lifecycle, comments, conversion, defer/reopen, reject, archive |
 | AdminModule | done — system config endpoints and paginated audit log |
 
+## Storekeeper module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!` (has STOREKEEPER role)
+- Validate page:
+  - `http://localhost:3001/storekeeper/part-requests`
+
+Expected behavior:
+
+- Queue table loads when requests exist
+- Empty state appears when queue is empty
+- Status filter works
+- Fulfill action updates request status and quantity fulfilled
+- Reject action stores rejection reason/detail
+
 ## Admin module testing
 
 After backend and web are both running:

@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, Plus, Pencil, Power, PowerOff, Search } from 'lucide-react';
+import { Loader2, Plus, Pencil, Power, PowerOff, Search, PackagePlus, SlidersHorizontal, History, X } from 'lucide-react';
 import { PartUnit } from '@gmao/shared';
 import { inventoryApi } from '@/lib/inventory.api';
 import type { PartCatalogItem } from '@/lib/inventory.api';
@@ -25,6 +25,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { StockIncomingDialog } from '@/components/storekeeper/stock-incoming-dialog';
+import { StockAdjustmentDialog } from '@/components/storekeeper/stock-adjustment-dialog';
+import { StockMovementsDialog } from '@/components/storekeeper/stock-movements-dialog';
 
 const LIMIT = 20;
 
@@ -72,6 +75,10 @@ export function InventoryCatalog() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPart, setEditingPart] = useState<PartCatalogItem | null>(null);
   const [togglingPartId, setTogglingPartId] = useState<string | null>(null);
+  const [incomingDialogPart, setIncomingDialogPart] = useState<PartCatalogItem | null>(null);
+  const [adjustmentDialogPart, setAdjustmentDialogPart] = useState<PartCatalogItem | null>(null);
+  const [movementsDialogPart, setMovementsDialogPart] = useState<PartCatalogItem | null>(null);
+  const [lowStockBannerDismissed, setLowStockBannerDismissed] = useState(false);
 
   const queryParams = useMemo(
     () => ({
@@ -89,6 +96,11 @@ export function InventoryCatalog() {
     queryFn: () => inventoryApi.getParts(queryParams),
   });
 
+  const { data: lowStockParts } = useQuery({
+    queryKey: ['storekeeper', 'low-stock'],
+    queryFn: inventoryApi.getLowStock,
+  });
+
   const {
     register,
     handleSubmit,
@@ -104,6 +116,12 @@ export function InventoryCatalog() {
       reset(toFormValues(editingPart));
     }
   }, [dialogOpen, editingPart, reset]);
+
+  useEffect(() => {
+    if (!lowStockParts || lowStockParts.length === 0) {
+      setLowStockBannerDismissed(false);
+    }
+  }, [lowStockParts]);
 
   const createMutation = useMutation({
     mutationFn: inventoryApi.createPart,
@@ -270,6 +288,22 @@ export function InventoryCatalog() {
         </div>
       </div>
 
+      {lowStockParts && lowStockParts.length > 0 && !lowStockBannerDismissed && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+          <p>{t('storekeeperInventory.lowStockBanner', { count: lowStockParts.length })}</p>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-yellow-900 hover:text-yellow-900"
+            onClick={() => setLowStockBannerDismissed(true)}
+            title={t('common.close')}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
@@ -357,6 +391,33 @@ export function InventoryCatalog() {
                           onClick={() => openEditDialog(part)}
                         >
                           <Pencil className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={t('storekeeperInventory.actions.receiveStock')}
+                          onClick={() => setIncomingDialogPart(part)}
+                        >
+                          <PackagePlus className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={t('storekeeperInventory.actions.adjustStock')}
+                          onClick={() => setAdjustmentDialogPart(part)}
+                        >
+                          <SlidersHorizontal className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={t('storekeeperInventory.actions.viewMovements')}
+                          onClick={() => setMovementsDialogPart(part)}
+                        >
+                          <History className="h-4 w-4" />
                         </Button>
 
                         <Button
@@ -509,6 +570,30 @@ export function InventoryCatalog() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <StockIncomingDialog
+        open={!!incomingDialogPart}
+        onOpenChange={(open) => {
+          if (!open) setIncomingDialogPart(null);
+        }}
+        part={incomingDialogPart}
+      />
+
+      <StockAdjustmentDialog
+        open={!!adjustmentDialogPart}
+        onOpenChange={(open) => {
+          if (!open) setAdjustmentDialogPart(null);
+        }}
+        part={adjustmentDialogPart}
+      />
+
+      <StockMovementsDialog
+        open={!!movementsDialogPart}
+        onOpenChange={(open) => {
+          if (!open) setMovementsDialogPart(null);
+        }}
+        part={movementsDialogPart}
+      />
     </div>
   );
 }

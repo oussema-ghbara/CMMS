@@ -41,6 +41,7 @@ Tech stack decisions: stack.pdf
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
 - [x] apps/web — Next.js started (auth + protected layouts + admin pages)
+- [x] Auth module (web) — login page + account setup (/auth/setup) + password recovery (/auth/forgot-password, /auth/reset-password)
 - [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
 - [x] Admin module (web) — users management, system config panel, audit log table
 - [x] Storekeeper module (web) — /storekeeper inventory catalog (list/filter/pagination + create/edit + activate/deactivate)
@@ -110,6 +111,33 @@ Tech stack decisions: stack.pdf
   - `GET /api/v1/notifications/count/unread`
   - `PATCH /api/v1/notifications/:id/read`
   - `PATCH /api/v1/notifications/mark-all-read`
+
+## Authentication testing
+
+### Login
+- Navigate to http://localhost:3001/auth/login
+- Use credentials from dev accounts table
+- Verify: Access token issued, user redirected to dashboard (admin/supervisor/storekeeper)
+
+### Forgot Password (Password Recovery)
+- On login page, click **"Oublié ?"** link
+- Enter email of an active user
+- Verify: Success message shown, backend sends password reset email to MailHog (http://localhost:8025)
+- Email contains reset link: `http://localhost:3001/auth/reset-password?token=...`
+- Click link → set new password (with confirmation) → redirected to login
+- Login with new password to verify reset successful
+
+### Account Setup (New User Onboarding)
+- Admin creates new user via backend/API: `POST /users` with role (TECHNICIAN/REQUESTER, etc.)
+- Verify: Setup email sent to MailHog containing: `http://localhost:3001/auth/setup?token=...`
+- Click link → set password (with confirmation) → account activated and redirected to login
+- New user can now log in with credentials
+
+### Edge cases
+- Invalid/expired token → error message: "Ce lien n'existe plus ou a expiré..."
+- Missing query parameter → error message shown, "Retour à la connexion" button available
+- Password mismatch → validation error: "Les mots de passe ne correspondent pas"
+- Backend password policy violation → backend error displayed in form
 
 ## Git conventions
 Branch: feat/short-description, fix/short-description, chore/short-description

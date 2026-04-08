@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Eye, Loader2, PauseCircle, Pencil, PlayCircle, Plus, Search } from 'lucide-react';
+import { Eye, Loader2, PauseCircle, Pencil, PlayCircle, Plus, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { assetsApi } from '@/lib/assets.api';
@@ -10,6 +10,7 @@ import { preventivePlansApi, type PreventivePlanItem } from '@/lib/preventive-pl
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PreventivePlanDetailDialog } from './preventive-plan-detail-dialog';
 import { PreventivePlanFormDialog } from './preventive-plan-form-dialog';
@@ -262,17 +263,12 @@ export function PreventivePlansBoard() {
         </Table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground">{t('supervisorPreventivePlans.pagination', { page, totalPages })}</span>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        onPrevious={() => setPage((current) => current - 1)}
+        onNext={() => setPage((current) => current + 1)}
+      />
 
       <PreventivePlanFormDialog
         open={planDialogOpen}

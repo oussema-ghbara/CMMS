@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Loader2, Pencil, Search } from 'lucide-react';
+import { Loader2, Pencil, Search } from 'lucide-react';
 import { WorkOrderPriority, WorkOrderStatus, WorkOrderType } from '@gmao/shared';
 import { workOrdersApi, type WorkOrderListItem } from '@/lib/work-orders.api';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const LIMIT = 20;
@@ -343,33 +344,12 @@ export function WorkOrdersBoard() {
         </Table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={page <= 1}
-            onClick={() => setPage((current) => current - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-
-          <span className="text-sm text-muted-foreground">
-            {t('supervisorWorkOrders.pagination', { page, totalPages })}
-          </span>
-
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={page >= totalPages}
-            onClick={() => setPage((current) => current + 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        onPrevious={() => setPage((current) => current - 1)}
+        onNext={() => setPage((current) => current + 1)}
+      />
 
       <Dialog
         open={priorityDialogOpen}

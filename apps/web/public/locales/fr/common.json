@@ -23,7 +23,15 @@
     "users": "Utilisateurs",
     "systemConfig": "Configuration",
     "auditLog": "Journal d'audit",
-    "analytics": "Analytiques"
+    "analytics": "Analytiques",
+    "actions": {
+      "collapseSidebar": "Réduire la barre latérale",
+      "expandSidebar": "Développer la barre latérale"
+    }
+  },
+  "sidebar": {
+    "brandSubtitle": "Pilotage des modules",
+    "navigation": "Navigation principale"
   },
   "common": {
     "save": "Enregistrer",
@@ -42,6 +50,7 @@
     "next": "Suivant",
     "previous": "Précédent",
     "of": "sur",
+    "pagination": "Page {{page}} / {{totalPages}}",
     "noData": "Aucune donnée disponible",
     "actions": "Actions",
     "status": "Statut",

@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags } from 'lucide-react';
 import { Role } from '@gmao/shared';
 import type { LucideIcon } from 'lucide-react';
 
@@ -83,6 +83,16 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         href: '/admin',
         icon: Users,
         match: 'exact',
+      },
+      {
+        labelKey: 'nav.locations',
+        href: '/admin/locations',
+        icon: MapPin,
+      },
+      {
+        labelKey: 'nav.categories',
+        href: '/admin/categories',
+        icon: Tags,
       },
       {
         labelKey: 'nav.systemConfig',

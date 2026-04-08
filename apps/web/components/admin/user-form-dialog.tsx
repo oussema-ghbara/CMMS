@@ -65,7 +65,12 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
     if (open) {
       reset(
         isEdit
-          ? { name: user.name, email: user.email, roles: user.roles, hourlyRate: null }
+          ? {
+            name: user.name,
+            email: user.email,
+            roles: user.roles,
+            hourlyRate: user.hourlyRate ?? null,
+          }
           : { name: '', email: '', roles: [], hourlyRate: null },
       );
     }

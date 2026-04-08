@@ -1,14 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { adminApi } from '@/lib/admin.api';
 import { Button } from '@/components/ui/button';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-const TARGET_TYPES = ['User', 'WorkOrder', 'Asset', 'Part', 'SystemConfig'];
 
 function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('fr-FR', {
@@ -31,6 +29,12 @@ export function AuditLogTable() {
       adminApi.getAuditLog({ page, limit, targetType: targetType || undefined }),
   });
 
+  const targetTypes = useMemo(() => {
+    const values = new Set((data?.data ?? []).map((entry) => entry.targetType));
+    if (targetType) values.add(targetType);
+    return [...values].sort((a, b) => a.localeCompare(b));
+  }, [data?.data, targetType]);
+
   const totalPages = data ? Math.ceil(data.total / limit) : 1;
 
   const selectClass =
@@ -48,7 +52,7 @@ export function AuditLogTable() {
           className={selectClass}
         >
           <option value="">Toutes les cibles</option>
-          {TARGET_TYPES.map((t) => (
+          {targetTypes.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>

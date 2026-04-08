@@ -34,6 +34,7 @@ export function UsersTable() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDto | null>(null);
+  const [loadingEditUserId, setLoadingEditUserId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -70,9 +71,17 @@ export function UsersTable() {
     onError: () => toast.error("Erreur lors de l'envoi"),
   });
 
-  const handleEdit = (user: UserDto) => {
-    setEditingUser(user);
-    setDialogOpen(true);
+  const handleEdit = async (user: UserDto) => {
+    setLoadingEditUserId(user.id);
+    try {
+      const freshUser = await usersApi.getOne(user.id);
+      setEditingUser(freshUser);
+      setDialogOpen(true);
+    } catch {
+      toast.error('Erreur lors du chargement du profil utilisateur');
+    } finally {
+      setLoadingEditUserId(null);
+    }
   };
 
   const handleCreate = () => {
@@ -174,9 +183,16 @@ export function UsersTable() {
                         variant="ghost"
                         size="icon"
                         title="Modifier"
-                        onClick={() => handleEdit(user)}
+                        onClick={() => {
+                          void handleEdit(user);
+                        }}
+                        disabled={loadingEditUserId === user.id}
                       >
-                        <Pencil className="h-4 w-4" />
+                        {loadingEditUserId === user.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Pencil className="h-4 w-4" />
+                        )}
                       </Button>
                       {user.isActive ? (
                         <Button

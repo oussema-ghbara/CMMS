@@ -36,6 +36,8 @@
     "inventory": "Inventaire",
     "partRequests": "Demandes de pièces",
     "users": "Utilisateurs",
+    "locations": "Emplacements",
+    "categories": "Catégories",
     "systemConfig": "Configuration",
     "auditLog": "Journal d'audit",
     "analytics": "Analytiques",
@@ -770,6 +772,104 @@
     "users": {
       "title": "Gestion des utilisateurs",
       "subtitle": "Créez, modifiez et gérez les comptes utilisateurs du système."
+    },
+    "locations": {
+      "title": "Gestion des emplacements",
+      "subtitle": "Créez, mettez à jour et supprimez la hiérarchie des emplacements.",
+      "total": "{{count}} emplacement(s)",
+      "levelBadge": "Niveau {{level}}",
+      "confirmDelete": "Supprimer l'emplacement \"{{name}}\" ?",
+      "actions": {
+        "create": "Nouvel emplacement"
+      },
+      "columns": {
+        "name": "Nom",
+        "path": "Chemin complet",
+        "level": "Niveau",
+        "code": "Code",
+        "description": "Description"
+      },
+      "states": {
+        "empty": "Aucun emplacement trouvé",
+        "error": "Impossible de charger les emplacements"
+      },
+      "dialog": {
+        "createTitle": "Nouvel emplacement",
+        "editTitle": "Modifier l'emplacement",
+        "createDescription": "Ajoutez un nouvel emplacement à la hiérarchie.",
+        "editDescription": "Mettez à jour les informations de l'emplacement."
+      },
+      "form": {
+        "name": "Nom",
+        "code": "Code",
+        "description": "Description",
+        "level": "Niveau",
+        "levelOption": "Niveau {{level}}",
+        "parent": "Emplacement parent",
+        "parentNone": "Aucun parent"
+      },
+      "validation": {
+        "nameRequired": "Le nom est requis"
+      },
+      "toasts": {
+        "createSuccess": "Emplacement créé",
+        "createError": "Erreur lors de la création",
+        "updateSuccess": "Emplacement mis à jour",
+        "updateError": "Erreur lors de la mise à jour",
+        "deleteSuccess": "Emplacement supprimé",
+        "deleteError": "Erreur lors de la suppression"
+      }
+    },
+    "categories": {
+      "title": "Gestion des catégories",
+      "subtitle": "Créez, modifiez et activez/désactivez les catégories d'équipements.",
+      "total": "{{count}} catégorie(s)",
+      "actions": {
+        "create": "Nouvelle catégorie",
+        "activate": "Activer",
+        "deactivate": "Désactiver"
+      },
+      "filters": {
+        "allStatuses": "Tous les statuts",
+        "active": "Actives",
+        "inactive": "Inactives"
+      },
+      "columns": {
+        "name": "Nom",
+        "description": "Description",
+        "status": "Statut"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "states": {
+        "empty": "Aucune catégorie trouvée",
+        "error": "Impossible de charger les catégories"
+      },
+      "dialog": {
+        "createTitle": "Nouvelle catégorie",
+        "editTitle": "Modifier la catégorie",
+        "createDescription": "Ajoutez une nouvelle catégorie d'équipement.",
+        "editDescription": "Mettez à jour les informations de la catégorie."
+      },
+      "form": {
+        "name": "Nom",
+        "description": "Description"
+      },
+      "validation": {
+        "nameRequired": "Le nom est requis"
+      },
+      "toasts": {
+        "createSuccess": "Catégorie créée",
+        "createError": "Erreur lors de la création",
+        "updateSuccess": "Catégorie mise à jour",
+        "updateError": "Erreur lors de la mise à jour",
+        "activateSuccess": "Catégorie activée",
+        "activateError": "Erreur lors de l'activation",
+        "deactivateSuccess": "Catégorie désactivée",
+        "deactivateError": "Erreur lors de la désactivation"
+      }
     },
     "auditLog": {
       "title": "Journal d'audit",

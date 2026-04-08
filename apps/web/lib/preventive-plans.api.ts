@@ -102,8 +102,6 @@ export const preventivePlansApi = {
   list: (params?: PreventivePlanQuery) =>
     api.get<PreventivePlanListResponse>('/preventive-plans', { params }).then((response) => response.data),
 
-  getOne: (id: string) => api.get<PreventivePlanItem>(`/preventive-plans/${id}`).then((response) => response.data),
-
   create: (payload: CreatePreventivePlanPayload) =>
     api.post<PreventivePlanItem>('/preventive-plans', payload).then((response) => response.data),
 

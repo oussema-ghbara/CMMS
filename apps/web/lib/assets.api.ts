@@ -121,7 +121,4 @@ export const assetsApi = {
 
   transitionStatus: (id: string, payload: AssetStatusTransitionPayload) =>
     api.patch<AssetDetail>(`/assets/${id}/status`, payload).then((r) => r.data),
-
-  getStatusHistory: (id: string) =>
-    api.get<AssetStatusLogEntry[]>(`/assets/${id}/status-history`).then((r) => r.data),
 };

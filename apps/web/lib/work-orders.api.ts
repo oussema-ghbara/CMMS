@@ -239,7 +239,4 @@ export const workOrdersApi = {
 
   cancel: (id: string, payload: CancelWorkOrderPayload) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/cancel`, payload).then((r) => r.data),
-
-  getStatusHistory: (id: string) =>
-    api.get<WorkOrderStatusLogEntry[]>(`/work-orders/${id}/status-history`).then((r) => r.data),
 };

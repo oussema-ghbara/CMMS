@@ -179,9 +179,16 @@ After backend and web are both running:
 Expected behavior:
 
 - Work orders list loads with search, status/type/priority filters, and pagination
-- Priority can be updated from the row action for non-terminal work orders
-- Priority update refreshes the list without a page reload
-- Priority update action is disabled for `CLOSED` and `CANCELLED` work orders
+- **"Nouvel ordre de travail"** button opens a create dialog — fill asset, type, priority, description and submit to create a DRAFT work order
+- Row click or the eye icon opens the detail dialog showing: general info, assignments, checklist, validation history, status history
+- Contextual actions appear in the detail dialog based on current status:
+  - `DRAFT` → **Publier** — moves to OPEN
+  - `OPEN` → **Assigner un technicien** — select principal + optional contributors, moves to ASSIGNED
+  - `PENDING_VALIDATION` → **Valider la clôture** (moves to CLOSED) or **Rejeter la clôture** (select reason, moves back to IN_PROGRESS)
+  - Any non-terminal → **Annuler l'ordre de travail** — select cancellation reason, permanently cancels
+- Priority can still be updated inline from the pencil icon in the row for non-terminal work orders
+- All actions refresh the list without a page reload
+- Terminal work orders (`CLOSED`, `CANCELLED`) show no action buttons in the detail dialog
 - Empty and error states render correctly when applicable
 
 ## Supervisor preventive plans module testing

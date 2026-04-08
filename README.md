@@ -115,6 +115,7 @@ npx prisma studio    # visual DB browser
 | UsersModule | done — Admin CRUD, setup token flow, deactivate/reactivate |
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
 | AssetsModule | done — locations, categories, assets, certificates, documents |
+| NotificationsModule | done — in-app notifications, unread count, mark-read endpoints |
 | WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
@@ -220,6 +221,35 @@ Expected behavior:
 - Asset detail dialog shows technical data, certificates, children, and status history
 - Status transition actions work according to current status (operational/out-of-service/decommission)
 - Empty and error states render correctly when applicable
+
+## Notifications and top bar testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!`
+- Validate the protected layout on any supervisor page, for example:
+  - `http://localhost:3001/supervisor`
+  - `http://localhost:3001/supervisor/reports`
+
+Expected behavior:
+
+- The top bar shows a balanced left title area and a right-side notification trigger
+- The unread badge hides at zero, shows a single value correctly, and collapses large counts to `99+`
+- Opening the bell dropdown fetches the current notification list for the signed-in user
+- Clicking one notification marks it read and updates the unread count immediately
+- Clicking "Tout marquer comme lu" clears the unread badge and marks remaining unread items as read
+- Refreshing the page preserves the badge state from the backend
+- Empty state renders when the user has no notifications
+
+API checks:
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/notifications
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/notifications/count/unread
+curl -X PATCH -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/notifications/<id>/read
+curl -X PATCH -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/notifications/mark-all-read
+```
 
 ## Admin module testing
 

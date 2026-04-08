@@ -50,6 +50,7 @@ Tech stack decisions: stack.pdf
 - [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + priority update action with terminal-state guard)
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
+- [x] Top bar / notifications (web) — balanced header layout + notification list, unread badge, mark-read actions
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations
@@ -98,6 +99,16 @@ Tech stack decisions: stack.pdf
 4. NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
 5. Verify backend: pnpm smoke:backend
 6. Quick auth check: curl -s -X POST http://localhost:3000/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@gmao.local","password":"Admin1234!"}' | jq .accessToken
+
+## Notifications testing
+
+- Open http://localhost:3001/login and sign in with `supervisor@gmao.local` / `Admin1234!`
+- Verify the top bar on http://localhost:3001/supervisor and http://localhost:3001/supervisor/reports
+- Test notification endpoints with a bearer token:
+  - `GET /api/v1/notifications`
+  - `GET /api/v1/notifications/count/unread`
+  - `PATCH /api/v1/notifications/:id/read`
+  - `PATCH /api/v1/notifications/mark-all-read`
 
 ## Git conventions
 Branch: feat/short-description, fix/short-description, chore/short-description

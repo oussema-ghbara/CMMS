@@ -47,8 +47,43 @@ fix(backend): correct certificate expiry status derivation
 chore(infra): add healthcheck to redis service
 ```
 
-## Pull requests
+## Adding features to the web app
 
-- One concern per PR.
-- All checks must pass before merging.
-- Describe what changed and why, not how (the code shows how).
+1. Create a new page under `apps/web/app/(protected)/` or `apps/web/app/(auth)/` as appropriate
+2. Use existing components from `apps/web/components/ui/` (shadcn/ui)
+3. Create API wrappers in `apps/web/lib/` following existing patterns (e.g., `users.api.ts`)
+4. Use i18n keys from `apps/web/public/locales/fr/common.json` — no hardcoded strings
+5. For dynamic query parameters (useSearchParams), wrap in Suspense boundary to avoid hydration errors
+6. Follow existing state management patterns (Zustand for auth, React Query for data)
+
+## Authentication flows (web)
+
+### Login page
+- Path: `/auth/login`
+- Component: `components/auth/login-form.tsx`
+- Features: Email + password, "Oublié ?" link to password recovery
+- API: `api.post('/auth/login')` via `lib/api.ts`
+
+### Password recovery (forgot password)
+- Path: `/auth/forgot-password`
+- Component: `app/(auth)/forgot-password/forgot-content.tsx` (wrapped with Suspense)
+- Features: Email input, success confirmation
+- API: `authApi.forgotPassword(email)` via `lib/auth.api.ts`
+
+### Password reset
+- Path: `/auth/reset-password?token=...`
+- Component: `app/(auth)/reset-password/reset-content.tsx` (wrapped with Suspense)
+- Features: New password + confirmation, token validation, error handling
+- API: `authApi.resetPassword(token, password)` via `lib/auth.api.ts`
+
+### Account setup (new user onboarding)
+- Path: `/auth/setup?token=...`
+- Component: `app/(auth)/setup/setup-content.tsx` (wrapped with Suspense)
+- Features: Set initial password + confirmation, token validation, account activation
+- API: `authApi.setup(token, password)` via `lib/auth.api.ts`
+
+All auth pages:
+- Handle loading states (Suspense fallback)
+- Display validation errors (password mismatch, invalid token)
+- Show success feedback with auto-redirect to login
+- Support French i18n via `useTranslation()`

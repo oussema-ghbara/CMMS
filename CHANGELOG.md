@@ -4,6 +4,33 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added - Admin Master Data UI Complete
+
+#### Admin locations/categories rollout (April 8, 2026)
+
+**New Pages:**
+- `/admin/locations` — Admin location hierarchy management
+- `/admin/categories` — Admin asset category management
+
+**New Components:**
+- `components/admin/locations-table.tsx`
+- `components/admin/location-form-dialog.tsx`
+- `components/admin/categories-table.tsx`
+- `components/admin/category-form-dialog.tsx`
+
+**API client enhancements:**
+- `lib/locations.api.ts` — added create/update/delete methods
+- `lib/categories.api.ts` — added create/update/activate/deactivate methods
+
+**Admin UX improvements:**
+- Sidebar navigation now includes locations and categories entries
+- Audit log target filter now uses dynamic target types from fetched data
+- User edit flow now refreshes data through `GET /users/:id` before opening edit form
+
+**Testing/quality:**
+- `pnpm --filter web lint` ✅
+- `pnpm --filter web type-check` ✅
+
 ### Added - Web Authentication Complete
 
 #### Account Setup & Password Recovery (April 8, 2025)
@@ -90,15 +117,14 @@ All notable changes to the GMAO project are documented here.
 **Items Addressed:** Item 7 - Account Setup and Password Recovery ✅
 
 **Remaining Audit Items** (not yet implemented):
-1. Admin master data (categories/locations CRUD)
-2. Asset compliance (certificates/documents workflows)
-3. Work-order technician execution lifecycle
-4. Part-request technician flow
-5. Stock return endpoint integration
-6. Problem report submission by requester/technician
-7. Frontend methods defined but unused
-8. Role-surface mismatch (technician/requester routes)
-9. Deeper architectural decision needed for role expansion
+1. Asset compliance (certificates/documents workflows)
+2. Work-order technician execution lifecycle
+3. Part-request technician flow
+4. Stock return endpoint integration
+5. Problem report submission by requester/technician
+6. Frontend methods defined but unused
+7. Role-surface mismatch (technician/requester routes)
+8. Deeper architectural decision needed for role expansion
 
 ---
 

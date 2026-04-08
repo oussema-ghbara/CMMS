@@ -291,8 +291,18 @@ After backend and web are both running:
 - Login with `admin@gmao.local` / `Admin1234!`
 - Validate pages:
   - `http://localhost:3001/admin`
+  - `http://localhost:3001/admin/locations`
+  - `http://localhost:3001/admin/categories`
   - `http://localhost:3001/admin/system-config`
   - `http://localhost:3001/admin/audit-log`
+
+Expected behavior:
+
+- Users page supports list filters, create, edit, deactivate/reactivate, and resend setup email for never-logged-in inactive users
+- Locations page supports create/update/delete of locations with hierarchy (parent selection), and deletion is blocked when a location has children or assigned assets
+- Categories page supports create/update and activate/deactivate actions with status filter
+- System config updates persist and produce visible success/error feedback
+- Audit log supports pagination and target-type filtering
 
 API checks (replace token with a real bearer token):
 

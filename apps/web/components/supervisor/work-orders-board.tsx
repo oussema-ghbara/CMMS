@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Search } from 'lucide-react';
+import { Eye, Loader2, Pencil, Plus, Search } from 'lucide-react';
 import { WorkOrderPriority, WorkOrderStatus, WorkOrderType } from '@gmao/shared';
 import { workOrdersApi, type WorkOrderListItem } from '@/lib/work-orders.api';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { WorkOrderFormDialog } from './work-order-form-dialog';
+import { WorkOrderDetailDialog } from './work-order-detail-dialog';
 
 const LIMIT = 20;
 
@@ -101,9 +103,17 @@ export function WorkOrdersBoard() {
   const [type, setType] = useState<WorkOrderType | ''>('');
   const [priority, setPriority] = useState<WorkOrderPriority | ''>('');
 
+  // Priority change dialog (quick-access from row)
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [priorityDialogOpen, setPriorityDialogOpen] = useState(false);
   const [newPriority, setNewPriority] = useState<WorkOrderPriority>(WorkOrderPriority.MEDIUM);
+
+  // Create dialog
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  // Detail dialog
+  const [detailWorkOrder, setDetailWorkOrder] = useState<WorkOrderListItem | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   const queryParams = useMemo(
     () => ({
@@ -156,6 +166,11 @@ export function WorkOrdersBoard() {
     setSelectedWorkOrder(item);
     setNewPriority(item.priority);
     setPriorityDialogOpen(true);
+  };
+
+  const openDetailDialog = (item: WorkOrderListItem) => {
+    setDetailWorkOrder(item);
+    setDetailDialogOpen(true);
   };
 
   const submitPriorityUpdate = () => {
@@ -243,11 +258,17 @@ export function WorkOrdersBoard() {
           </Button>
         </div>
 
-        {data && (
-          <span className="text-sm text-muted-foreground">
-            {t('supervisorWorkOrders.total', { count: data.total })}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {data && (
+            <span className="text-sm text-muted-foreground">
+              {t('supervisorWorkOrders.total', { count: data.total })}
+            </span>
+          )}
+          <Button type="button" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('supervisorWorkOrders.actions.create')}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border bg-card">
@@ -290,7 +311,11 @@ export function WorkOrdersBoard() {
                   item.status === WorkOrderStatus.CLOSED || item.status === WorkOrderStatus.CANCELLED;
 
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow
+                    key={item.id}
+                    className="cursor-pointer"
+                    onClick={() => openDetailDialog(item)}
+                  >
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {formatDateTime(item.createdAt)}
                     </TableCell>
@@ -323,7 +348,19 @@ export function WorkOrdersBoard() {
                       {formatDateTime(item.dueDate)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-end gap-1">
+                      <div
+                        className="flex items-center justify-end gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title={t('supervisorWorkOrders.actions.view')}
+                          onClick={() => openDetailDialog(item)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"
@@ -351,6 +388,7 @@ export function WorkOrdersBoard() {
         onNext={() => setPage((current) => current + 1)}
       />
 
+      {/* Priority change dialog */}
       <Dialog
         open={priorityDialogOpen}
         onOpenChange={(open) => {
@@ -404,6 +442,22 @@ export function WorkOrdersBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create work order dialog */}
+      <WorkOrderFormDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
+
+      {/* Detail / action dialog */}
+      <WorkOrderDetailDialog
+        open={detailDialogOpen}
+        onOpenChange={(open) => {
+          setDetailDialogOpen(open);
+          if (!open) setDetailWorkOrder(null);
+        }}
+        workOrder={detailWorkOrder}
+      />
     </div>
   );
 }

@@ -342,14 +342,56 @@
       "CANCELLED": "Annulé"
     },
     "labels": {
-      "unassigned": "Non assigné"
+      "unassigned": "Non assigné",
+      "noTechnicians": "Aucun technicien disponible",
+      "principal": "Principal",
+      "contributor": "Contributeur",
+      "noAssignments": "Aucun technicien assigné",
+      "noChecklist": "Aucun élément de checklist",
+      "noHistory": "Aucun historique de statut",
+      "noValidations": "Aucune action de validation",
+      "noHoldPeriods": "Aucune mise en attente",
+      "noPartRequests": "Aucune demande de pièce",
+      "checklistCompleted": "Complété",
+      "checklistPending": "En attente",
+      "checklistSkipped": "Ignoré",
+      "mandatory": "Obligatoire",
+      "sourceType": {
+        "DIRECT_CREATION": "Création directe",
+        "PROBLEM_REPORT": "Signalement",
+        "PREVENTIVE_PLAN": "Plan préventif"
+      },
+      "postCancellationAsset": "Statut de l'équipement après annulation",
+      "assetStatusAfterCancel": {
+        "OPERATIONAL": "Opérationnel",
+        "OUT_OF_SERVICE": "Hors service"
+      }
     },
     "actions": {
-      "changePriority": "Modifier la priorité"
+      "changePriority": "Modifier la priorité",
+      "create": "Nouvel ordre de travail",
+      "view": "Voir le détail",
+      "publish": "Publier",
+      "publishDescription": "Passer l'ordre de travail de Brouillon à Ouvert.",
+      "assign": "Assigner un technicien",
+      "assignDescription": "Sélectionnez le technicien principal et les contributeurs optionnels.",
+      "principalTechnician": "Technicien principal",
+      "contributorTechnicians": "Techniciens contributeurs (optionnel)",
+      "validate": "Valider la clôture",
+      "validateDescription": "Approuver la clôture soumise et marquer l'ordre de travail comme Clôturé.",
+      "rejectClosure": "Rejeter la clôture",
+      "rejectClosureDescription": "Renvoyer l'ordre de travail En cours et notifier le technicien.",
+      "rejectionReason": "Motif de rejet",
+      "rejectionDetail": "Détail (optionnel)",
+      "cancel": "Annuler l'ordre de travail",
+      "cancelDescription": "Annuler définitivement cet ordre de travail.",
+      "cancellationReason": "Motif d'annulation",
+      "cancellationDetail": "Détail (optionnel)"
     },
     "states": {
       "empty": "Aucun ordre de travail trouvé",
-      "error": "Impossible de charger les ordres de travail"
+      "error": "Impossible de charger les ordres de travail",
+      "detailError": "Impossible de charger le détail de l'ordre de travail"
     },
     "pagination": "Page {{page}} / {{totalPages}}",
     "dialog": {
@@ -358,9 +400,91 @@
       "descriptionEmpty": "Ajustez la priorité de l'ordre de travail sélectionné.",
       "priorityLabel": "Nouvelle priorité"
     },
+    "detail": {
+      "title": "Détail de l'ordre de travail",
+      "reference": "Référence",
+      "type": "Type",
+      "priority": "Priorité",
+      "status": "Statut",
+      "source": "Source",
+      "asset": "Équipement",
+      "location": "Emplacement",
+      "dueDate": "Date d'échéance",
+      "estimatedDuration": "Durée estimée",
+      "estimatedDurationValue": "{{count}} min",
+      "description": "Description",
+      "internalNotes": "Notes internes",
+      "createdAt": "Créé le",
+      "closedAt": "Clôturé le",
+      "cancelledAt": "Annulé le",
+      "cancellationReason": "Motif d'annulation",
+      "cancellationDetail": "Détail d'annulation",
+      "assignments": "Assignations",
+      "assignmentsDescription": "Technicien principal et contributeurs actifs.",
+      "checklist": "Checklist",
+      "checklistDescription": "Éléments de checklist et leur état d'avancement.",
+      "statusHistory": "Historique des statuts",
+      "statusHistoryDescription": "Chronologie des transitions de statut.",
+      "validationHistory": "Historique des validations",
+      "validationHistoryDescription": "Actions de validation superviseur.",
+      "interventions": "Interventions",
+      "interventionsDescription": "Journaux d'intervention des techniciens.",
+      "partRequests": "Demandes de pièces",
+      "actions": "Actions disponibles",
+      "actionsDescription": "Les actions dépendent du statut courant de l'ordre de travail.",
+      "noActions": "Aucune action disponible pour ce statut."
+    },
+    "form": {
+      "createTitle": "Nouvel ordre de travail",
+      "createDescription": "Créez un ordre de travail correctif ou préventif.",
+      "type": "Type",
+      "priority": "Priorité",
+      "asset": "Équipement",
+      "assetPlaceholder": "Sélectionnez un équipement",
+      "description": "Description",
+      "descriptionPlaceholder": "Décrivez l'intervention à réaliser",
+      "internalNotes": "Notes internes (optionnel)",
+      "internalNotesPlaceholder": "Notes à usage interne uniquement",
+      "dueDate": "Date d'échéance (optionnel)",
+      "estimatedDurationMinutes": "Durée estimée en minutes (optionnel)"
+    },
+    "cancellationReason": {
+      "DUPLICATE": "Doublon d'un ordre existant",
+      "EQUIPMENT_DECOMMISSIONED": "Équipement déclassé",
+      "RESOLVED_OTHERWISE": "Résolu par un autre moyen",
+      "CREATED_IN_ERROR": "Créé par erreur",
+      "EXTERNAL_DECISION": "Décision externe"
+    },
+    "validationRejectionReason": {
+      "INSUFFICIENT_DESCRIPTION": "Description insuffisante",
+      "PARTS_USED_MISMATCH": "Pièces utilisées incohérentes",
+      "INCONSISTENT_TIME": "Durée incohérente",
+      "INCOMPLETE_CHECKLIST": "Checklist incomplète",
+      "OTHER": "Autre"
+    },
+    "validation": {
+      "descriptionRequired": "La description est obligatoire",
+      "assetRequired": "L'équipement est obligatoire",
+      "estimatedDurationInvalid": "La durée doit être un entier strictement positif",
+      "principalTechnicianRequired": "Le technicien principal est obligatoire",
+      "cancellationReasonRequired": "Le motif d'annulation est obligatoire",
+      "rejectionReasonRequired": "Le motif de rejet est obligatoire"
+    },
     "toasts": {
       "priorityUpdateSuccess": "Priorité mise à jour",
-      "priorityUpdateError": "Impossible de mettre à jour la priorité"
+      "priorityUpdateError": "Impossible de mettre à jour la priorité",
+      "createSuccess": "Ordre de travail créé",
+      "createError": "Impossible de créer l'ordre de travail",
+      "publishSuccess": "Ordre de travail publié",
+      "publishError": "Impossible de publier l'ordre de travail",
+      "assignSuccess": "Technicien assigné",
+      "assignError": "Impossible d'assigner le technicien",
+      "validateSuccess": "Clôture validée — ordre de travail fermé",
+      "validateError": "Impossible de valider la clôture",
+      "rejectSuccess": "Clôture rejetée — renvoyé en cours",
+      "rejectError": "Impossible de rejeter la clôture",
+      "cancelSuccess": "Ordre de travail annulé",
+      "cancelError": "Impossible d'annuler l'ordre de travail"
     }
   },
   "supervisorPreventivePlans": {
@@ -625,6 +749,20 @@
       "updateError": "Impossible de mettre à jour l'équipement",
       "statusSuccess": "Statut de l'équipement mis à jour",
       "statusError": "Impossible de changer le statut"
+    }
+  },
+  "admin": {
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "subtitle": "Créez, modifiez et gérez les comptes utilisateurs du système."
+    },
+    "auditLog": {
+      "title": "Journal d'audit",
+      "subtitle": "Consultez l'historique complet des actions effectuées dans le système."
+    },
+    "systemConfig": {
+      "title": "Configuration système",
+      "subtitle": "Ajustez les paramètres globaux du système."
     }
   },
   "storekeeperInventory": {

@@ -808,8 +808,12 @@
       "edit": "Modifier",
       "save": "Enregistrer",
       "activate": "Réactiver",
-      "deactivate": "Désactiver"
+      "deactivate": "Désactiver",
+      "receiveStock": "Réceptionner",
+      "adjustStock": "Ajuster",
+      "viewMovements": "Historique"
     },
+    "lowStockBanner": "{{count}} pièce(s) en dessous du seuil minimum. Réapprovisionnez le stock.",
     "states": {
       "empty": "Aucune pièce trouvée",
       "error": "Impossible de charger les pièces"
@@ -831,7 +835,48 @@
       "name": "Le nom est requis",
       "referenceCode": "Le code de référence est requis",
       "minimumStockThreshold": "Le seuil minimum doit être supérieur ou égal à 0",
-      "unitCost": "Le coût unitaire doit être supérieur ou égal à 0"
+      "unitCost": "Le coût unitaire doit être supérieur ou égal à 0",
+      "incomingQuantity": "La quantité reçue doit être un entier supérieur ou égal à 1",
+      "adjustmentQuantity": "La quantité doit être un entier non nul",
+      "adjustmentDetailRequiredForOther": "Le détail est obligatoire lorsque le motif est Autre",
+      "adjustmentNegativeResult": "Ajustement impossible: le résultat du stock serait négatif"
+    },
+    "incoming": {
+      "dialogTitle": "Réceptionner du stock",
+      "dialogDescription": "Enregistrez une livraison entrante pour {{name}}.",
+      "quantity": "Quantité reçue",
+      "supplierReference": "Référence fournisseur (optionnel)",
+      "receivedDate": "Date de réception (optionnel)",
+      "unitCost": "Coût unitaire (optionnel)",
+      "unitCostHint": "Laissez vide pour conserver le coût actuel ({{current}})."
+    },
+    "adjustment": {
+      "dialogTitle": "Ajuster le stock",
+      "dialogDescription": "Corrigez le stock de {{name}}. Valeur positive pour ajouter, négative pour retirer.",
+      "quantity": "Quantité (+ pour ajouter, − pour retirer)",
+      "quantityHint": "Stock actuel : {{current}}. Résultat : {{result}}.",
+      "reason": "Motif",
+      "detail": "Détail (obligatoire si motif = Autre)",
+      "reasons": {
+        "PHYSICAL_DAMAGE": "Dommage physique",
+        "COUNTING_ERROR": "Erreur de comptage",
+        "LOSS_OR_THEFT": "Perte ou vol",
+        "SUPPLIER_ERROR": "Erreur fournisseur",
+        "OTHER": "Autre"
+      }
+    },
+    "movements": {
+      "dialogTitle": "Historique des mouvements",
+      "dialogDescription": "Tous les mouvements de stock pour {{name}}.",
+      "empty": "Aucun mouvement enregistré pour cette pièce.",
+      "error": "Impossible de charger l'historique des mouvements",
+      "types": {
+        "INCOMING": "Entrée",
+        "OUTGOING": "Sortie",
+        "ADJUSTMENT": "Ajustement",
+        "RETURN": "Retour"
+      },
+      "balanceAfter": "→ {{value}} en stock"
     },
     "toasts": {
       "createSuccess": "Pièce créée",
@@ -841,7 +886,11 @@
       "activateSuccess": "Pièce réactivée",
       "activateError": "Erreur lors de la réactivation",
       "deactivateSuccess": "Pièce désactivée",
-      "deactivateError": "Erreur lors de la désactivation"
+      "deactivateError": "Erreur lors de la désactivation",
+      "incomingSuccess": "Stock réceptionné",
+      "incomingError": "Erreur lors de la réception",
+      "adjustmentSuccess": "Stock ajusté",
+      "adjustmentError": "Erreur lors de l'ajustement"
     }
   },
   "storekeeperAnalytics": {

@@ -94,6 +94,26 @@ npx prisma db seed   # seed dev accounts and system config (idempotent)
 npx prisma studio    # visual DB browser
 ```
 
+## Authentication flows
+
+### Login
+- Email + password authentication via `/auth/login`
+- JWT token refresh supported via `/auth/refresh` with secure refresh token cookie
+- Logout clears all sessions via `/auth/logout`
+
+### Account setup (new users)
+- Admin invites new users — backend sends setup email
+- User clicks setup link → set password on `/auth/setup?token=...`
+- Account activation and password validation via `/auth/setup`
+- Setup tokens expire after 24 hours
+
+### Password recovery
+- User forgot password → click "Oublié ?" on login form
+- Password reset request via `/auth/forgot-password` (fire-and-forget)
+- User clicks reset link in email → set new password on `/auth/reset-password?token=...`
+- Reset tokens expire after 24 hours
+- Both endpoints support password policy validation
+
 ## Dev accounts (after seed)
 
 | Email | Password | Roles |

@@ -5,6 +5,7 @@ import {
   NotFoundException,
   Inject,
 } from '@nestjs/common';
+import { Prisma } from '@gmao/db';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
@@ -52,11 +53,12 @@ export class UsersService {
         name: true,
         roles: true,
         isActive: true,
+        hourlyRate: true,
         lastLoginAt: true,
         createdAt: true,
       },
     });
-    return users as UserResponseDto[];
+    return users.map((user) => this.toUserResponse(user));
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
@@ -68,12 +70,13 @@ export class UsersService {
         name: true,
         roles: true,
         isActive: true,
+        hourlyRate: true,
         lastLoginAt: true,
         createdAt: true,
       },
     });
     if (!user) throw new NotFoundException('users.notFound');
-    return user as UserResponseDto;
+    return this.toUserResponse(user);
   }
 
   async create(dto: CreateUserDto, actorId: string): Promise<UserResponseDto> {
@@ -96,6 +99,7 @@ export class UsersService {
         name: true,
         roles: true,
         isActive: true,
+        hourlyRate: true,
         lastLoginAt: true,
         createdAt: true,
       },
@@ -104,7 +108,7 @@ export class UsersService {
     await this.sendSetupEmail(user.id, user.email, user.name, actorId);
 
     this.logger.log(`User created: ${user.email} by actor ${actorId}`);
-    return user as UserResponseDto;
+    return this.toUserResponse(user);
   }
 
   async update(id: string, dto: UpdateUserDto, actorId: string): Promise<UserResponseDto> {
@@ -131,13 +135,14 @@ export class UsersService {
         name: true,
         roles: true,
         isActive: true,
+        hourlyRate: true,
         lastLoginAt: true,
         createdAt: true,
       },
     });
 
     this.logger.log(`User updated: ${id} by actor ${actorId}`);
-    return user as UserResponseDto;
+    return this.toUserResponse(user);
   }
 
   async deactivate(id: string, actorId: string): Promise<void> {
@@ -265,5 +270,27 @@ export class UsersService {
     if (exists !== '1') throw new Error('auth.tokenAlreadyUsed');
 
     return { userId: payload.sub, jti: payload.jti };
+  }
+
+  private toUserResponse(user: {
+    id: string;
+    email: string;
+    name: string;
+    roles: string[];
+    isActive: boolean;
+    hourlyRate: Prisma.Decimal | null;
+    lastLoginAt: Date | null;
+    createdAt: Date;
+  }): UserResponseDto {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roles: user.roles.map((role) => role as Role),
+      isActive: user.isActive,
+      hourlyRate: user.hourlyRate ? user.hourlyRate.toNumber() : null,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+    };
   }
 }

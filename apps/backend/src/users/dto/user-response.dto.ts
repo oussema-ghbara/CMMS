@@ -17,6 +17,9 @@ export class UserResponseDto {
   @ApiProperty()
   isActive: boolean;
 
+  @ApiPropertyOptional({ description: 'Technician hourly rate set by Admin' })
+  hourlyRate?: number | null;
+
   @ApiPropertyOptional()
   lastLoginAt?: Date | null;
 

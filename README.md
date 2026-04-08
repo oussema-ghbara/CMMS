@@ -137,6 +137,11 @@ Expected behavior:
 
 - Inventory catalog loads with search, status filter, pagination, create/edit dialogs, and activate/deactivate actions
 - Low-stock rows show a visible warning badge when stock is below the minimum threshold
+- Low-stock banner appears when at least one part is below threshold and can be dismissed
+- "Receptionner" action records incoming deliveries (optional supplier reference, date, and unit cost update)
+- "Ajuster" action supports positive/negative stock corrections with reason and validation (including OTHER detail requirement)
+- Adjustment form blocks submissions that would produce negative resulting stock
+- "Historique" action opens a movement timeline with movement type, signed quantity, resulting balance, actor, and timestamp
 - Queue table loads when requests exist
 - Empty state appears when queue is empty
 - Status filter works

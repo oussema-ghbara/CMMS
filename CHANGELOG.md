@@ -4,6 +4,32 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed - Admin UI audit & hardening (April 9, 2026)
+
+#### `fix(web-admin): replace window.confirm with ConfirmDialog in LocationsTable`
+- Removed `window.confirm` (blocking, inconsistent with app UI)
+- Introduced reusable `components/ui/confirm-dialog.tsx` built on the existing `Dialog` primitive
+- Supports: title, description, destructive/default variant, loading state (blocks close while pending), cancel/confirm labels
+- LocationsTable now uses `ConfirmDialog` for delete — shows location name and context in the modal
+
+#### `fix(web-admin): add deactivate confirmation dialog in UsersTable`
+- Deactivating a user now opens a `ConfirmDialog` warning that all active sessions will be revoked
+- Previously the mutation fired immediately on button click with no confirmation
+- Dialog shows the user's full name and blocks closure while the mutation is in-flight
+
+#### `fix(web-admin): repair AuditLog targetType filter`
+- Filter dropdown was built via `useMemo` from the **current page's data only** — if page 1 had only `SystemConfig` entries, `User` and `Asset` were invisible options
+- Replaced with a hardcoded `KNOWN_TARGET_TYPES` constant derived from the actual backend services that write to the audit log (`UsersService`, `SystemConfigService`, `AssetsService`)
+- Removed unused `useMemo` import
+
+#### `fix(backend+web): clear hourlyRate when TECHNICIAN role is removed`
+- Editing a Technician user, unchecking the TECHNICIAN role, and saving silently preserved `hourlyRate` in the database
+- `UserFormDialog.onSubmit` now derives `effectiveHourlyRate: null` when TECHNICIAN is not in the selected roles
+- `UpdateUserDto` updated with `@ValidateIf((_, value) => value !== null)` so `null` is accepted and treated as a clear operation
+- `UpdateUserPayload` shared type already typed `number | null` — backend DTO now matches
+
+---
+
 ### Added - Admin Master Data UI Complete
 
 #### Admin locations/categories rollout (April 8, 2026)
@@ -24,7 +50,7 @@ All notable changes to the GMAO project are documented here.
 
 **Admin UX improvements:**
 - Sidebar navigation now includes locations and categories entries
-- Audit log target filter now uses dynamic target types from fetched data
+- Audit log target filter added (dynamic from fetched data — later corrected to static list)
 - User edit flow now refreshes data through `GET /users/:id` before opening edit form
 
 **Testing/quality:**

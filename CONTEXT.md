@@ -44,6 +44,7 @@ Tech stack decisions: stack.pdf
 - [x] Auth module (web) — login page + account setup (/auth/setup) + password recovery (/auth/forgot-password, /auth/reset-password)
 - [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
 - [x] Admin module (web) — users management, system config panel, audit log table
+- [x] Admin module (web) — hardening: ConfirmDialog for deactivate/delete, audit log filter fixed, hourlyRate clear on role change
 - [x] Storekeeper module (web) — /storekeeper inventory catalog (list/filter/pagination + create/edit + activate/deactivate)
 - [x] Storekeeper module (web) — stock operations on catalog rows (incoming stock, manual adjustments, per-part movement history, low-stock banner)
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)

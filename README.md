@@ -299,10 +299,13 @@ After backend and web are both running:
 Expected behavior:
 
 - Users page supports list filters, create, edit, deactivate/reactivate, and resend setup email for never-logged-in inactive users
-- Locations page supports create/update/delete of locations with hierarchy (parent selection), and deletion is blocked when a location has children or assigned assets
+- Deactivating a user opens a confirmation dialog (warns about session revocation) — action only fires after explicit confirm
+- Editing a Technician user and removing the TECHNICIAN role clears `hourlyRate` — it is not silently preserved
+- Locations page supports create/update/delete with hierarchy (parent selection); deletion is blocked when a location has children or assigned assets
+- Location delete uses a confirmation dialog (not a browser prompt)
 - Categories page supports create/update and activate/deactivate actions with status filter
 - System config updates persist and produce visible success/error feedback
-- Audit log supports pagination and target-type filtering
+- Audit log supports pagination and target-type filter — filter options are `User`, `SystemConfig`, `Asset` (always visible, not page-dependent)
 
 API checks (replace token with a real bearer token):
 

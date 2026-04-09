@@ -107,12 +107,27 @@ export class UsersService {
 
     await this.sendSetupEmail(user.id, user.email, user.name, actorId);
 
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'USER_CREATED',
+        targetType: 'User',
+        targetId: user.id,
+        valueAfter: {
+          email: user.email,
+          name: user.name,
+          roles: user.roles,
+          hourlyRate: user.hourlyRate?.toString() ?? null,
+        } as Prisma.JsonObject,
+      },
+    });
+
     this.logger.log(`User created: ${user.email} by actor ${actorId}`);
     return this.toUserResponse(user);
   }
 
   async update(id: string, dto: UpdateUserDto, actorId: string): Promise<UserResponseDto> {
-    await this.findOne(id); // throws NotFoundException if missing
+    const before = await this.findOne(id); // throws NotFoundException if missing
 
     if (dto.email) {
       const conflict = await this.prisma.user.findFirst({
@@ -141,6 +156,27 @@ export class UsersService {
       },
     });
 
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'USER_UPDATED',
+        targetType: 'User',
+        targetId: id,
+        valueBefore: {
+          email: before.email,
+          name: before.name,
+          roles: before.roles,
+          hourlyRate: before.hourlyRate?.toString() ?? null,
+        } as Prisma.JsonObject,
+        valueAfter: {
+          email: user.email,
+          name: user.name,
+          roles: user.roles,
+          hourlyRate: user.hourlyRate?.toString() ?? null,
+        } as Prisma.JsonObject,
+      },
+    });
+
     this.logger.log(`User updated: ${id} by actor ${actorId}`);
     return this.toUserResponse(user);
   }
@@ -152,6 +188,17 @@ export class UsersService {
     await this.prisma.user.update({ where: { id }, data: { isActive: false } });
     await this.authService.revokeAllUserTokens(id);
 
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'USER_DEACTIVATED',
+        targetType: 'User',
+        targetId: id,
+        valueBefore: { email: user.email, name: user.name, isActive: true } as Prisma.JsonObject,
+        valueAfter: { email: user.email, name: user.name, isActive: false } as Prisma.JsonObject,
+      },
+    });
+
     this.logger.log(`User deactivated: ${id} by actor ${actorId}`);
   }
 
@@ -161,6 +208,18 @@ export class UsersService {
     if (user.isActive) return; // idempotent
 
     await this.prisma.user.update({ where: { id }, data: { isActive: true } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'USER_REACTIVATED',
+        targetType: 'User',
+        targetId: id,
+        valueBefore: { email: user.email, name: user.name, isActive: false } as Prisma.JsonObject,
+        valueAfter: { email: user.email, name: user.name, isActive: true } as Prisma.JsonObject,
+      },
+    });
+
     this.logger.log(`User reactivated: ${id} by actor ${actorId}`);
   }
 

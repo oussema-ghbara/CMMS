@@ -42,11 +42,26 @@ export class SystemConfigService implements OnModuleInit {
   }
 
   async set(key: string, value: string, actorId: string): Promise<void> {
+    const existing = await this.prisma.systemConfig.findUnique({ where: { key } });
+    const oldValue = existing?.value ?? null;
+
     await this.prisma.systemConfig.upsert({
       where: { key },
       update: { value, updatedById: actorId },
       create: { key, value, updatedById: actorId },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'CONFIG_UPDATED',
+        targetType: 'SystemConfig',
+        targetId: key,
+        valueBefore: oldValue !== null ? { key, value: oldValue } : null,
+        valueAfter: { key, value },
+      },
+    });
+
     this.logger.log(`SystemConfig updated: ${key} = ${value} by user ${actorId}`);
   }
 

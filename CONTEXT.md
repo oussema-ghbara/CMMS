@@ -56,6 +56,9 @@ Tech stack decisions: stack.pdf
 - [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, validate, reject-closure, cancel)
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
+- [x] Supervisor module (web) — asset certificates: full CRUD (add/edit/delete + optional file upload) wired in asset-detail-dialog
+- [x] Supervisor module (web) — asset documents: upload + delete wired in asset-detail-dialog; document type label displayed
+- [x] Storekeeper module (web) — part returns: record-return dialog with cancelled-WO picker, wired in inventory catalog
 - [x] Top bar / notifications (web) — balanced header layout + notification list, unread badge, mark-read actions
 - [x] Admin audit (backend) — GET /admin/audit-log now accepts `actionType` query filter alongside `targetType`; admins can isolate specific action types (USER_DEACTIVATED, CONFIG_UPDATED, etc.)
 - [x] Admin audit (web) — audit-log-table: `actionType` filter dropdown added (15 known action types with French labels); page resets on filter change; all hardcoded strings replaced with i18n

@@ -4,6 +4,46 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Role-scope audit: asset certificate/document CRUD + part-return UI (April 9, 2026)
+
+#### `feat(web-supervisor): asset certificate full CRUD in asset-detail-dialog`
+- Asset certificates were displayed read-only despite the backend fully supporting create/update/delete
+- Added **Add certificate** button (header of Certificates section) opening a new `CertificateFormDialog`
+- Each certificate row now has inline **Edit** (pencil) and **Delete** (trash) icon buttons
+- `CertificateFormDialog` handles both create and edit: `certificateType` select (with conditional `otherType` field), issuing authority, issue/expiration dates, optional file attachment (PDF/JPG/PNG)
+- Form uses `react-hook-form` + Zod validation; `OTHER` type enforces `otherType` non-empty via `.refine()`
+- File upload sends multipart/form-data via `FormData`; axios omits Content-Type so the browser sets the boundary automatically
+- All certificate action buttons hidden when asset is DECOMMISSIONED
+
+#### `feat(web-supervisor): asset document upload + delete in asset-detail-dialog`
+- Asset documents were displayed read-only despite backend supporting upload and delete
+- Added **Upload** button (header of Documents section) opening a new `DocumentUploadDialog`
+- Each document row now has a **Delete** icon button with a loading spinner while in-flight
+- `DocumentUploadDialog`: `documentType` select (all 8 types), mandatory file picker with clear button
+- Document type label is now translated in the document row (was previously showing the raw enum value)
+- Upload and delete buttons hidden when asset is DECOMMISSIONED
+
+#### `feat(web-storekeeper): part-return dialog wired into inventory catalog`
+- `POST /stock/returns` existed in the backend and in the API client but had zero UI entry point
+- Added **Return** (↩) icon button per catalog row, opening a new `StockReturnDialog`
+- Dialog shows current stock + projected stock after return, quantity field (min 1), and a searchable dropdown of cancelled work orders (fetched via `workOrdersApi.list({ status: CANCELLED })`)
+- Live text filter narrows the WO list by reference number or asset name
+- On success, invalidates `storekeeper.inventory` and `storekeeper.low-stock` query caches
+
+#### `fix(web): add missing API client methods to assetsApi`
+- `assetsApi` lacked five methods that the backend fully supports:
+  `createCertificate`, `updateCertificate`, `deleteCertificate`, `uploadDocument`, `deleteDocument`
+- All multipart methods build `FormData` internally; callers pass plain objects + optional `File`
+
+#### `feat(web-i18n): add all French translations for new dialogs`
+- New keys: `supervisorAssets.certificate.*` (form, validation, toasts)
+- New keys: `supervisorAssets.document.*` (form, validation, toasts)
+- New keys: `supervisorAssets.documentType.*` (all 8 DocumentType enum values)
+- New key: `storekeeperInventory.actions.returnStock`
+- New section: `storekeeperInventory.return.*` (dialog, form, validation, toasts)
+
+---
+
 ### Added / Fixed — Admin audit & i18n hardening (April 9, 2026)
 
 #### `feat(backend): add actionType filter to GET /admin/audit-log`

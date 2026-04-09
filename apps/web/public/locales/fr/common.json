@@ -715,6 +715,7 @@
       "create": "Nouvel équipement",
       "edit": "Modifier",
       "view": "Voir le détail",
+      "download": "Télécharger",
       "transitionStatus": "Changer le statut",
       "setOperational": "Remettre en service",
       "setOutOfService": "Mettre hors service",
@@ -773,6 +774,8 @@
       "statusTransitionsDescription": "Changez manuellement le statut de l'équipement.",
       "certificates": "Certificats de conformité",
       "certificatesEmpty": "Aucun certificat enregistré",
+      "documents": "Documents",
+      "documentsEmpty": "Aucun document enregistré",
       "children": "Sous-composants",
       "childrenEmpty": "Aucun sous-composant"
     },
@@ -798,7 +801,76 @@
       "updateSuccess": "Équipement mis à jour",
       "updateError": "Impossible de mettre à jour l'équipement",
       "statusSuccess": "Statut de l'équipement mis à jour",
-      "statusError": "Impossible de changer le statut"
+      "statusError": "Impossible de changer le statut",
+      "downloadStarted": "Téléchargement lancé",
+      "downloadError": "Impossible de télécharger le document"
+    },
+    "documentType": {
+      "TECHNICAL_MANUAL": "Manuel technique",
+      "SCHEMATIC": "Schéma",
+      "INSTALLATION_REPORT": "Rapport d'installation",
+      "SAFETY_DATA_SHEET": "Fiche de données de sécurité",
+      "SPECIFICATION_SHEET": "Fiche technique",
+      "PROCEDURE_DOCUMENT": "Document de procédure",
+      "CONTRACTOR_REPORT": "Rapport prestataire",
+      "PHOTO": "Photo"
+    },
+    "certificate": {
+      "createTitle": "Ajouter un certificat",
+      "editTitle": "Modifier le certificat",
+      "createDescription": "Enregistrez un certificat de conformité pour cet équipement.",
+      "editDescription": "Mettez à jour les informations du certificat.",
+      "actions": {
+        "add": "Ajouter"
+      },
+      "form": {
+        "type": "Type de certificat",
+        "otherType": "Précisez le type",
+        "otherTypePlaceholder": "Ex : Contrôle périodique",
+        "issuingAuthority": "Organisme émetteur",
+        "issuingAuthorityPlaceholder": "Ex : Bureau Veritas",
+        "issueDate": "Date d'émission",
+        "expirationDate": "Date d'expiration",
+        "file": "Document (optionnel)",
+        "attachFile": "Joindre un fichier",
+        "fileHint": "PDF, JPG ou PNG acceptés"
+      },
+      "validation": {
+        "otherTypeRequired": "Précisez le type de certificat",
+        "issuingAuthorityRequired": "L'organisme émetteur est requis",
+        "issueDateRequired": "La date d'émission est requise",
+        "expirationDateRequired": "La date d'expiration est requise"
+      },
+      "toasts": {
+        "createSuccess": "Certificat ajouté",
+        "createError": "Impossible d'ajouter le certificat",
+        "updateSuccess": "Certificat mis à jour",
+        "updateError": "Impossible de mettre à jour le certificat",
+        "deleteSuccess": "Certificat supprimé",
+        "deleteError": "Impossible de supprimer le certificat"
+      }
+    },
+    "document": {
+      "uploadTitle": "Téléverser un document",
+      "uploadDescription": "Ajoutez un document technique à cet équipement.",
+      "actions": {
+        "upload": "Téléverser"
+      },
+      "form": {
+        "type": "Type de document",
+        "file": "Fichier",
+        "chooseFile": "Choisir un fichier",
+        "upload": "Téléverser"
+      },
+      "validation": {
+        "fileRequired": "Veuillez sélectionner un fichier"
+      },
+      "toasts": {
+        "uploadSuccess": "Document téléversé",
+        "uploadError": "Impossible de téléverser le document",
+        "deleteSuccess": "Document supprimé",
+        "deleteError": "Impossible de supprimer le document"
+      }
     }
   },
   "admin": {
@@ -1060,7 +1132,8 @@
       "deactivate": "Désactiver",
       "receiveStock": "Réceptionner",
       "adjustStock": "Ajuster",
-      "viewMovements": "Historique"
+      "viewMovements": "Historique",
+      "returnStock": "Retourner au stock"
     },
     "lowStockBanner": "{{count}} pièce(s) en dessous du seuil minimum. Réapprovisionnez le stock.",
     "states": {
@@ -1140,6 +1213,26 @@
       "incomingError": "Erreur lors de la réception",
       "adjustmentSuccess": "Stock ajusté",
       "adjustmentError": "Erreur lors de l'ajustement"
+    },
+    "return": {
+      "dialogTitle": "Retour au stock",
+      "dialogDescription": "Enregistrez un retour de pièces en stock pour {{name}}.",
+      "quantity": "Quantité retournée",
+      "quantityHint": "Stock actuel : {{current}} → après retour : {{result}}",
+      "workOrder": "Ordre de travail concerné",
+      "woSearchPlaceholder": "Filtrer par référence ou équipement",
+      "woPlaceholder": "Sélectionnez un OT annulé",
+      "loadingWOs": "Chargement des ordres de travail…",
+      "noWOs": "Aucun ordre de travail annulé trouvé",
+      "confirm": "Enregistrer le retour",
+      "validation": {
+        "quantityMin": "La quantité doit être un entier supérieur ou égal à 1",
+        "workOrderRequired": "Sélectionnez un ordre de travail"
+      },
+      "toasts": {
+        "success": "Retour de pièces enregistré",
+        "error": "Impossible d'enregistrer le retour"
+      }
     }
   },
   "storekeeperAnalytics": {

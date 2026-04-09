@@ -45,6 +45,9 @@ Tech stack decisions: stack.pdf
 - [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
 - [x] Admin module (web) — users management, system config panel, audit log table
 - [x] Admin module (web) — hardening: ConfirmDialog for deactivate/delete, audit log filter fixed, hourlyRate clear on role change
+- [x] Audit logging (backend) — comprehensive location mutations (create, update, delete) with before/after state capture
+- [x] Audit logging (backend) — comprehensive category mutations (create, update, activate, deactivate) with before/after state capture
+- [x] Audit logging (web) — audit log UI now exposes Location and Category audit entry types for filtering and viewing
 - [x] Storekeeper module (web) — /storekeeper inventory catalog (list/filter/pagination + create/edit + activate/deactivate)
 - [x] Storekeeper module (web) — stock operations on catalog rows (incoming stock, manual adjustments, per-part movement history, low-stock banner)
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)

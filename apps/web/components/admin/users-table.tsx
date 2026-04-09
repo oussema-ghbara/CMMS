@@ -10,6 +10,7 @@ import { usersApi } from '@/lib/users.api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { UserFormDialog } from './user-form-dialog';
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -35,6 +36,7 @@ export function UsersTable() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDto | null>(null);
   const [loadingEditUserId, setLoadingEditUserId] = useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<UserDto | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -52,8 +54,12 @@ export function UsersTable() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Utilisateur désactivé');
+      setDeactivateTarget(null);
     },
-    onError: () => toast.error('Erreur lors de la désactivation'),
+    onError: () => {
+      toast.error('Erreur lors de la désactivation');
+      setDeactivateTarget(null);
+    },
   });
 
   const reactivateMutation = useMutation({
@@ -200,7 +206,7 @@ export function UsersTable() {
                           size="icon"
                           title="Désactiver"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => deactivateMutation.mutate(user.id)}
+                          onClick={() => setDeactivateTarget(user)}
                           disabled={deactivateMutation.isPending}
                         >
                           <UserX className="h-4 w-4" />
@@ -250,6 +256,22 @@ export function UsersTable() {
           void queryClient.invalidateQueries({ queryKey: ['users'] });
           setDialogOpen(false);
           setEditingUser(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        onOpenChange={(open) => { if (!open) setDeactivateTarget(null); }}
+        title="Désactiver l'utilisateur"
+        description={
+          deactivateTarget
+            ? `Désactiver « ${deactivateTarget.name} » ? Cette action révoquera toutes ses sessions actives.`
+            : undefined
+        }
+        confirmLabel="Désactiver"
+        isPending={deactivateMutation.isPending}
+        onConfirm={() => {
+          if (deactivateTarget) deactivateMutation.mutate(deactivateTarget.id);
         }}
       />
     </div>

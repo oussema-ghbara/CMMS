@@ -9,6 +9,7 @@ import { Loader2, MapPin, Pencil, Trash2, Plus } from 'lucide-react';
 import { locationsApi, type LocationItem } from '@/lib/locations.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LocationFormDialog } from './location-form-dialog';
 
@@ -26,6 +27,7 @@ export function LocationsTable() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<LocationItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LocationItem | null>(null);
 
   const { data: locations = [], isLoading, isError } = useQuery({
     queryKey: ['admin', 'locations'],
@@ -37,9 +39,11 @@ export function LocationsTable() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'locations'] });
       toast.success(t('admin.locations.toasts.deleteSuccess'));
+      setDeleteTarget(null);
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('admin.locations.toasts.deleteError')));
+      setDeleteTarget(null);
     },
   });
 
@@ -54,14 +58,7 @@ export function LocationsTable() {
   };
 
   const handleDelete = (location: LocationItem) => {
-    const confirmed = window.confirm(
-      t('admin.locations.confirmDelete', {
-        name: location.name,
-      }),
-    );
-
-    if (!confirmed) return;
-    deleteMutation.mutate(location.id);
+    setDeleteTarget(location);
   };
 
   return (
@@ -164,6 +161,22 @@ export function LocationsTable() {
         locations={locations}
         onSuccess={() => {
           void queryClient.invalidateQueries({ queryKey: ['admin', 'locations'] });
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={t('admin.locations.confirmDelete.title')}
+        description={
+          deleteTarget
+            ? t('admin.locations.confirmDelete.description', { name: deleteTarget.name })
+            : undefined
+        }
+        confirmLabel={t('common.delete')}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
         }}
       />
     </div>

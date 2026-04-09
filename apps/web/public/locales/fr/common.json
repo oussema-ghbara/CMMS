@@ -778,7 +778,10 @@
       "subtitle": "Créez, mettez à jour et supprimez la hiérarchie des emplacements.",
       "total": "{{count}} emplacement(s)",
       "levelBadge": "Niveau {{level}}",
-      "confirmDelete": "Supprimer l'emplacement \"{{name}}\" ?",
+      "confirmDelete": {
+        "title": "Supprimer l'emplacement",
+        "description": "Supprimer « {{name}} » ? Cette action est irréversible si l'emplacement ne possède pas d'enfants ni d'équipements associés."
+      },
       "actions": {
         "create": "Nouvel emplacement"
       },

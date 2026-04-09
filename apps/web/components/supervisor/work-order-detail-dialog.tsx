@@ -11,6 +11,7 @@ import {
   WorkOrderStatus,
   WorkOrderPriority,
   WOCancellationReason,
+  WOReassignmentReason,
   ValidationRejectionReason,
   AssetStatus,
   Role,
@@ -19,6 +20,7 @@ import {
   workOrdersApi,
   type WorkOrderListItem,
   type AssignWorkOrderPayload,
+  type ReassignTechnicianPayload,
   type CancelWorkOrderPayload,
   type RejectValidationPayload,
 } from '@/lib/work-orders.api';
@@ -104,6 +106,7 @@ const REJECTION_REASONS = Object.values(ValidationRejectionReason);
 type ActionPanel =
   | 'publish'
   | 'assign'
+  | 'reassign'
   | 'validate'
   | 'reject'
   | 'cancel'
@@ -154,6 +157,19 @@ export function WorkOrderDetailDialog({
     },
   });
 
+  // Reassign form state
+  const {
+    register: registerReassign,
+    handleSubmit: handleReassignSubmit,
+    reset: resetReassign,
+  } = useForm<{ newTechnicianId: string; reason: WOReassignmentReason; reasonDetail: string }>({
+    defaultValues: {
+      newTechnicianId: '',
+      reason: WOReassignmentReason.TECHNICIAN_OVERLOADED,
+      reasonDetail: '',
+    },
+  });
+
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const { data: detail, isLoading, isError } = useQuery({
@@ -165,7 +181,7 @@ export function WorkOrderDetailDialog({
   const { data: techniciansData } = useQuery({
     queryKey: ['users', 'technicians'],
     queryFn: () => usersApi.list({ role: Role.TECHNICIAN, isActive: true }),
-    enabled: open && (activePanel === 'assign'),
+    enabled: open && (activePanel === 'assign' || activePanel === 'reassign'),
   });
 
   const technicians = techniciansData ?? [];
@@ -185,6 +201,7 @@ export function WorkOrderDetailDialog({
     setContributorIds([]);
     resetCancel();
     resetReject();
+    resetReassign();
   }
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -247,12 +264,25 @@ export function WorkOrderDetailDialog({
       toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.cancelError'))),
   });
 
+  const reassignMutation = useMutation({
+    mutationFn: (payload: ReassignTechnicianPayload) =>
+      workOrdersApi.reassign(workOrder!.id, payload),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success(t('supervisorWorkOrders.toasts.reassignSuccess'));
+      resetPanels();
+    },
+    onError: (err) =>
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.reassignError'))),
+  });
+
   const isMutating =
     publishMutation.isPending ||
     assignMutation.isPending ||
     validateMutation.isPending ||
     rejectMutation.isPending ||
-    cancelMutation.isPending;
+    cancelMutation.isPending ||
+    reassignMutation.isPending;
 
   // ── Action submit handlers ─────────────────────────────────────────────────
 
@@ -283,6 +313,19 @@ export function WorkOrderDetailDialog({
     rejectMutation.mutate({
       rejectionReason: values.rejectionReason,
       rejectionDetail: values.rejectionDetail || undefined,
+    });
+  };
+
+  const handleReassignFormSubmit = (values: {
+    newTechnicianId: string;
+    reason: WOReassignmentReason;
+    reasonDetail: string;
+  }) => {
+    if (!values.newTechnicianId) return;
+    reassignMutation.mutate({
+      newTechnicianId: values.newTechnicianId,
+      reason: values.reason,
+      reasonDetail: values.reasonDetail || undefined,
     });
   };
 
@@ -332,6 +375,20 @@ export function WorkOrderDetailDialog({
                   onClick={() => setActivePanel('assign')}
                 >
                   {t('supervisorWorkOrders.actions.assign')}
+                </Button>
+              )}
+
+              {/* ASSIGNED / IN_PROGRESS / ON_HOLD → reassign principal */}
+              {(status === WorkOrderStatus.ASSIGNED ||
+                status === WorkOrderStatus.IN_PROGRESS ||
+                status === WorkOrderStatus.ON_HOLD) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActivePanel('reassign')}
+                >
+                  {t('supervisorWorkOrders.actions.reassign')}
                 </Button>
               )}
 
@@ -527,6 +584,64 @@ export function WorkOrderDetailDialog({
                 </Button>
                 <Button type="submit" size="sm" disabled={rejectMutation.isPending}>
                   {rejectMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  {t('common.confirm')}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* ── Reassign panel ── */}
+          {activePanel === 'reassign' && (
+            <form
+              onSubmit={handleReassignSubmit(handleReassignFormSubmit)}
+              className="space-y-3 rounded-md border p-3"
+            >
+              <p className="text-sm">{t('supervisorWorkOrders.actions.reassignDescription')}</p>
+
+              <div className="space-y-1.5">
+                <Label>{t('supervisorWorkOrders.actions.newTechnician')}</Label>
+                <select className={selectClass} {...registerReassign('newTechnicianId')}>
+                  <option value="">{t('supervisorWorkOrders.labels.noTechnicians')}</option>
+                  {technicians.map((tech) => (
+                    <option key={tech.id} value={tech.id}>
+                      {tech.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t('supervisorWorkOrders.actions.reassignReason')}</Label>
+                <select className={selectClass} {...registerReassign('reason')}>
+                  {Object.values(WOReassignmentReason).map((r) => (
+                    <option key={r} value={r}>
+                      {t(`supervisorWorkOrders.reassignmentReason.${r}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t('supervisorWorkOrders.actions.reassignReasonDetail')}</Label>
+                <Input
+                  placeholder={t('supervisorWorkOrders.actions.reassignReasonDetail')}
+                  maxLength={500}
+                  {...registerReassign('reasonDetail')}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetPanels}
+                  disabled={reassignMutation.isPending}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button type="submit" size="sm" disabled={reassignMutation.isPending}>
+                  {reassignMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                   {t('common.confirm')}
                 </Button>
               </div>
@@ -814,6 +929,141 @@ export function WorkOrderDetailDialog({
                         <p className="text-muted-foreground shrink-0">
                           {formatDateTime(v.createdAt)}
                         </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Intervention logs ── */}
+            {detail.interventionLogs.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('supervisorWorkOrders.detail.interventions')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('supervisorWorkOrders.detail.interventionsDescription')}
+                  </p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {detail.interventionLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="rounded-md border px-3 py-2 text-xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-medium">{log.technician.name}</p>
+                          {log.activeDurationMinutes != null && (
+                            <span className="text-muted-foreground shrink-0">
+                              {t('supervisorWorkOrders.labels.interventionDurationValue', {
+                                count: log.activeDurationMinutes,
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span>
+                            {t('supervisorWorkOrders.labels.interventionStarted')}: {formatDateTime(log.startedAt)}
+                          </span>
+                          <span>
+                            {log.endedAt
+                              ? `${t('supervisorWorkOrders.labels.interventionEnded')}: ${formatDateTime(log.endedAt)}`
+                              : t('supervisorWorkOrders.labels.interventionInProgress')}
+                          </span>
+                        </div>
+                        {log.result && (
+                          <p className="text-muted-foreground">
+                            {log.result}{log.resultExplanation ? ` — ${log.resultExplanation}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── On-hold periods ── */}
+            {detail.onHoldPeriods.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('supervisorWorkOrders.detail.holdPeriods')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('supervisorWorkOrders.detail.holdPeriodsDescription')}
+                  </p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {detail.onHoldPeriods.map((hold) => (
+                      <div
+                        key={hold.id}
+                        className="rounded-md border px-3 py-2 text-xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-medium">{hold.reason}</p>
+                          <Badge
+                            variant={hold.resumedAt ? 'secondary' : 'warning'}
+                            className="text-[10px] px-1.5 py-0 shrink-0"
+                          >
+                            {hold.resumedAt
+                              ? formatDateTime(hold.resumedAt)
+                              : t('supervisorWorkOrders.labels.holdOngoing')}
+                          </Badge>
+                        </div>
+                        {hold.note && (
+                          <p className="text-muted-foreground">{hold.note}</p>
+                        )}
+                        <p className="text-muted-foreground">
+                          {t('supervisorWorkOrders.labels.holdStarted')}: {formatDateTime(hold.startedAt)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Part requests ── */}
+            {detail.partRequests.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('supervisorWorkOrders.detail.partRequests')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('supervisorWorkOrders.detail.partRequestsDescription')}
+                  </p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {detail.partRequests.map((pr) => (
+                      <div
+                        key={pr.id}
+                        className="flex items-center justify-between rounded-md border px-3 py-2 text-xs gap-3"
+                      >
+                        <div className="space-y-0.5 flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {pr.part ? pr.part.name : t('common.noData')}
+                          </p>
+                          {pr.part && (
+                            <p className="text-muted-foreground font-mono">{pr.part.referenceCode}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-muted-foreground">
+                            {pr.quantityFulfilled ?? 0}/{pr.quantityRequested}
+                          </span>
+                          <Badge
+                            variant={
+                              pr.status === 'FULFILLED'
+                                ? 'success'
+                                : pr.status === 'REJECTED'
+                                ? 'destructive'
+                                : pr.status === 'PARTIALLY_FULFILLED'
+                                ? 'warning'
+                                : 'secondary'
+                            }
+                            className="text-[10px] px-1.5 py-0"
+                          >
+                            {t(`supervisorWorkOrders.labels.partRequestStatus.${pr.status}`)}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>

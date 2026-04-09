@@ -4,6 +4,7 @@ import {
   WorkOrderStatus,
   WorkOrderType,
   WOCancellationReason,
+  WOReassignmentReason,
   ValidationRejectionReason,
   AssetStatus,
 } from '@gmao/shared';
@@ -199,6 +200,16 @@ export interface AssignWorkOrderPayload {
   contributorIds?: string[];
 }
 
+export interface ReassignTechnicianPayload {
+  newTechnicianId: string;
+  reason: WOReassignmentReason;
+  reasonDetail?: string;
+}
+
+export interface PromoteTechnicianPayload {
+  newPrincipalId: string;
+}
+
 export interface CancelWorkOrderPayload {
   reason: WOCancellationReason;
   detail?: string;
@@ -230,6 +241,12 @@ export const workOrdersApi = {
 
   assign: (id: string, payload: AssignWorkOrderPayload) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/assign`, payload).then((r) => r.data),
+
+  reassign: (id: string, payload: ReassignTechnicianPayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/reassign`, payload).then((r) => r.data),
+
+  promote: (id: string, payload: PromoteTechnicianPayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/promote`, payload).then((r) => r.data),
 
   validate: (id: string) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/validate`).then((r) => r.data),

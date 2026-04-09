@@ -368,7 +368,23 @@
       "noHistory": "Aucun historique de statut",
       "noValidations": "Aucune action de validation",
       "noHoldPeriods": "Aucune mise en attente",
+      "noInterventions": "Aucune intervention enregistrée",
       "noPartRequests": "Aucune demande de pièce",
+      "interventionStarted": "Début",
+      "interventionEnded": "Fin",
+      "interventionDuration": "Durée active",
+      "interventionDurationValue": "{{count}} min",
+      "interventionInProgress": "En cours",
+      "holdReason": "Raison",
+      "holdStarted": "Mise en attente",
+      "holdResumed": "Reprise",
+      "holdOngoing": "En cours",
+      "partRequestStatus": {
+        "PENDING": "En attente",
+        "FULFILLED": "Fourni",
+        "PARTIALLY_FULFILLED": "Partiellement fourni",
+        "REJECTED": "Rejeté"
+      },
       "checklistCompleted": "Complété",
       "checklistPending": "En attente",
       "checklistSkipped": "Ignoré",
@@ -403,7 +419,12 @@
       "cancel": "Annuler l'ordre de travail",
       "cancelDescription": "Annuler définitivement cet ordre de travail.",
       "cancellationReason": "Motif d'annulation",
-      "cancellationDetail": "Détail (optionnel)"
+      "cancellationDetail": "Détail (optionnel)",
+      "reassign": "Réassigner le technicien",
+      "reassignDescription": "Remplacer le technicien principal par un autre technicien actif.",
+      "newTechnician": "Nouveau technicien",
+      "reassignReason": "Motif de réassignation",
+      "reassignReasonDetail": "Détail (optionnel)"
     },
     "states": {
       "empty": "Aucun ordre de travail trouvé",
@@ -446,7 +467,10 @@
       "validationHistoryDescription": "Actions de validation superviseur.",
       "interventions": "Interventions",
       "interventionsDescription": "Journaux d'intervention des techniciens.",
+      "holdPeriods": "Périodes de mise en attente",
+      "holdPeriodsDescription": "Raisons et durées des mises en attente.",
       "partRequests": "Demandes de pièces",
+      "partRequestsDescription": "Pièces demandées pour cet ordre de travail.",
       "actions": "Actions disponibles",
       "actionsDescription": "Les actions dépendent du statut courant de l'ordre de travail.",
       "noActions": "Aucune action disponible pour ce statut."
@@ -479,6 +503,13 @@
       "INCOMPLETE_CHECKLIST": "Checklist incomplète",
       "OTHER": "Autre"
     },
+    "reassignmentReason": {
+      "TECHNICIAN_OVERLOADED": "Technicien surchargé",
+      "TECHNICIAN_ABSENT": "Technicien absent",
+      "SPECIFIC_SKILL_REQUIRED": "Compétence spécifique requise",
+      "PRIORITY_CONFLICT": "Conflit de priorité",
+      "OTHER": "Autre"
+    },
     "validation": {
       "descriptionRequired": "La description est obligatoire",
       "assetRequired": "L'équipement est obligatoire",
@@ -501,7 +532,9 @@
       "rejectSuccess": "Clôture rejetée — renvoyé en cours",
       "rejectError": "Impossible de rejeter la clôture",
       "cancelSuccess": "Ordre de travail annulé",
-      "cancelError": "Impossible d'annuler l'ordre de travail"
+      "cancelError": "Impossible d'annuler l'ordre de travail",
+      "reassignSuccess": "Technicien réassigné avec succès",
+      "reassignError": "Impossible de réassigner le technicien"
     }
   },
   "supervisorPreventivePlans": {

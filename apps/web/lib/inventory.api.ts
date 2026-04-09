@@ -100,6 +100,12 @@ export interface StockAdjustmentPayload {
   detail?: string;
 }
 
+export interface RecordPartReturnPayload {
+  partId: string;
+  quantity: number;
+  workOrderId: string;
+}
+
 export const inventoryApi = {
   getParts: (params?: {
     search?: string;
@@ -131,4 +137,7 @@ export const inventoryApi = {
 
   getAnalytics: (params?: { periodDays?: number; deadStockDays?: number }) =>
     api.get<InventoryAnalyticsResponse>('/stock/analytics', { params }).then((r) => r.data),
+
+  recordReturn: (payload: RecordPartReturnPayload) =>
+    api.post<{ part: PartCatalogItem; movement: StockMovement }>('/stock/returns', payload).then((r) => r.data),
 };

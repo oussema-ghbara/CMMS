@@ -120,8 +120,8 @@ function AuditLogRow({ entry }: { entry: AuditLogEntry }) {
 }
 
 // All targetTypes that the backend writes to the audit log.
-// Derived from: UsersService, SystemConfigService, AssetsService.
-const KNOWN_TARGET_TYPES = ['Asset', 'SystemConfig', 'User'] as const;
+// Derived from: UsersService, SystemConfigService, AssetsService, LocationsService, CategoriesService.
+const KNOWN_TARGET_TYPES = ['Asset', 'SystemConfig', 'User', 'Location', 'Category'] as const;
 
 export function AuditLogTable() {
   const [page, setPage] = useState(1);

@@ -36,6 +36,6 @@ export const adminApi = {
       .patch<SystemConfigEntry>(`/admin/system-config/${key}`, { value })
       .then((r) => r.data),
 
-  getAuditLog: (params?: { page?: number; limit?: number; targetType?: string }) =>
+  getAuditLog: (params?: { page?: number; limit?: number; targetType?: string; actionType?: string }) =>
     api.get<AuditLogResponse>('/admin/audit-log', { params }).then((r) => r.data),
 };

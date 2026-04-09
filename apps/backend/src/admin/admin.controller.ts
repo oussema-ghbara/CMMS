@@ -56,15 +56,20 @@ export class AdminController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'targetType', required: false, type: String })
+  @ApiQuery({ name: 'actionType', required: false, type: String })
   async getAuditLog(
     @Query('page') page = '1',
     @Query('limit') limit = '50',
     @Query('targetType') targetType?: string,
+    @Query('actionType') actionType?: string,
   ) {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
     const skip = (pageNum - 1) * limitNum;
-    const where = targetType ? { targetType } : {};
+    const where = {
+      ...(targetType ? { targetType } : {}),
+      ...(actionType ? { actionType } : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { adminApi } from '@/lib/admin.api';
 import type { AuditLogEntry } from '@/lib/admin.api';
@@ -44,7 +45,12 @@ function renderValue(val: unknown): React.ReactNode {
   return <span className="text-xs font-medium">{String(val)}</span>;
 }
 
-function AuditChangeDetail({ before, after }: { before: unknown; after: unknown }) {
+function AuditChangeDetail({ before, after, labelBefore, labelAfter }: {
+  before: unknown;
+  after: unknown;
+  labelBefore: string;
+  labelAfter: string;
+}) {
   const hasBefore = before !== null && before !== undefined;
   const hasAfter = after !== null && after !== undefined;
 
@@ -53,13 +59,13 @@ function AuditChangeDetail({ before, after }: { before: unknown; after: unknown 
   return (
     <div className="flex gap-4 text-xs">
       <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground font-medium uppercase tracking-wide mb-1.5 text-[10px]">Avant</p>
+        <p className="text-muted-foreground font-medium uppercase tracking-wide mb-1.5 text-[10px]">{labelBefore}</p>
         <div className="rounded border bg-muted/40 px-3 py-2 min-h-[2rem]">
           {hasBefore ? renderValue(before) : <span className="text-muted-foreground italic">—</span>}
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground font-medium uppercase tracking-wide mb-1.5 text-[10px]">Après</p>
+        <p className="text-muted-foreground font-medium uppercase tracking-wide mb-1.5 text-[10px]">{labelAfter}</p>
         <div className="rounded border bg-muted/40 px-3 py-2 min-h-[2rem]">
           {hasAfter ? renderValue(after) : <span className="text-muted-foreground italic">—</span>}
         </div>
@@ -68,7 +74,11 @@ function AuditChangeDetail({ before, after }: { before: unknown; after: unknown 
   );
 }
 
-function AuditLogRow({ entry }: { entry: AuditLogEntry }) {
+function AuditLogRow({ entry, labelBefore, labelAfter }: {
+  entry: AuditLogEntry;
+  labelBefore: string;
+  labelAfter: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const hasDetail = entry.valueBefore !== null && entry.valueBefore !== undefined
     || entry.valueAfter !== null && entry.valueAfter !== undefined;
@@ -98,7 +108,6 @@ function AuditLogRow({ entry }: { entry: AuditLogEntry }) {
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              title={expanded ? 'Masquer les détails' : 'Voir les détails'}
               onClick={() => setExpanded((v) => !v)}
             >
               {expanded
@@ -111,7 +120,12 @@ function AuditLogRow({ entry }: { entry: AuditLogEntry }) {
       {expanded && (
         <TableRow>
           <TableCell colSpan={6} className="bg-muted/20 px-4 py-3">
-            <AuditChangeDetail before={entry.valueBefore} after={entry.valueAfter} />
+            <AuditChangeDetail
+              before={entry.valueBefore}
+              after={entry.valueAfter}
+              labelBefore={labelBefore}
+              labelAfter={labelAfter}
+            />
           </TableCell>
         </TableRow>
       )}
@@ -119,47 +133,91 @@ function AuditLogRow({ entry }: { entry: AuditLogEntry }) {
   );
 }
 
-// All targetTypes that the backend writes to the audit log.
-// Derived from: UsersService, SystemConfigService, AssetsService, LocationsService, CategoriesService.
 const KNOWN_TARGET_TYPES = ['Asset', 'SystemConfig', 'User', 'Location', 'Category'] as const;
 
+const KNOWN_ACTION_TYPES = [
+  'USER_CREATED',
+  'USER_UPDATED',
+  'USER_DEACTIVATED',
+  'USER_REACTIVATED',
+  'CONFIG_UPDATED',
+  'CATEGORY_CREATED',
+  'CATEGORY_UPDATED',
+  'CATEGORY_DEACTIVATED',
+  'CATEGORY_ACTIVATED',
+  'LOCATION_CREATED',
+  'LOCATION_UPDATED',
+  'LOCATION_DELETED',
+  'ASSET_CREATED',
+  'ASSET_UPDATED',
+  'ASSET_STATUS_CHANGED',
+] as const;
+
 export function AuditLogTable() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [targetType, setTargetType] = useState('');
+  const [actionType, setActionType] = useState('');
   const limit = 25;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'audit-log', page, targetType],
+    queryKey: ['admin', 'audit-log', page, targetType, actionType],
     queryFn: () =>
-      adminApi.getAuditLog({ page, limit, targetType: targetType || undefined }),
+      adminApi.getAuditLog({
+        page,
+        limit,
+        targetType: targetType || undefined,
+        actionType: actionType || undefined,
+      }),
   });
 
   const totalPages = data ? Math.ceil(data.total / limit) : 1;
+
+  const handleTargetTypeChange = (value: string) => {
+    setTargetType(value);
+    setPage(1);
+  };
+
+  const handleActionTypeChange = (value: string) => {
+    setActionType(value);
+    setPage(1);
+  };
 
   const selectClass =
     'h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <select
           value={targetType}
-          onChange={(e) => {
-            setTargetType(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => handleTargetTypeChange(e.target.value)}
           className={selectClass}
         >
-          <option value="">Toutes les cibles</option>
-          {KNOWN_TARGET_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          <option value="">{t('admin.auditLog.filters.allTargetTypes')}</option>
+          {KNOWN_TARGET_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
             </option>
           ))}
         </select>
+
+        <select
+          value={actionType}
+          onChange={(e) => handleActionTypeChange(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{t('admin.auditLog.filters.allActionTypes')}</option>
+          {KNOWN_ACTION_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {t(`admin.auditLog.actionTypes.${type}`, { defaultValue: type })}
+            </option>
+          ))}
+        </select>
+
         {data && (
           <span className="text-sm text-muted-foreground">
-            {data.total} entrée{data.total !== 1 ? 's' : ''}
+            {t('admin.auditLog.total', { count: data.total })}
           </span>
         )}
       </div>
@@ -168,11 +226,11 @@ export function AuditLogTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date / Heure</TableHead>
-              <TableHead>Acteur</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Type de cible</TableHead>
-              <TableHead>ID cible</TableHead>
+              <TableHead>{t('admin.auditLog.columns.datetime')}</TableHead>
+              <TableHead>{t('admin.auditLog.columns.actor')}</TableHead>
+              <TableHead>{t('admin.auditLog.columns.action')}</TableHead>
+              <TableHead>{t('admin.auditLog.columns.targetType')}</TableHead>
+              <TableHead>{t('admin.auditLog.columns.targetId')}</TableHead>
               <TableHead className="w-[50px]" />
             </TableRow>
           </TableHeader>
@@ -186,12 +244,17 @@ export function AuditLogTable() {
             ) : !data || data.data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  Aucune entrée dans le journal
+                  {t('admin.auditLog.states.empty')}
                 </TableCell>
               </TableRow>
             ) : (
               data.data.map((entry) => (
-                <AuditLogRow key={entry.id} entry={entry} />
+                <AuditLogRow
+                  key={entry.id}
+                  entry={entry}
+                  labelBefore={t('admin.auditLog.detail.before')}
+                  labelAfter={t('admin.auditLog.detail.after')}
+                />
               ))
             )}
           </TableBody>

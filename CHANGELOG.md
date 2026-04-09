@@ -4,6 +4,32 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added / Fixed — Admin audit & i18n hardening (April 9, 2026)
+
+#### `feat(backend): add actionType filter to GET /admin/audit-log`
+- Endpoint previously accepted only `targetType` as a query filter
+- Added `@Query('actionType')` parameter; both filters are spread into the Prisma `where` clause and are independently optional
+- Swagger `@ApiQuery` decorator added for `actionType`
+- Admins can now query e.g. `?actionType=USER_DEACTIVATED` to isolate specific audit events
+
+#### `feat(web-admin): add actionType filter dropdown to AuditLogTable`
+- Second filter select added alongside the existing "target type" dropdown
+- Dropdown lists all 15 known action types with human-readable French labels sourced from i18n (`admin.auditLog.actionTypes.*`)
+- Selecting either filter resets pagination to page 1 to avoid stale offsets
+- `adminApi.getAuditLog` updated to forward the new `actionType` param
+
+#### `fix(web-admin): convert AuditLogTable to full i18n`
+- All hardcoded French strings removed: column headers, "Avant"/"Après" diff labels, empty state, total count, filter placeholders
+- `AuditChangeDetail` now receives labels as props so the component has no hardcoded locale
+- New i18n keys added: `admin.auditLog.columns.*`, `admin.auditLog.filters.*`, `admin.auditLog.detail.*`, `admin.auditLog.states.*`, `admin.auditLog.actionTypes.*`, `admin.auditLog.total`
+
+#### `fix(web-admin): convert UsersTable and UserFormDialog to full i18n`
+- Both components previously bypassed the i18n system entirely despite `categories-table` and `locations-table` using `useTranslation` throughout
+- All hardcoded strings replaced: role labels (driven by `t('admin.users.roles.ROLE')`), column headers, filter selects, status badges, toast messages, confirm-dialog text, form field labels/placeholders/errors
+- New i18n keys added: `admin.users.filters.*`, `admin.users.columns.*`, `admin.users.status.*`, `admin.users.roles.*`, `admin.users.states.*`, `admin.users.actions.*`, `admin.users.toasts.*`, `admin.users.deactivateDialog.*`, `admin.users.form.*`
+
+---
+
 ### Fixed - Admin UI audit & hardening (April 9, 2026)
 
 #### `fix(web-admin): replace window.confirm with ConfirmDialog in LocationsTable`

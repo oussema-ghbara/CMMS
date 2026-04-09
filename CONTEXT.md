@@ -57,6 +57,9 @@ Tech stack decisions: stack.pdf
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
 - [x] Top bar / notifications (web) — balanced header layout + notification list, unread badge, mark-read actions
+- [x] Admin audit (backend) — GET /admin/audit-log now accepts `actionType` query filter alongside `targetType`; admins can isolate specific action types (USER_DEACTIVATED, CONFIG_UPDATED, etc.)
+- [x] Admin audit (web) — audit-log-table: `actionType` filter dropdown added (15 known action types with French labels); page resets on filter change; all hardcoded strings replaced with i18n
+- [x] Admin users (web) — users-table and user-form-dialog fully converted to i18n (role labels, column headers, filters, toasts, confirm dialog, form labels)
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

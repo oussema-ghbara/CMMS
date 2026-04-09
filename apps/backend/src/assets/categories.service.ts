@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CategoriesRepository } from './categories.repository';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateChecklistTemplateItemDto } from './dto/create-checklist-template-item.dto';
@@ -7,7 +8,12 @@ import { ReorderChecklistItemsDto } from './dto/reorder-checklist-items.dto';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly repo: CategoriesRepository) {}
+  private readonly logger = new Logger(CategoriesService.name);
+
+  constructor(
+    private readonly repo: CategoriesRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   findAll() {
     return this.repo.findAll();
@@ -17,20 +23,106 @@ export class CategoriesService {
     return this.repo.findById(id);
   }
 
-  create(dto: CreateCategoryDto) {
-    return this.repo.create(dto);
+  async create(dto: CreateCategoryDto, actorId: string) {
+    const category = await this.repo.create(dto);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'CATEGORY_CREATED',
+        targetType: 'Category',
+        targetId: category.id,
+        valueAfter: {
+          name: category.name,
+          description: category.description,
+          isActive: category.isActive,
+        },
+      },
+    });
+
+    this.logger.log(`Category created: ${category.id} (${category.name}) by user ${actorId}`);
+    return category;
   }
 
-  update(id: string, dto: UpdateCategoryDto) {
-    return this.repo.update(id, dto);
+  async update(id: string, dto: UpdateCategoryDto, actorId: string) {
+    const before = await this.repo.findById(id);
+    const category = await this.repo.update(id, dto);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'CATEGORY_UPDATED',
+        targetType: 'Category',
+        targetId: id,
+        valueBefore: {
+          name: before.name,
+          description: before.description,
+          isActive: before.isActive,
+        },
+        valueAfter: {
+          name: category.name,
+          description: category.description,
+          isActive: category.isActive,
+        },
+      },
+    });
+
+    this.logger.log(`Category updated: ${id} by user ${actorId}`);
+    return category;
   }
 
-  deactivate(id: string) {
-    return this.repo.setActive(id, false);
+  async deactivate(id: string, actorId: string) {
+    const before = await this.repo.findById(id);
+    const category = await this.repo.setActive(id, false);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'CATEGORY_DEACTIVATED',
+        targetType: 'Category',
+        targetId: id,
+        valueBefore: {
+          name: before.name,
+          description: before.description,
+          isActive: before.isActive,
+        },
+        valueAfter: {
+          name: category.name,
+          description: category.description,
+          isActive: category.isActive,
+        },
+      },
+    });
+
+    this.logger.log(`Category deactivated: ${id} by user ${actorId}`);
+    return category;
   }
 
-  activate(id: string) {
-    return this.repo.setActive(id, true);
+  async activate(id: string, actorId: string) {
+    const before = await this.repo.findById(id);
+    const category = await this.repo.setActive(id, true);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        actionType: 'CATEGORY_ACTIVATED',
+        targetType: 'Category',
+        targetId: id,
+        valueBefore: {
+          name: before.name,
+          description: before.description,
+          isActive: before.isActive,
+        },
+        valueAfter: {
+          name: category.name,
+          description: category.description,
+          isActive: category.isActive,
+        },
+      },
+    });
+
+    this.logger.log(`Category activated: ${id} by user ${actorId}`);
+    return category;
   }
 
   addChecklistItem(categoryId: string, dto: CreateChecklistTemplateItemDto) {

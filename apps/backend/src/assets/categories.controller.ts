@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Param, Body, HttpCode, HttpStatus, Request,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -9,6 +9,12 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateChecklistTemplateItemDto } from './dto/create-checklist-template-item.dto';
 import { ReorderChecklistItemsDto } from './dto/reorder-checklist-items.dto';
+import type { AccessTokenPayload } from '../auth/types/jwt-payload.type';
+import type { Request as ExpressRequest } from 'express';
+
+interface AuthenticatedRequest extends ExpressRequest {
+  user: AccessTokenPayload;
+}
 
 @ApiTags('Asset Categories')
 @ApiBearerAuth()
@@ -28,28 +34,41 @@ export class CategoriesController {
 
   @Post()
   @Roles(Role.ADMIN)
-  create(@Body() dto: CreateCategoryDto) {
-    return this.service.create(dto);
+  create(
+    @Body() dto: CreateCategoryDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.service.create(dto, req.user.sub);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCategoryDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.service.update(id, dto, req.user.sub);
   }
 
   @Patch(':id/deactivate')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  deactivate(@Param('id') id: string) {
-    return this.service.deactivate(id);
+  deactivate(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.service.deactivate(id, req.user.sub);
   }
 
   @Patch(':id/activate')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  activate(@Param('id') id: string) {
-    return this.service.activate(id);
+  activate(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.service.activate(id, req.user.sub);
   }
 
   // Checklist template item management — Supervisor only

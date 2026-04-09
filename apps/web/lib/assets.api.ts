@@ -73,6 +73,27 @@ export interface AssetCertificate {
   expirationDate: string;
   status: string;
   createdAt: string;
+  documentId?: string | null;
+  document?: {
+    id: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    createdAt: string;
+  } | null;
+}
+
+export interface AssetDocument {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: string;
+  uploadedBy?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface AssetDetail extends AssetListItem {
@@ -104,6 +125,18 @@ export interface AssetStatusTransitionPayload {
   reason?: string;
 }
 
+// ── Certificate payloads ──────────────────────────────────────────────────────
+
+export interface CreateCertificatePayload {
+  certificateType: string;
+  otherType?: string;
+  issuingAuthority: string;
+  issueDate: string;
+  expirationDate: string;
+}
+
+export type UpdateCertificatePayload = Partial<CreateCertificatePayload>;
+
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const assetsApi = {
@@ -121,4 +154,55 @@ export const assetsApi = {
 
   transitionStatus: (id: string, payload: AssetStatusTransitionPayload) =>
     api.patch<AssetDetail>(`/assets/${id}/status`, payload).then((r) => r.data),
+
+  // ── Certificates ────────────────────────────────────────────────────────────
+
+  listCertificates: (id: string) =>
+    api.get<AssetCertificate[]>(`/assets/${id}/certificates`).then((r) => r.data),
+
+  createCertificate: (id: string, payload: CreateCertificatePayload, file?: File) => {
+    const form = new FormData();
+    form.append('certificateType', payload.certificateType);
+    if (payload.otherType) form.append('otherType', payload.otherType);
+    form.append('issuingAuthority', payload.issuingAuthority);
+    form.append('issueDate', payload.issueDate);
+    form.append('expirationDate', payload.expirationDate);
+    if (file) form.append('file', file);
+    return api.post<AssetCertificate>(`/assets/${id}/certificates`, form).then((r) => r.data);
+  },
+
+  updateCertificate: (id: string, certId: string, payload: UpdateCertificatePayload, file?: File) => {
+    const form = new FormData();
+    if (payload.certificateType) form.append('certificateType', payload.certificateType);
+    if (payload.otherType !== undefined) form.append('otherType', payload.otherType);
+    if (payload.issuingAuthority) form.append('issuingAuthority', payload.issuingAuthority);
+    if (payload.issueDate) form.append('issueDate', payload.issueDate);
+    if (payload.expirationDate) form.append('expirationDate', payload.expirationDate);
+    if (file) form.append('file', file);
+    return api.patch<AssetCertificate>(`/assets/${id}/certificates/${certId}`, form).then((r) => r.data);
+  },
+
+  deleteCertificate: (id: string, certId: string) =>
+    api.delete(`/assets/${id}/certificates/${certId}`),
+
+  getCertificateDownloadUrl: (id: string, certId: string) =>
+    api.get<string>(`/assets/${id}/certificates/${certId}/download`).then((r) => r.data),
+
+  // ── Documents ───────────────────────────────────────────────────────────────
+
+  listDocuments: (id: string) =>
+    api.get<AssetDocument[]>(`/assets/${id}/documents`).then((r) => r.data),
+
+  uploadDocument: (id: string, file: File, documentType: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', documentType);
+    return api.post<AssetDocument>(`/assets/${id}/documents`, form).then((r) => r.data);
+  },
+
+  deleteDocument: (id: string, docId: string) =>
+    api.delete(`/assets/${id}/documents/${docId}`),
+
+  getDocumentDownloadUrl: (id: string, docId: string) =>
+    api.get<string>(`/assets/${id}/documents/${docId}/download`).then((r) => r.data),
 };

@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsArray, IsEnum, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsEmail, IsString, IsArray, IsEnum, IsOptional, IsNumber, Min, ValidateIf } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@gmao/shared';
 
@@ -19,9 +19,10 @@ export class UpdateUserDto {
   @IsEnum(Role, { each: true })
   roles?: Role[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
+  @ValidateIf((_, value) => value !== null)
   @IsNumber()
   @Min(0)
-  hourlyRate?: number;
+  hourlyRate?: number | null;
 }

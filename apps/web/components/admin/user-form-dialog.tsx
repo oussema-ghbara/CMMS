@@ -94,12 +94,14 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: FormValues }) =>
+    mutationFn: ({ id, data, hourlyRate }: { id: string; data: FormValues; hourlyRate: number | null | undefined }) =>
       usersApi.update(id, {
         name: data.name,
         email: data.email,
         roles: data.roles,
-        hourlyRate: data.hourlyRate ?? undefined,
+        // Pass null explicitly to clear the field, or the numeric value, or
+        // undefined to leave it unchanged (only when TECHNICIAN and no value set).
+        ...(hourlyRate !== undefined ? { hourlyRate } : {}),
       }),
     onSuccess: () => {
       toast.success('Utilisateur mis à jour');
@@ -116,14 +118,20 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = (data: FormValues) => {
+    // If TECHNICIAN role is not selected, clear hourlyRate so a previously
+    // stored value is not silently preserved on a non-technician account.
+    const effectiveHourlyRate = data.roles.includes(Role.TECHNICIAN)
+      ? (data.hourlyRate ?? undefined)
+      : null;
+
     if (isEdit) {
-      updateMutation.mutate({ id: user.id, data });
+      updateMutation.mutate({ id: user.id, data, hourlyRate: effectiveHourlyRate });
     } else {
       createMutation.mutate({
         name: data.name,
         email: data.email,
         roles: data.roles,
-        hourlyRate: data.hourlyRate ?? undefined,
+        hourlyRate: effectiveHourlyRate ?? undefined,
       });
     }
   };

@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { Role } from '@gmao/shared';
@@ -22,18 +23,10 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
-const ROLE_LABELS: Record<Role, string> = {
-  [Role.ADMIN]: 'Administrateur',
-  [Role.SUPERVISOR]: 'Superviseur',
-  [Role.TECHNICIAN]: 'Technicien',
-  [Role.STOREKEEPER]: 'Magasinier',
-  [Role.REQUESTER]: 'Demandeur',
-};
-
 const schema = z.object({
-  name: z.string().min(1, 'Le nom est requis'),
-  email: z.string().email('Email invalide'),
-  roles: z.array(z.nativeEnum(Role)).min(1, 'Au moins un rôle est requis'),
+  name: z.string().min(1),
+  email: z.string().email(),
+  roles: z.array(z.nativeEnum(Role)).min(1),
   hourlyRate: z.number().min(0).nullable().optional(),
 });
 
@@ -47,6 +40,7 @@ interface UserFormDialogProps {
 }
 
 export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserFormDialogProps) {
+  const { t } = useTranslation();
   const isEdit = !!user;
 
   const {
@@ -82,13 +76,15 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
   const createMutation = useMutation({
     mutationFn: usersApi.create,
     onSuccess: () => {
-      toast.success('Utilisateur créé — un email de configuration a été envoyé');
+      toast.success(t('admin.users.form.createSuccess'));
       onSuccess();
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       const msg = err?.response?.data?.message;
       toast.error(
-        msg === 'users.emailAlreadyExists' ? 'Cet email est déjà utilisé' : 'Erreur lors de la création',
+        msg === 'users.emailAlreadyExists'
+          ? t('admin.users.form.emailConflict')
+          : t('admin.users.form.createError'),
       );
     },
   });
@@ -99,18 +95,18 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
         name: data.name,
         email: data.email,
         roles: data.roles,
-        // Pass null explicitly to clear the field, or the numeric value, or
-        // undefined to leave it unchanged (only when TECHNICIAN and no value set).
         ...(hourlyRate !== undefined ? { hourlyRate } : {}),
       }),
     onSuccess: () => {
-      toast.success('Utilisateur mis à jour');
+      toast.success(t('admin.users.form.updateSuccess'));
       onSuccess();
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       const msg = err?.response?.data?.message;
       toast.error(
-        msg === 'users.emailAlreadyExists' ? 'Cet email est déjà utilisé' : 'Erreur lors de la mise à jour',
+        msg === 'users.emailAlreadyExists'
+          ? t('admin.users.form.emailConflict')
+          : t('admin.users.form.updateError'),
       );
     },
   });
@@ -118,8 +114,6 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = (data: FormValues) => {
-    // If TECHNICIAN role is not selected, clear hourlyRate so a previously
-    // stored value is not silently preserved on a non-technician account.
     const effectiveHourlyRate = data.roles.includes(Role.TECHNICIAN)
       ? (data.hourlyRate ?? undefined)
       : null;
@@ -141,44 +135,44 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
+            {isEdit ? t('admin.users.form.editTitle') : t('admin.users.form.createTitle')}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="name">Nom complet</Label>
-            <Input id="name" {...register('name')} placeholder="Jean Dupont" />
+            <Label htmlFor="name">{t('admin.users.form.nameLabel')}</Label>
+            <Input id="name" {...register('name')} placeholder={t('admin.users.form.namePlaceholder')} />
             {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
+              <p className="text-xs text-destructive">{t('admin.users.form.nameRequired')}</p>
             )}
           </div>
 
           {/* Email */}
           <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('admin.users.form.emailLabel')}</Label>
             <Input
               id="email"
               type="email"
               {...register('email')}
-              placeholder="jean.dupont@gmao.local"
+              placeholder={t('admin.users.form.emailPlaceholder')}
             />
             {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
+              <p className="text-xs text-destructive">{t('admin.users.form.emailInvalid')}</p>
             )}
           </div>
 
           {/* Roles */}
           <div className="space-y-1.5">
-            <Label>Rôles</Label>
+            <Label>{t('admin.users.form.rolesLabel')}</Label>
             <Controller
               control={control}
               name="roles"
               render={({ field }) => (
                 <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(ROLE_LABELS).map(([role, label]) => {
-                    const checked = field.value.includes(role as Role);
+                  {Object.values(Role).map((role) => {
+                    const checked = field.value.includes(role);
                     return (
                       <label
                         key={role}
@@ -195,7 +189,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
                           checked={checked}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              field.onChange([...field.value, role as Role]);
+                              field.onChange([...field.value, role]);
                             } else {
                               field.onChange(field.value.filter((r) => r !== role));
                             }
@@ -223,7 +217,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
                             </svg>
                           )}
                         </span>
-                        {label}
+                        {t(`admin.users.roles.${role}`, { defaultValue: role })}
                       </label>
                     );
                   })}
@@ -231,14 +225,14 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
               )}
             />
             {errors.roles && (
-              <p className="text-xs text-destructive">{errors.roles.message}</p>
+              <p className="text-xs text-destructive">{t('admin.users.form.rolesRequired')}</p>
             )}
           </div>
 
           {/* Hourly rate (Technician only) */}
           {showHourlyRate && (
             <div className="space-y-1.5">
-              <Label htmlFor="hourlyRate">Taux horaire (€/h)</Label>
+              <Label htmlFor="hourlyRate">{t('admin.users.form.hourlyRateLabel')}</Label>
               <Input
                 id="hourlyRate"
                 type="number"
@@ -249,9 +243,6 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
                   setValueAs: (v) => (v === '' || v === null ? null : parseFloat(v)),
                 })}
               />
-              {errors.hourlyRate && (
-                <p className="text-xs text-destructive">{errors.hourlyRate.message}</p>
-              )}
             </div>
           )}
 
@@ -262,11 +253,11 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
               onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
-              Annuler
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Enregistrer' : 'Créer'}
+              {isEdit ? t('common.save') : t('common.create')}
             </Button>
           </DialogFooter>
         </form>

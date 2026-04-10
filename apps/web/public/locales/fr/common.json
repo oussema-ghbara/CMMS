@@ -364,6 +364,10 @@
       "principal": "Principal",
       "contributor": "Contributeur",
       "noAssignments": "Aucun technicien assigné",
+      "blockFlags": "Blocages signalés",
+      "blockResolved": "Résolu",
+      "blockUnresolved": "Non résolu",
+      "noBlockFlags": "Aucun blocage",
       "noChecklist": "Aucun élément de checklist",
       "noHistory": "Aucun historique de statut",
       "noValidations": "Aucune action de validation",
@@ -424,7 +428,11 @@
       "reassignDescription": "Remplacer le technicien principal par un autre technicien actif.",
       "newTechnician": "Nouveau technicien",
       "reassignReason": "Motif de réassignation",
-      "reassignReasonDetail": "Détail (optionnel)"
+      "reassignReasonDetail": "Détail (optionnel)",
+      "promote": "Promouvoir un contributeur",
+      "promoteDescription": "Désigner un technicien contributeur actif comme nouveau technicien principal.",
+      "newPrincipalContributor": "Nouveau technicien principal",
+      "resolveBlock": "Résoudre le blocage"
     },
     "states": {
       "empty": "Aucun ordre de travail trouvé",
@@ -534,7 +542,11 @@
       "cancelSuccess": "Ordre de travail annulé",
       "cancelError": "Impossible d'annuler l'ordre de travail",
       "reassignSuccess": "Technicien réassigné avec succès",
-      "reassignError": "Impossible de réassigner le technicien"
+      "reassignError": "Impossible de réassigner le technicien",
+      "promoteSuccess": "Contributeur promu technicien principal avec succès",
+      "promoteError": "Impossible de promouvoir le contributeur",
+      "resolveBlockSuccess": "Blocage résolu avec succès",
+      "resolveBlockError": "Impossible de résoudre le blocage"
     }
   },
   "supervisorPreventivePlans": {

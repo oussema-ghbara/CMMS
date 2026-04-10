@@ -256,4 +256,7 @@ export const workOrdersApi = {
 
   cancel: (id: string, payload: CancelWorkOrderPayload) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/cancel`, payload).then((r) => r.data),
+
+  resolveBlock: (woId: string, blockId: string) =>
+    api.patch<WorkOrderBlockFlag>(`/work-orders/${woId}/block/${blockId}/resolve`).then((r) => r.data),
 };

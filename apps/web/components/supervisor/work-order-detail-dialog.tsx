@@ -21,6 +21,7 @@ import {
   type WorkOrderListItem,
   type AssignWorkOrderPayload,
   type ReassignTechnicianPayload,
+  type PromoteTechnicianPayload,
   type CancelWorkOrderPayload,
   type RejectValidationPayload,
 } from '@/lib/work-orders.api';
@@ -107,6 +108,7 @@ type ActionPanel =
   | 'publish'
   | 'assign'
   | 'reassign'
+  | 'promote'
   | 'validate'
   | 'reject'
   | 'cancel'
@@ -134,6 +136,9 @@ export function WorkOrderDetailDialog({
   // Assign form state
   const [principalId, setPrincipalId] = useState('');
   const [contributorIds, setContributorIds] = useState<string[]>([]);
+
+  // Promote form state
+  const [promoteNewPrincipalId, setPromoteNewPrincipalId] = useState('');
 
   // Cancel form state
   const { register: registerCancel, handleSubmit: handleCancelSubmit, reset: resetCancel } =
@@ -181,7 +186,7 @@ export function WorkOrderDetailDialog({
   const { data: techniciansData } = useQuery({
     queryKey: ['users', 'technicians'],
     queryFn: () => usersApi.list({ role: Role.TECHNICIAN, isActive: true }),
-    enabled: open && (activePanel === 'assign' || activePanel === 'reassign'),
+    enabled: open && (activePanel === 'assign' || activePanel === 'reassign' || activePanel === 'promote'),
   });
 
   const technicians = techniciansData ?? [];
@@ -199,6 +204,7 @@ export function WorkOrderDetailDialog({
     setActivePanel(null);
     setPrincipalId('');
     setContributorIds([]);
+    setPromoteNewPrincipalId('');
     resetCancel();
     resetReject();
     resetReassign();
@@ -276,13 +282,38 @@ export function WorkOrderDetailDialog({
       toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.reassignError'))),
   });
 
+  const promoteMutation = useMutation({
+    mutationFn: (payload: PromoteTechnicianPayload) =>
+      workOrdersApi.promote(workOrder!.id, payload),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success(t('supervisorWorkOrders.toasts.promoteSuccess'));
+      resetPanels();
+    },
+    onError: (err) =>
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.promoteError'))),
+  });
+
+  const resolveBlockMutation = useMutation({
+    mutationFn: (blockId: string) =>
+      workOrdersApi.resolveBlock(workOrder!.id, blockId),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success(t('supervisorWorkOrders.toasts.resolveBlockSuccess'));
+    },
+    onError: (err) =>
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.resolveBlockError'))),
+  });
+
   const isMutating =
     publishMutation.isPending ||
     assignMutation.isPending ||
     validateMutation.isPending ||
     rejectMutation.isPending ||
     cancelMutation.isPending ||
-    reassignMutation.isPending;
+    reassignMutation.isPending ||
+    promoteMutation.isPending ||
+    resolveBlockMutation.isPending;
 
   // ── Action submit handlers ─────────────────────────────────────────────────
 
@@ -391,6 +422,21 @@ export function WorkOrderDetailDialog({
                   {t('supervisorWorkOrders.actions.reassign')}
                 </Button>
               )}
+
+              {/* ASSIGNED / IN_PROGRESS / ON_HOLD → promote contributor if any */}
+              {(status === WorkOrderStatus.ASSIGNED ||
+                status === WorkOrderStatus.IN_PROGRESS ||
+                status === WorkOrderStatus.ON_HOLD) &&
+                detail.assignments.some((a) => !a.isPrincipal && a.isActive) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActivePanel('promote')}
+                  >
+                    {t('supervisorWorkOrders.actions.promote')}
+                  </Button>
+                )}
 
               {/* PENDING_VALIDATION → validate or reject */}
               {status === WorkOrderStatus.PENDING_VALIDATION && (
@@ -648,6 +694,52 @@ export function WorkOrderDetailDialog({
             </form>
           )}
 
+          {/* ── Promote panel ── */}
+          {activePanel === 'promote' && (
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-sm">{t('supervisorWorkOrders.actions.promoteDescription')}</p>
+
+              <div className="space-y-1.5">
+                <Label>{t('supervisorWorkOrders.actions.newPrincipalContributor')}</Label>
+                <select
+                  className={selectClass}
+                  value={promoteNewPrincipalId}
+                  onChange={(e) => setPromoteNewPrincipalId(e.target.value)}
+                >
+                  <option value="">{t('supervisorWorkOrders.labels.noTechnicians')}</option>
+                  {detail.assignments
+                    .filter((a) => !a.isPrincipal && a.isActive)
+                    .map((a) => (
+                      <option key={a.id} value={a.technicianId}>
+                        {a.technician.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetPanels}
+                  disabled={promoteMutation.isPending}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={promoteMutation.isPending || !promoteNewPrincipalId}
+                  onClick={() => promoteMutation.mutate({ newPrincipalId: promoteNewPrincipalId })}
+                >
+                  {promoteMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  {t('common.confirm')}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* ── Cancel panel ── */}
           {activePanel === 'cancel' && (
             <form
@@ -833,18 +925,54 @@ export function WorkOrderDetailDialog({
                   {t('supervisorWorkOrders.labels.noAssignments')}
                 </p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {detail.assignments.map((a) => (
-                    <div
-                      key={a.id}
-                      className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                    >
-                      <span className="font-medium">{a.technician.name}</span>
-                      <Badge variant={a.isPrincipal ? 'default' : 'secondary'}>
-                        {a.isPrincipal
-                          ? t('supervisorWorkOrders.labels.principal')
-                          : t('supervisorWorkOrders.labels.contributor')}
-                      </Badge>
+                    <div key={a.id} className="rounded-md border text-sm overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="font-medium">{a.technician.name}</span>
+                        <Badge variant={a.isPrincipal ? 'default' : 'secondary'}>
+                          {a.isPrincipal
+                            ? t('supervisorWorkOrders.labels.principal')
+                            : t('supervisorWorkOrders.labels.contributor')}
+                        </Badge>
+                      </div>
+                      {a.blockFlags.length > 0 && (
+                        <div className="border-t px-3 py-2 space-y-1.5 bg-muted/40">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {t('supervisorWorkOrders.labels.blockFlags')}
+                          </p>
+                          {a.blockFlags.map((flag) => (
+                            <div
+                              key={flag.id}
+                              className="flex items-center justify-between gap-2 text-xs"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Badge
+                                  variant={flag.isResolved ? 'secondary' : 'destructive'}
+                                  className="text-[10px] px-1.5 py-0 shrink-0"
+                                >
+                                  {flag.isResolved
+                                    ? t('supervisorWorkOrders.labels.blockResolved')
+                                    : t('supervisorWorkOrders.labels.blockUnresolved')}
+                                </Badge>
+                                <span className="truncate text-muted-foreground">{flag.reason}</span>
+                              </div>
+                              {!flag.isResolved && !isTerminalStatus(status as WorkOrderStatus) && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[10px] shrink-0"
+                                  disabled={resolveBlockMutation.isPending}
+                                  onClick={() => resolveBlockMutation.mutate(flag.id)}
+                                >
+                                  {t('supervisorWorkOrders.actions.resolveBlock')}
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

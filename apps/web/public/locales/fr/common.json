@@ -11,6 +11,7 @@
     "loginButton": "Se connecter",
     "loginLoading": "Connexion en cours...",
     "invalidCredentials": "Identifiants invalides. Veuillez réessayer.",
+    "noWebAccess": "Votre role ne dispose pas encore d'un acces a l'application web.",
     "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
     "welcome": "Bienvenue dans GMAO",
     "subtitle": "Gestion de la Maintenance Assistée par Ordinateur",

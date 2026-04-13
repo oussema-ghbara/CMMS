@@ -7,12 +7,10 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: '/storekeeper', roles: [Role.STOREKEEPER] },
 ];
 
-const ROLE_HOME: Record<Role, string> = {
+const ROLE_HOME: Partial<Record<Role, string>> = {
   [Role.ADMIN]: '/admin',
   [Role.SUPERVISOR]: '/supervisor',
   [Role.STOREKEEPER]: '/storekeeper',
-  [Role.TECHNICIAN]: '/',
-  [Role.REQUESTER]: '/',
 };
 
 export function middleware(request: NextRequest) {
@@ -46,9 +44,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  const hasWebRole = roles.some((role) => !!ROLE_HOME[role]);
+  if (!hasWebRole) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'no_web_access');
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete('user_roles');
+    return response;
+  }
+
   // ── Root redirect: send to the first matching role's home ───────────────────
   if (pathname === '/') {
-    const home = roles.map((r) => ROLE_HOME[r]).find(Boolean) ?? '/login';
+    const home = roles.map((r) => ROLE_HOME[r]).find((value): value is string => !!value) ?? '/login';
     return NextResponse.redirect(new URL(home, request.url));
   }
 
@@ -58,7 +65,7 @@ export function middleware(request: NextRequest) {
       const hasRole = allowedRoles.some((r) => roles.includes(r));
       if (!hasRole) {
         // Redirect to the user's own dashboard
-        const home = roles.map((r) => ROLE_HOME[r]).find((h) => h && h !== '/') ?? '/login';
+        const home = roles.map((r) => ROLE_HOME[r]).find((value): value is string => !!value) ?? '/login';
         return NextResponse.redirect(new URL(home, request.url));
       }
       break;

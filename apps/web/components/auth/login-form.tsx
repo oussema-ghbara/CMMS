@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ type LoginForm = {
   password: string;
 };
 
-const ROLE_HOME: Partial<Record<Role, string>> = {
+const WEB_ROLE_HOME: Partial<Record<Role, string>> = {
   [Role.ADMIN]: '/admin',
   [Role.SUPERVISOR]: '/supervisor',
   [Role.STOREKEEPER]: '/storekeeper',
@@ -31,8 +31,15 @@ const ROLE_HOME: Partial<Record<Role, string>> = {
 export function LoginForm() {
   const { t } = useTranslation();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
   const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'no_web_access') {
+      setApiError(t('auth.noWebAccess'));
+    }
+  }, [searchParams, t]);
 
   const loginSchema = z.object({
     email: z.string().email(t('auth.invalidEmail')),
@@ -51,10 +58,16 @@ export function LoginForm() {
       const res = await api.post<AuthResponse>('/auth/login', data);
       const { accessToken, roles, userId, name } = res.data;
 
+      const home = roles.map((r) => WEB_ROLE_HOME[r]).find((value): value is string => !!value);
+      if (!home) {
+        await api.post('/auth/logout').catch(() => undefined);
+        Cookies.remove('user_roles', { path: '/' });
+        setApiError(t('auth.noWebAccess'));
+        return;
+      }
+
       setAuth(accessToken, { id: userId, name, roles });
       Cookies.set('user_roles', JSON.stringify(roles), { path: '/', expires: 7 });
-
-      const home = roles.map((r) => ROLE_HOME[r]).find(Boolean) ?? '/';
       router.push(home);
     } catch {
       setApiError(t('auth.invalidCredentials'));

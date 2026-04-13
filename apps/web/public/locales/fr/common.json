@@ -25,7 +25,16 @@
     "passwordUpdated": "Votre mot de passe a été mis à jour avec succès",
     "accountSetup": "Configuration du compte réussie",
     "send": "Envoyer",
-    "redirectingToLogin": "Redirection vers la connexion..."
+    "redirectingToLogin": "Redirection vers la connexion...",
+    "invalidEmail": "Adresse e-mail invalide",
+    "emailPlaceholder": "vous@example.com",
+    "backToLogin": "Retour à la connexion",
+    "errorTitle": "Erreur",
+    "sending": "Envoi en cours...",
+    "resettingPassword": "Réinitialisation en cours...",
+    "settingUpAccount": "Configuration en cours...",
+    "resetPasswordSuccessDescription": "Votre mot de passe a été réinitialisé avec succès. Vous serez redirigé vers la connexion.",
+    "setupAccountSuccessDescription": "Votre compte a été activé avec succès. Vous serez redirigé vers la connexion."
   },
   "nav": {
     "dashboard": "Tableau de bord",

@@ -13,17 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-const resetSchema = z
-  .object({
-    password: z.string().min(1, 'Mot de passe requis'),
-    passwordConfirm: z.string().min(1, 'Confirmation requise'),
-  })
-  .refine((data) => data.password === data.passwordConfirm, {
-    message: 'Les mots de passe ne correspondent pas',
-    path: ['passwordConfirm'],
-  });
-
-type ResetForm = z.infer<typeof resetSchema>;
+type ResetForm = {
+  password: string;
+  passwordConfirm: string;
+};
 
 export default function ResetPasswordContent() {
   const router = useRouter();
@@ -34,6 +27,16 @@ export default function ResetPasswordContent() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const resetSchema = z
+    .object({
+      password: z.string().min(1, t('common.required')),
+      passwordConfirm: z.string().min(1, t('common.required')),
+    })
+    .refine((data) => data.password === data.passwordConfirm, {
+      message: t('auth.passwordsDoNotMatch'),
+      path: ['passwordConfirm'],
+    });
 
   const {
     register,
@@ -48,7 +51,7 @@ export default function ResetPasswordContent() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              Erreur
+              {t('auth.errorTitle')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -56,10 +59,10 @@ export default function ResetPasswordContent() {
               {t('auth.invalidOrExpiredToken')}
             </p>
             <Button
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push('/login')}
               className="w-full"
             >
-              {t('common.back')} à la connexion
+              {t('auth.backToLogin')}
             </Button>
           </CardContent>
         </Card>
@@ -73,9 +76,9 @@ export default function ResetPasswordContent() {
       await authApi.resetPassword(token, data.password);
       setIsSuccess(true);
       setIsRedirecting(true);
-      setTimeout(() => router.push('/auth/login'), 2000);
+      setTimeout(() => router.push('/login'), 2000);
     } catch (err) {
-      const errorMsg = (err as any)?.response?.data?.message || 'Une erreur est survenue';
+      const errorMsg = (err as any)?.response?.data?.message || t('common.error');
       setApiError(errorMsg);
     }
   };
@@ -92,7 +95,7 @@ export default function ResetPasswordContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Votre mot de passe a été réinitialisé avec succès. Vous serez redirigé vers la connexion.
+              {t('auth.resetPasswordSuccessDescription')}
             </p>
             {isRedirecting && (
               <div className="flex items-center justify-center gap-2 text-sm">
@@ -163,10 +166,10 @@ export default function ResetPasswordContent() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Réinitialisation en cours...
+                  {t('auth.resettingPassword')}
                 </>
               ) : (
-                'Réinitialiser le mot de passe'
+                t('auth.resetPasswordTitle')
               )}
             </Button>
           </form>

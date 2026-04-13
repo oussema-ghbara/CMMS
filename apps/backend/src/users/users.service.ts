@@ -254,7 +254,7 @@ export class UsersService {
 
     await this.redis.setex(`${RESET_TOKEN_PREFIX}${user.id}:${jti}`, RESET_TOKEN_TTL_SECONDS, '1');
 
-    const resetUrl = `${this.cfg.getOrThrow<string>('APP_URL')}/auth/reset-password?token=${token}`;
+    const resetUrl = `${this.cfg.getOrThrow<string>('APP_URL')}/reset-password?token=${token}`;
     await this.mail.enqueue({
       to: user.email,
       template: 'password-reset',
@@ -293,7 +293,7 @@ export class UsersService {
 
     await this.redis.setex(`${SETUP_TOKEN_PREFIX}${userId}:${jti}`, SETUP_TOKEN_TTL_SECONDS, '1');
 
-    const setupUrl = `${this.cfg.getOrThrow<string>('APP_URL')}/auth/setup?token=${token}`;
+    const setupUrl = `${this.cfg.getOrThrow<string>('APP_URL')}/setup?token=${token}`;
     await this.mail.enqueue({
       to: email,
       template: 'setup-account',

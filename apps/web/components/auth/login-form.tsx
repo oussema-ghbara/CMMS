@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Cookies from 'js-cookie';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Button } from '@/components/ui/button';
@@ -16,12 +17,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { AuthResponse } from '@gmao/shared';
 import { Role } from '@gmao/shared';
 
-const loginSchema = z.object({
-  email: z.string().email('Adresse e-mail invalide'),
-  password: z.string().min(1, 'Le mot de passe est requis'),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
+type LoginForm = {
+  email: string;
+  password: string;
+};
 
 const ROLE_HOME: Partial<Record<Role, string>> = {
   [Role.ADMIN]: '/admin',
@@ -30,15 +29,21 @@ const ROLE_HOME: Partial<Record<Role, string>> = {
 };
 
 export function LoginForm() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { setAuth } = useAuthStore();
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const loginSchema = z.object({
+    email: z.string().email(t('auth.invalidEmail')),
+    password: z.string().min(1, t('common.required')),
+  });
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
+  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema), mode: 'onSubmit' });
 
   const onSubmit = async (data: LoginForm) => {
     setApiError(null);
@@ -52,27 +57,25 @@ export function LoginForm() {
       const home = roles.map((r) => ROLE_HOME[r]).find(Boolean) ?? '/';
       router.push(home);
     } catch {
-      setApiError('Identifiants invalides. Veuillez réessayer.');
+      setApiError(t('auth.invalidCredentials'));
     }
   };
 
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Connexion</CardTitle>
-        <CardDescription>
-          Gestion de la Maintenance Assistée par Ordinateur
-        </CardDescription>
+        <CardTitle className="text-2xl font-bold">{t('auth.login')}</CardTitle>
+        <CardDescription>{t('auth.subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div className="space-y-2">
-            <Label htmlFor="email">Adresse e-mail</Label>
+            <Label htmlFor="email">{t('auth.email')}</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="vous@example.com"
+              placeholder={t('auth.emailPlaceholder')}
               {...register('email')}
               aria-invalid={!!errors.email}
             />
@@ -83,14 +86,14 @@ export function LoginForm() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <Button
                 type="button"
                 variant="link"
                 className="h-auto p-0 text-xs text-primary"
-                onClick={() => router.push('/auth/forgot-password')}
+                onClick={() => router.push('/forgot-password')}
               >
-                Oublié ?
+                {t('auth.forgotPassword')}
               </Button>
             </div>
             <Input
@@ -119,10 +122,10 @@ export function LoginForm() {
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin" />
-                Connexion en cours...
+                {t('auth.loginLoading')}
               </>
             ) : (
-              'Se connecter'
+              t('auth.loginButton')
             )}
           </Button>
         </form>

@@ -13,11 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-const forgotSchema = z.object({
-  email: z.string().email('Adresse e-mail invalide'),
-});
-
-type ForgotForm = z.infer<typeof forgotSchema>;
+type ForgotForm = {
+  email: string;
+};
 
 export default function ForgotPasswordContent() {
   const router = useRouter();
@@ -25,6 +23,10 @@ export default function ForgotPasswordContent() {
 
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const forgotSchema = z.object({
+    email: z.string().email(t('auth.invalidEmail')),
+  });
 
   const {
     register,
@@ -38,7 +40,7 @@ export default function ForgotPasswordContent() {
       await authApi.forgotPassword(data.email);
       setIsSuccess(true);
     } catch (err) {
-      const errorMsg = (err as any)?.response?.data?.message || 'Une erreur est survenue';
+      const errorMsg = (err as any)?.response?.data?.message || t('common.error');
       setApiError(errorMsg);
     }
   };
@@ -58,10 +60,10 @@ export default function ForgotPasswordContent() {
               {t('auth.checkEmail')}
             </p>
             <Button
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push('/login')}
               className="w-full"
             >
-              {t('common.back')} à la connexion
+              {t('auth.backToLogin')}
             </Button>
           </CardContent>
         </Card>
@@ -88,7 +90,7 @@ export default function ForgotPasswordContent() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="vous@example.com"
+                placeholder={t('auth.emailPlaceholder')}
                 {...register('email')}
                 aria-invalid={!!errors.email}
               />
@@ -111,7 +113,7 @@ export default function ForgotPasswordContent() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Envoi en cours...
+                  {t('auth.sending')}
                 </>
               ) : (
                 t('auth.send')
@@ -122,9 +124,9 @@ export default function ForgotPasswordContent() {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push('/login')}
             >
-              {t('common.back')} à la connexion
+              {t('auth.backToLogin')}
             </Button>
           </form>
         </CardContent>

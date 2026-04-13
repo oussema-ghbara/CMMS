@@ -17,9 +17,15 @@ const ROLE_HOME: Record<Role, string> = {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isAuthPath =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/setup') ||
+    pathname.startsWith('/auth/');
 
   // ── Public paths: always allow ──────────────────────────────────────────────
-  if (pathname.startsWith('/login') || pathname.startsWith('/_next') || pathname.startsWith('/api')) {
+  if (isAuthPath || pathname.startsWith('/_next') || pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 

@@ -7,6 +7,7 @@ import { CompleteChecklistItemDto } from './dto/complete-checklist-item.dto';
 import {
   ChecklistItemStatus, WorkOrderStatus, WorkOrderType, WorkOrderSource,
 } from '@gmao/db';
+import { nextWorkOrderReference } from '../common/reference-number.util';
 
 @Injectable()
 export class ChecklistService {
@@ -80,11 +81,7 @@ export class ChecklistService {
       });
 
       await this.prisma.$transaction(async (tx) => {
-        const year = new Date().getFullYear();
-        const count = await tx.workOrder.count({
-          where: { referenceNumber: { startsWith: `WO-${year}-` } },
-        });
-        const referenceNumber = `WO-${year}-${String(count + 1).padStart(6, '0')}`;
+        const referenceNumber = await nextWorkOrderReference(tx);
 
         await tx.workOrder.create({
           data: {

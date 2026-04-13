@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WorkOrder, WorkOrderStatus, WorkOrderSource, Prisma } from '@gmao/db';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
+import { nextWorkOrderReference } from '../common/reference-number.util';
 
 @Injectable()
 export class WorkOrdersRepository {
@@ -96,11 +97,7 @@ export class WorkOrdersRepository {
     sourcePlanId?: string,
   ): Promise<WorkOrder> {
     return this.prisma.$transaction(async (tx) => {
-      const year = new Date().getFullYear();
-      const count = await tx.workOrder.count({
-        where: { referenceNumber: { startsWith: `WO-${year}-` } },
-      });
-      const referenceNumber = `WO-${year}-${String(count + 1).padStart(6, '0')}`;
+      const referenceNumber = await nextWorkOrderReference(tx);
 
       const status = WorkOrderStatus.DRAFT;
 

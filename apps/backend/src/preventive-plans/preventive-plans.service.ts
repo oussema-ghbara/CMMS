@@ -18,6 +18,7 @@ import {
   WorkOrderPriority, AssetStatus, NotificationType, AssignmentRole,
 } from '@gmao/db';
 import { PREVENTIVE_PLAN_QUEUE, PLAN_GENERATOR_JOB } from './preventive-plans.constants';
+import { nextWorkOrderReference } from '../common/reference-number.util';
 
 export function computeNextDueAt(
   frequencyType: PreventiveFrequencyType,
@@ -188,11 +189,7 @@ export class PreventivePlansService {
     const initialStatus = plan.defaultTechnicianId ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.OPEN;
 
     const wo = await this.prisma.$transaction(async (tx) => {
-      const year = new Date().getFullYear();
-      const count = await tx.workOrder.count({
-        where: { referenceNumber: { startsWith: `WO-${year}-` } },
-      });
-      const referenceNumber = `WO-${year}-${String(count + 1).padStart(6, '0')}`;
+      const referenceNumber = await nextWorkOrderReference(tx);
 
       const created = await tx.workOrder.create({
         data: {

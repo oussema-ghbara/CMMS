@@ -18,6 +18,7 @@ import { RejectReportDto } from './dto/reject-report.dto';
 import { DeferReportDto } from './dto/defer-report.dto';
 import { ArchiveReportDto } from './dto/archive-report.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
+import { nextProblemReportReference, nextWorkOrderReference } from '../common/reference-number.util';
 
 @Injectable()
 export class ReportsService {
@@ -42,9 +43,7 @@ export class ReportsService {
       throw new BadRequestException('Cannot submit a report for a decommissioned asset');
     }
     const report = await this.prisma.$transaction(async (tx) => {
-      const year = new Date().getFullYear();
-      const count = await tx.problemReport.count({ where: { referenceNumber: { startsWith: `PR-${year}-` } } });
-      const referenceNumber = `PR-${year}-${String(count + 1).padStart(6, '0')}`;
+      const referenceNumber = await nextProblemReportReference(tx);
       return tx.problemReport.create({
         data: {
           referenceNumber,
@@ -112,9 +111,7 @@ export class ReportsService {
       throw new BadRequestException('Cannot convert a report for a decommissioned asset into a work order');
     }
     const result = await this.prisma.$transaction(async (tx) => {
-      const year = new Date().getFullYear();
-      const count = await tx.workOrder.count({ where: { referenceNumber: { startsWith: `WO-${year}-` } } });
-      const referenceNumber = `WO-${year}-${String(count + 1).padStart(6, '0')}`;
+      const referenceNumber = await nextWorkOrderReference(tx);
       const workOrder = await tx.workOrder.create({
         data: {
           referenceNumber,

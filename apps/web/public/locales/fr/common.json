@@ -1305,5 +1305,72 @@
       "error": "Impossible de charger les analytiques d'inventaire",
       "empty": "Aucune donnée disponible pour cette période"
     }
+  },
+  "supervisorCategories": {
+    "title": "Catégories d'équipements",
+    "subtitle": "Gérez les modèles de check-list associés à chaque catégorie.",
+    "total": "{{count}} catégorie(s)",
+    "columns": {
+      "name": "Nom",
+      "description": "Description",
+      "status": "Statut"
+    },
+    "actions": {
+      "manageChecklist": "Gérer le modèle"
+    },
+    "labels": {
+      "noDescription": "Aucune description"
+    },
+    "states": {
+      "error": "Impossible de charger les catégories",
+      "empty": "Aucune catégorie disponible"
+    },
+    "checklist": {
+      "dialogTitle": "Modèle de check-list — {{name}}",
+      "dialogDescription": "Ajoutez, modifiez et réorganisez les tâches du modèle de check-list pour cette catégorie.",
+      "itemCount": "{{count}} tâche(s)",
+      "addTitle": "Ajouter une tâche",
+      "addDescription": "Définissez une nouvelle tâche dans le modèle de check-list.",
+      "editTitle": "Modifier la tâche",
+      "editDescription": "Mettez à jour les informations de la tâche.",
+      "addAction": "Ajouter une tâche",
+      "empty": "Aucune tâche dans ce modèle. Ajoutez-en une.",
+      "deleteConfirm": "Supprimer cette tâche du modèle ?",
+      "mandatory": "Obligatoire",
+      "autoCreateCorrectiveWO": "Créer OT correctif auto",
+      "expectedCondition": "Condition attendue : {{value}}",
+      "noExpectedCondition": "Aucune condition attendue",
+      "dragHandle": "Réorganiser",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "fields": {
+        "description": "Description de la tâche",
+        "taskType": "Type de tâche",
+        "expectedCondition": "Condition attendue (optionnel)",
+        "isMandatory": "Tâche obligatoire",
+        "autoCreateCorrectiveWO": "Créer automatiquement un OT correctif en cas d'échec"
+      },
+      "validation": {
+        "descriptionRequired": "La description est obligatoire"
+      }
+    },
+    "taskType": {
+      "INSPECTION": "Inspection",
+      "MEASUREMENT": "Mesure",
+      "LUBRICATION": "Lubrification",
+      "CLEANING": "Nettoyage",
+      "REPLACEMENT": "Remplacement",
+      "CALIBRATION": "Étalonnage",
+      "ADJUSTMENT": "Réglage"
+    },
+    "toasts": {
+      "itemCreateSuccess": "Tâche ajoutée au modèle",
+      "itemCreateError": "Erreur lors de l'ajout de la tâche",
+      "itemUpdateSuccess": "Tâche mise à jour",
+      "itemUpdateError": "Erreur lors de la mise à jour",
+      "itemDeleteSuccess": "Tâche supprimée",
+      "itemDeleteError": "Erreur lors de la suppression",
+      "reorderError": "Erreur lors de la réorganisation"
+    }
   }
 }

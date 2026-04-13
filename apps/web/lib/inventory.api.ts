@@ -68,6 +68,8 @@ export interface InventoryAnalyticsResponse {
   };
   replenishment: Array<{
     partId: string;
+    partName: string;
+    partReference: string;
     timesTriggered: number;
   }>;
   deadStock: PartCatalogItem[];

@@ -278,14 +278,16 @@ export function StockAnalyticsBoard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>{t('storekeeperAnalytics.columns.partId')}</TableHead>
+                        <TableHead>{t('storekeeperAnalytics.columns.part')}</TableHead>
+                        <TableHead>{t('storekeeperAnalytics.columns.reference')}</TableHead>
                         <TableHead className="text-right">{t('storekeeperAnalytics.columns.timesTriggered')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {replenishment.map((row) => (
                         <TableRow key={row.partId}>
-                          <TableCell className="font-mono text-xs">{row.partId}</TableCell>
+                          <TableCell>{row.partName}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.partReference}</TableCell>
                           <TableCell className="text-right">{formatNumber(row.timesTriggered)}</TableCell>
                         </TableRow>
                       ))}

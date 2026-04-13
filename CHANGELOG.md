@@ -4,6 +4,22 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Reference number integrity under concurrency (April 13, 2026)
+
+#### `fix(backend): eliminate WO/PR reference race conditions with tx-level locks`
+- Replaced all `count + 1` reference generation patterns that could produce duplicate references under parallel writes
+- Added shared utility: `apps/backend/src/common/reference-number.util.ts`
+- New generators use PostgreSQL transaction advisory locks (`pg_advisory_xact_lock`) and last-reference lookup per year:
+  - `nextWorkOrderReference(tx)`
+  - `nextProblemReportReference(tx)`
+- Wired into every affected creation flow:
+  - Work order direct creation (`WorkOrdersRepository.create`)
+  - Preventive plan auto-generated WO (`PreventivePlansService.generateWorkOrder`)
+  - Checklist anomaly auto-created WO (`ChecklistService.completeItem`)
+  - Problem report submission (`ReportsService.submit`)
+  - Report conversion to WO (`ReportsService.convert`)
+- Result: reference generation is serialized per sequence family/year and remains format-compatible (`WO-YYYY-XXXXXX`, `PR-YYYY-XXXXXX`)
+
 ### Added — Role-scope audit: asset certificate/document CRUD + part-return UI (April 9, 2026)
 
 #### `feat(web-supervisor): asset certificate full CRUD in asset-detail-dialog`

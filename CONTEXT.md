@@ -39,6 +39,7 @@ Tech stack decisions: stack.pdf
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
+- [x] Backend integrity hardening — WO/PR reference generation now uses transaction advisory locks to prevent duplicate references under concurrent writes
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
 - [x] apps/web — Next.js started (auth + protected layouts + admin pages)
 - [x] Auth module (web) — login page + account setup (/auth/setup) + password recovery (/auth/forgot-password, /auth/reset-password)

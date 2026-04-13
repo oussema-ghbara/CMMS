@@ -437,19 +437,21 @@ export class InventoryRepository {
     // Approximated by counting distinct OUTGOING movements that left stock below threshold
     // Using raw SQL for the column comparison
     const replenishmentEvents = (await this.prisma.$queryRaw`
-      SELECT sm."partId" AS part_id, COUNT(*) AS times_below
+      SELECT sm."partId" AS part_id, p.name AS part_name, p."referenceCode" AS part_reference, COUNT(*) AS times_below
       FROM "StockMovement" sm
       JOIN "Part" p ON p.id = sm."partId"
       WHERE sm.type = 'OUTGOING'
         AND sm."createdAt" >= ${since}
         AND p."minimumStockThreshold" > 0
-      GROUP BY sm."partId"
+      GROUP BY sm."partId", p.name, p."referenceCode"
       ORDER BY times_below DESC
       LIMIT 20
-    `) as Array<{ part_id: string; times_below: bigint }>;
+    `) as Array<{ part_id: string; part_name: string; part_reference: string; times_below: bigint }>;
 
     return replenishmentEvents.map((r) => ({
       partId: r.part_id,
+      partName: r.part_name,
+      partReference: r.part_reference,
       timesTriggered: Number(r.times_below),
     }));
   }

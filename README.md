@@ -192,6 +192,22 @@ Expected behavior:
 - Action results update both detail and list states without page reload
 - Empty and error states render correctly when applicable
 
+## Supervisor inventory analytics module testing
+
+After backend and web are both running:
+
+- Open http://localhost:3001/login
+- Login with `supervisor@gmao.local` / `Admin1234!` (has SUPERVISOR role)
+- Validate page:
+  - `http://localhost:3001/supervisor/analytics`
+
+Expected behavior:
+
+- Analytics page loads KPI cards (request volume, fulfilment rate, average processing time, dead-stock count)
+- Analytics filters apply and reset correctly for period and dead-stock windows
+- Analytics sections render correctly (top consumption by quantity/cost, request breakdown, replenishment signals, dead stock)
+- Analytics page shows explicit loading/error/empty states
+
 ## Supervisor work orders module testing
 
 After backend and web are both running:

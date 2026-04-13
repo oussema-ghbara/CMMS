@@ -182,6 +182,10 @@
       }
     }
   },
+  "supervisorAnalytics": {
+    "title": "Analytiques de stock",
+    "subtitle": "Consultez la consommation, le stock mort et les performances de traitement des demandes de pieces."
+  },
   "supervisorReports": {
     "title": "Signalements",
     "subtitle": "Analysez les signalements et déclenchez le traitement approprié sans quitter le flux de supervision.",

@@ -48,6 +48,11 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         href: '/supervisor/preventive-plans',
         icon: CalendarClock,
       },
+      {
+        labelKey: 'nav.analytics',
+        href: '/supervisor/analytics',
+        icon: BarChart3,
+      },
     ],
   },
   {

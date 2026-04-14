@@ -18,6 +18,16 @@ type ResetForm = {
   passwordConfirm: string;
 };
 
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  const raw = (err as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+  if (typeof raw === 'string' && raw.trim()) return raw;
+  if (Array.isArray(raw)) {
+    const first = raw.find((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    if (first) return first;
+  }
+  return fallback;
+}
+
 export default function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,7 +88,7 @@ export default function ResetPasswordContent() {
       setIsRedirecting(true);
       setTimeout(() => router.push('/login'), 2000);
     } catch (err) {
-      const errorMsg = (err as any)?.response?.data?.message || t('common.error');
+      const errorMsg = extractApiErrorMessage(err, t('common.error'));
       setApiError(errorMsg);
     }
   };

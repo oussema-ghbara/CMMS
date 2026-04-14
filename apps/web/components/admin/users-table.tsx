@@ -88,7 +88,7 @@ export function UsersTable() {
     setEditingUser(null);
     setDialogOpen(true);
   };
-
+  
   const selectClass =
     'h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
@@ -198,7 +198,7 @@ export function UsersTable() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          title={t('admin.categories.actions.deactivate')}
+                          title={t('admin.users.actions.deactivate')}
                           className="text-destructive hover:text-destructive"
                           onClick={() => setDeactivateTarget(user)}
                           disabled={deactivateMutation.isPending}
@@ -210,7 +210,7 @@ export function UsersTable() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            title={t('admin.categories.actions.activate')}
+                            title={t('admin.users.actions.activate')}
                             className="text-green-600 hover:text-green-600"
                             onClick={() => reactivateMutation.mutate(user.id)}
                             disabled={reactivateMutation.isPending}
@@ -221,7 +221,7 @@ export function UsersTable() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title={t('admin.users.toasts.resendSuccess')}
+                              title={t('admin.users.actions.resendSetup')}
                               onClick={() => resendMutation.mutate(user.id)}
                               disabled={resendMutation.isPending}
                             >
@@ -262,7 +262,7 @@ export function UsersTable() {
             ? t('admin.users.deactivateDialog.description', { name: deactivateTarget.name })
             : undefined
         }
-        confirmLabel={t('admin.categories.actions.deactivate')}
+        confirmLabel={t('admin.users.actions.deactivate')}
         isPending={deactivateMutation.isPending}
         onConfirm={() => {
           if (deactivateTarget) deactivateMutation.mutate(deactivateTarget.id);

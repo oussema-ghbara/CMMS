@@ -897,6 +897,16 @@
         "deleteSuccess": "Document supprimé",
         "deleteError": "Impossible de supprimer le document"
       }
+    },
+    "qrLookup": {
+      "button": "Recherche QR",
+      "dialogTitle": "Localiser un équipement par QR",
+      "dialogDescription": "Saisissez l'identifiant QR de l'équipement pour l'ouvrir directement.",
+      "inputLabel": "Identifiant QR",
+      "inputPlaceholder": "Ex. : ASSET-ABC123",
+      "notFound": "Aucun équipement trouvé pour cet identifiant QR.",
+      "error": "Impossible de résoudre cet identifiant QR.",
+      "submit": "Rechercher"
     }
   },
   "admin": {
@@ -905,7 +915,10 @@
       "subtitle": "Créez, modifiez et gérez les comptes utilisateurs du système.",
       "total": "{{count}} utilisateur(s)",
       "actions": {
-        "create": "Nouvel utilisateur"
+        "create": "Nouvel utilisateur",
+        "deactivate": "Désactiver",
+        "activate": "Activer",
+        "resendSetup": "Renvoyer l'email de configuration"
       },
       "filters": {
         "allRoles": "Tous les rôles",

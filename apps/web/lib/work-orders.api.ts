@@ -221,6 +221,26 @@ export interface RejectValidationPayload {
   rejectionDetail?: string;
 }
 
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+export interface WorkOrderAnalyticsSummary {
+  total: number;
+  open: number;
+  overdue: number;
+  closedThisPeriod: number;
+  cancelledThisPeriod: number;
+  resolutionRate: number | null;
+}
+
+export interface WorkOrderAnalyticsResponse {
+  periodDays: number;
+  summary: WorkOrderAnalyticsSummary;
+  byStatus: Partial<Record<WorkOrderStatus, number>>;
+  byType: Partial<Record<WorkOrderType, number>>;
+  byPriority: Partial<Record<WorkOrderPriority, number>>;
+  avgResolutionDays: number | null;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const workOrdersApi = {
@@ -259,4 +279,7 @@ export const workOrdersApi = {
 
   resolveBlock: (woId: string, blockId: string) =>
     api.patch<WorkOrderBlockFlag>(`/work-orders/${woId}/block/${blockId}/resolve`).then((r) => r.data),
+
+  getAnalytics: (params?: { periodDays?: number }) =>
+    api.get<WorkOrderAnalyticsResponse>('/work-orders/analytics', { params }).then((r) => r.data),
 };

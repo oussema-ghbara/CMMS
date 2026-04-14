@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { StockAnalyticsBoard } from '@/components/storekeeper/stock-analytics-board';
+import { SupervisorAnalyticsBoard } from '@/components/supervisor/supervisor-analytics-board';
 
 export default function SupervisorAnalyticsPage() {
   const { t } = useTranslation();
@@ -13,7 +13,7 @@ export default function SupervisorAnalyticsPage() {
         <p className="text-muted-foreground">{t('supervisorAnalytics.subtitle')}</p>
       </div>
 
-      <StockAnalyticsBoard />
+      <SupervisorAnalyticsBoard />
     </div>
   );
 }

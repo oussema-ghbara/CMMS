@@ -193,8 +193,48 @@
     }
   },
   "supervisorAnalytics": {
-    "title": "Analytiques de stock",
-    "subtitle": "Consultez la consommation, le stock mort et les performances de traitement des demandes de pieces."
+    "title": "Analytiques des ordres de travail",
+    "subtitle": "Suivez l'état global des ordres de travail, les retards, la répartition par type et la performance de clôture.",
+    "filters": {
+      "periodDays": "Fenêtre (jours)",
+      "apply": "Appliquer",
+      "reset": "Réinitialiser"
+    },
+    "kpi": {
+      "totalWorkOrders": "Ordres de travail (total)",
+      "openWorkOrders": "{{count}} actif(s)",
+      "overdueWorkOrders": "En retard",
+      "overdueDescription": "OT actifs dont l'échéance est dépassée",
+      "closedThisPeriod": "Clôturés sur la période",
+      "periodDaysLabel": "Sur les {{days}} derniers jours",
+      "resolutionRate": "Taux de clôture",
+      "avgResolutionDays": "Durée moyenne de résolution : {{days}} j",
+      "noClosedYet": "Aucun OT clôturé"
+    },
+    "sections": {
+      "byStatus": "Répartition par statut",
+      "byStatusDescription": "Nombre d'ordres de travail par statut (tous OT confondus).",
+      "byType": "Répartition par type",
+      "byTypeDescription": "Part des OT correctifs et préventifs (tous OT confondus).",
+      "byPriority": "Répartition par priorité",
+      "byPriorityDescription": "Ordres de travail actifs (non terminaux) regroupés par priorité.",
+      "periodSummary": "Résumé de la période",
+      "periodSummaryDescription": "Activité de clôture et d'annulation sur les {{days}} derniers jours."
+    },
+    "type": {
+      "CORRECTIVE": "Correctif",
+      "PREVENTIVE": "Préventif"
+    },
+    "period": {
+      "closed": "Clôturés",
+      "cancelled": "Annulés",
+      "avgResolution": "Durée moy. de résolution"
+    },
+    "states": {
+      "error": "Impossible de charger les analytiques. Veuillez réessayer.",
+      "empty": "Aucune donnée disponible.",
+      "noActiveWorkOrders": "Aucun OT actif en ce moment."
+    }
   },
   "supervisorReports": {
     "title": "Signalements",

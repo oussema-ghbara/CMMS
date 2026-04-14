@@ -143,6 +143,81 @@ export class WorkOrdersService {
     });
   }
 
+  async getAnalytics(periodDays: number) {
+    const terminalStatuses = [WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED];
+    const since = new Date();
+    since.setDate(since.getDate() - periodDays);
+    const now = new Date();
+
+    const [
+      byStatusRaw,
+      byTypeRaw,
+      byPriorityRaw,
+      total,
+      overdue,
+      closedThisPeriod,
+      cancelledThisPeriod,
+      closedWOs,
+    ] = await Promise.all([
+      this.prisma.workOrder.groupBy({ by: ['status'], _count: { id: true } }),
+      this.prisma.workOrder.groupBy({ by: ['type'], _count: { id: true } }),
+      this.prisma.workOrder.groupBy({
+        by: ['priority'],
+        where: { status: { notIn: terminalStatuses } },
+        _count: { id: true },
+      }),
+      this.prisma.workOrder.count(),
+      this.prisma.workOrder.count({
+        where: {
+          status: { notIn: terminalStatuses },
+          AND: [{ dueDate: { not: null } }, { dueDate: { lt: now } }],
+        },
+      }),
+      this.prisma.workOrder.count({
+        where: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since } },
+      }),
+      this.prisma.workOrder.count({
+        where: { status: WorkOrderStatus.CANCELLED, cancelledAt: { gte: since } },
+      }),
+      this.prisma.workOrder.findMany({
+        where: { status: WorkOrderStatus.CLOSED, closedAt: { not: null } },
+        select: { createdAt: true, closedAt: true },
+      }),
+    ]);
+
+    const byStatus = Object.fromEntries(byStatusRaw.map((r) => [r.status, r._count.id]));
+    const byType = Object.fromEntries(byTypeRaw.map((r) => [r.type, r._count.id]));
+    const byPriority = Object.fromEntries(byPriorityRaw.map((r) => [r.priority, r._count.id]));
+
+    const terminalSet = new Set<string>(terminalStatuses);
+    const open = byStatusRaw
+      .filter((r) => !terminalSet.has(r.status))
+      .reduce((sum, r) => sum + r._count.id, 0);
+
+    const totalClosedOrCancelled = closedThisPeriod + cancelledThisPeriod;
+    const resolutionRate =
+      totalClosedOrCancelled > 0 ? closedThisPeriod / totalClosedOrCancelled : null;
+
+    let avgResolutionDays: number | null = null;
+    if (closedWOs.length > 0) {
+      const totalMs = closedWOs.reduce(
+        (sum, wo) => sum + (wo.closedAt!.getTime() - wo.createdAt.getTime()),
+        0,
+      );
+      avgResolutionDays =
+        Math.round((totalMs / closedWOs.length / (1000 * 60 * 60 * 24)) * 10) / 10;
+    }
+
+    return {
+      periodDays,
+      summary: { total, open, overdue, closedThisPeriod, cancelledThisPeriod, resolutionRate },
+      byStatus,
+      byType,
+      byPriority,
+      avgResolutionDays,
+    };
+  }
+
   private async assertActiveTechnician(technicianId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: technicianId } });
     if (!user) throw new BadRequestException(`User ${technicianId} not found`);

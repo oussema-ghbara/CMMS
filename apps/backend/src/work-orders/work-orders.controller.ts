@@ -1,7 +1,7 @@
 import {
   Controller, Get, Post, Patch, Param, Body, Query, Request, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@gmao/shared';
 import { WorkOrder } from '@gmao/db';
@@ -46,6 +46,15 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'List work orders with filters (all roles)' })
   findAll(@Query() query: WorkOrderQueryDto) {
     return this.workOrders.findAll(query);
+  }
+
+  @Get('analytics')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'Work order analytics: summary, by-status, by-type, by-priority (Supervisor)' })
+  @ApiQuery({ name: 'periodDays', required: false, type: Number, description: 'Analytics window in days (default 30)' })
+  getAnalytics(@Query('periodDays') periodDays?: string) {
+    const period = Math.max(1, parseInt(periodDays ?? '30', 10) || 30);
+    return this.workOrders.getAnalytics(period);
   }
 
   @Get(':id')

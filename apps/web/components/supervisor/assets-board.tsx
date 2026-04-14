@@ -8,14 +8,25 @@ import {
   Loader2,
   Pencil,
   Plus,
+  QrCode,
   Search,
 } from 'lucide-react';
 import { AssetCriticality, AssetStatus } from '@gmao/shared';
-import { assetsApi, type AssetListItem } from '@/lib/assets.api';
+import { assetsApi, type AssetListItem, type QrLookupResult } from '@/lib/assets.api';
+import { AxiosError } from 'axios';
 import { categoriesApi } from '@/lib/categories.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AssetFormDialog } from './asset-form-dialog';
@@ -72,6 +83,12 @@ export function AssetsBoard() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<AssetListItem | null>(null);
 
+  // QR lookup state
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrInput, setQrInput] = useState('');
+  const [qrLookupPending, setQrLookupPending] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
   const { data: categories } = useQuery({
     queryKey: ['asset-categories'],
     queryFn: () => categoriesApi.list(),
@@ -124,6 +141,36 @@ export function AssetsBoard() {
   const openDetailDialog = (asset: AssetListItem) => {
     setSelectedAsset(asset);
     setDetailOpen(true);
+  };
+
+  const openQrDialog = () => {
+    setQrInput('');
+    setQrError(null);
+    setQrDialogOpen(true);
+  };
+
+  const handleQrLookup = async () => {
+    const code = qrInput.trim();
+    if (!code) return;
+    setQrError(null);
+    setQrLookupPending(true);
+    try {
+      const result: QrLookupResult = await assetsApi.lookupByQrCode(code);
+      setQrDialogOpen(false);
+      setQrInput('');
+      // Open the detail dialog directly — it fetches the full asset by id
+      setSelectedAsset(result as AssetListItem);
+      setDetailOpen(true);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      if (axiosErr.response?.status === 404) {
+        setQrError(t('supervisorAssets.qrLookup.notFound'));
+      } else {
+        setQrError(t('supervisorAssets.qrLookup.error'));
+      }
+    } finally {
+      setQrLookupPending(false);
+    }
   };
 
   const selectClass =
@@ -213,6 +260,10 @@ export function AssetsBoard() {
               {t('supervisorAssets.total', { count: data.total })}
             </span>
           )}
+          <Button size="sm" variant="outline" onClick={openQrDialog}>
+            <QrCode className="h-4 w-4" />
+            {t('supervisorAssets.qrLookup.button')}
+          </Button>
           <Button size="sm" onClick={openCreateDialog}>
             <Plus className="h-4 w-4" />
             {t('supervisorAssets.actions.create')}
@@ -347,6 +398,70 @@ export function AssetsBoard() {
           openEditDialog(asset);
         }}
       />
+
+      {/* ── QR Lookup Dialog ── */}
+      <Dialog
+        open={qrDialogOpen}
+        onOpenChange={(open) => {
+          setQrDialogOpen(open);
+          if (!open) {
+            setQrInput('');
+            setQrError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('supervisorAssets.qrLookup.dialogTitle')}</DialogTitle>
+            <DialogDescription>{t('supervisorAssets.qrLookup.dialogDescription')}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="qr-input">{t('supervisorAssets.qrLookup.inputLabel')}</Label>
+              <Input
+                id="qr-input"
+                value={qrInput}
+                onChange={(e) => {
+                  setQrInput(e.target.value);
+                  setQrError(null);
+                }}
+                placeholder={t('supervisorAssets.qrLookup.inputPlaceholder')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleQrLookup();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+
+            {qrError && (
+              <p className="text-sm text-destructive">{qrError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setQrDialogOpen(false)}
+              disabled={qrLookupPending}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={qrLookupPending || !qrInput.trim()}
+              onClick={() => { void handleQrLookup(); }}
+            >
+              {qrLookupPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('supervisorAssets.qrLookup.submit')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

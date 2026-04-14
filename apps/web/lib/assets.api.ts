@@ -137,6 +137,28 @@ export interface CreateCertificatePayload {
 
 export type UpdateCertificatePayload = Partial<CreateCertificatePayload>;
 
+// ── QR Lookup ─────────────────────────────────────────────────────────────────
+
+/** Minimal shape returned by GET /assets/qr/:qrCode (no documents, no status-history) */
+export interface QrLookupResult {
+  id: string;
+  name: string;
+  description: string | null;
+  serialNumber: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  installationDate: string | null;
+  warrantyExpiration: string | null;
+  qrCodeIdentifier: string;
+  criticality: AssetCriticality;
+  status: AssetStatus;
+  createdAt: string;
+  updatedAt: string;
+  category: AssetCategory;
+  location: AssetLocation;
+  parent: AssetParent | null;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const assetsApi = {
@@ -145,6 +167,9 @@ export const assetsApi = {
 
   getById: (id: string) =>
     api.get<AssetDetail>(`/assets/${id}`).then((r) => r.data),
+
+  lookupByQrCode: (qrCode: string) =>
+    api.get<QrLookupResult>(`/assets/qr/${encodeURIComponent(qrCode)}`).then((r) => r.data),
 
   create: (payload: CreateAssetPayload) =>
     api.post<AssetDetail>('/assets', payload).then((r) => r.data),

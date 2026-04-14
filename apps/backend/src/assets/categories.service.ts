@@ -138,6 +138,6 @@ export class CategoriesService {
   }
 
   reorderChecklistItems(categoryId: string, dto: ReorderChecklistItemsDto) {
-    return this.repo.reorderChecklistItems(categoryId, dto.orderedIds);
+    return this.repo.reorderChecklistItems(categoryId, dto.items);
   }
 }

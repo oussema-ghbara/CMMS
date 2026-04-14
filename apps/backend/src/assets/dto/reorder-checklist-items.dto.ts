@@ -1,10 +1,23 @@
-import { IsArray, IsString, ArrayNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsArray, ValidateNested, IsString, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class ReorderItemDto {
+  @ApiProperty()
+  @IsString()
+  id: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  sortOrder: number;
+}
 
 export class ReorderChecklistItemsDto {
-  @ApiProperty({ description: 'Ordered array of checklist item IDs' })
+  @ApiProperty({ type: [ReorderItemDto] })
   @IsArray()
-  @ArrayNotEmpty()
-  @IsString({ each: true })
-  orderedIds: string[];
+  @ValidateNested({ each: true })
+  @Type(() => ReorderItemDto)
+  items: ReorderItemDto[];
 }

@@ -71,13 +71,13 @@ export class CategoriesRepository {
     await this.prisma.checklistTemplateItem.delete({ where: { id: itemId } });
   }
 
-  async reorderChecklistItems(categoryId: string, orderedIds: string[]): Promise<void> {
+  async reorderChecklistItems(categoryId: string, items: { id: string; sortOrder: number }[]): Promise<void> {
     await this.findById(categoryId);
     await this.prisma.$transaction(
-      orderedIds.map((id, index) =>
+      items.map(({ id, sortOrder }) =>
         this.prisma.checklistTemplateItem.update({
           where: { id },
-          data: { sortOrder: index },
+          data: { sortOrder },
         }),
       ),
     );

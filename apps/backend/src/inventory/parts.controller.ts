@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
+import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
 import { Part } from '@gmao/db';
 import { InventoryService } from './inventory.service';
@@ -12,6 +13,7 @@ import { PartQueryDto } from './dto/part-query.dto';
 
 @ApiTags('Parts')
 @ApiBearerAuth()
+@OperationalRoles()
 @Controller('parts')
 export class PartsController {
   constructor(private readonly inventory: InventoryService) {}

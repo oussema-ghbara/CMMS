@@ -72,7 +72,7 @@ export class CertificatesService {
           data: {
             entityType: DocumentEntityType.ASSET,
             entityId: assetId,
-            documentType: DocumentType.INSTALLATION_REPORT, // certificate doc type
+            documentType: DocumentType.COMPLIANCE_CERTIFICATE,
             fileName: file.originalname,
             filePath: key,
             fileSize: file.size,
@@ -125,7 +125,7 @@ export class CertificatesService {
           data: {
             entityType: DocumentEntityType.ASSET,
             entityId: cert.assetId,
-            documentType: DocumentType.INSTALLATION_REPORT,
+            documentType: DocumentType.COMPLIANCE_CERTIFICATE,
             fileName: file.originalname,
             filePath: key,
             fileSize: file.size,

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { DocumentEntityType, DocumentType } from '@gmao/db';
@@ -13,7 +13,15 @@ export class DocumentsService {
   async findByAsset(assetId: string) {
     await this.assertAssetExists(assetId);
     return this.prisma.document.findMany({
-      where: { entityType: DocumentEntityType.ASSET, entityId: assetId, isCurrentVersion: true },
+      where: {
+        entityType: DocumentEntityType.ASSET,
+        entityId: assetId,
+        isCurrentVersion: true,
+        // Exclude documents that are attached to a compliance certificate.
+        // Those are accessed via the certificate's own download endpoint and
+        // must not appear in — or be deletable from — the general documents list.
+        certificate: null,
+      },
       orderBy: { createdAt: 'desc' },
       include: { uploadedBy: { select: { id: true, name: true } } },
     });
@@ -25,6 +33,11 @@ export class DocumentsService {
     documentType: DocumentType,
     actorId: string,
   ) {
+    if (documentType === DocumentType.COMPLIANCE_CERTIFICATE) {
+      throw new BadRequestException(
+        'COMPLIANCE_CERTIFICATE is a reserved document type. Use the certificate management endpoints to attach files to compliance certificates.',
+      );
+    }
     await this.assertAssetExists(assetId);
 
     const key = this.storage.buildKey('assets', assetId, file.originalname);
@@ -51,8 +64,16 @@ export class DocumentsService {
   }
 
   async delete(documentId: string): Promise<void> {
-    const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      include: { certificate: { select: { id: true } } },
+    });
     if (!doc) throw new NotFoundException(`Document ${documentId} not found`);
+    if (doc.certificate) {
+      throw new ForbiddenException(
+        'This document is attached to a compliance certificate and cannot be deleted directly. Delete the certificate instead.',
+      );
+    }
     await this.storage.delete('documents', doc.filePath);
     await this.prisma.document.delete({ where: { id: documentId } });
   }

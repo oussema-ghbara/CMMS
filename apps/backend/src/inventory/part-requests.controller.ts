@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
+import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
 import { PartRequestsService } from './part-requests.service';
 import { SubmitPartRequestDto } from './dto/submit-part-request.dto';
@@ -14,6 +15,7 @@ type AuthRequest = { user: { sub: string } };
 
 @ApiTags('Part Requests')
 @ApiBearerAuth()
+@OperationalRoles()
 @Controller('')
 export class PartRequestsController {
   constructor(private readonly partRequests: PartRequestsService) {}

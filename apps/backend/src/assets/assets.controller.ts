@@ -5,6 +5,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
+import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
 import { AssetsService } from './assets.service';
 import { CertificatesService } from './certificates.service';
@@ -19,6 +20,7 @@ import { DocumentType } from '@gmao/db';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
+@OperationalRoles()
 @Controller('assets')
 export class AssetsController {
   constructor(

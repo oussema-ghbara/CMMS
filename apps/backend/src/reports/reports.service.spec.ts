@@ -18,8 +18,10 @@ describe('ReportsService edge cases', () => {
     };
 
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(undefined),
       problemReport: {
         count: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -97,7 +99,7 @@ describe('ReportsService edge cases', () => {
   it('creates a report and notifies supervisors for a valid submission', async () => {
     const { service, prisma, notifications, tx } = createService();
     prisma.asset.findUnique.mockResolvedValue({ status: AssetStatus.OPERATIONAL });
-    tx.problemReport.count.mockResolvedValue(4);
+    tx.problemReport.findFirst.mockResolvedValue({ referenceNumber: 'PR-2026-000004' });
     tx.problemReport.create.mockResolvedValue({ id: 'report-1', referenceNumber: 'PR-2026-000005' });
 
     const report = await service.submit(

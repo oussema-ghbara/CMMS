@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
+import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
 import { PreventivePlansService } from './preventive-plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -14,6 +15,7 @@ import { ReorderPlanChecklistItemsDto } from './dto/reorder-checklist-items.dto'
 
 @ApiTags('Preventive Plans')
 @ApiBearerAuth()
+@OperationalRoles()
 @Controller('preventive-plans')
 export class PreventivePlansController {
   constructor(private readonly service: PreventivePlansService) {}

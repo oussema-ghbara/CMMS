@@ -6,7 +6,8 @@ import { UpdatePartDto } from './dto/update-part.dto';
 import { PartQueryDto } from './dto/part-query.dto';
 import { RecordIncomingStockDto } from './dto/record-incoming-stock.dto';
 import { StockAdjustmentDto } from './dto/stock-adjustment.dto';
-import { NotificationType } from '@gmao/shared';
+import { StockMovementResponseDto } from './dto/stock-movement-response.dto';
+import { NotificationType, StockMovementType } from '@gmao/shared';
 import { Part, StockMovement } from '@gmao/db';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -48,8 +49,47 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
     return this.repo.findLowStockParts();
   }
 
-  findMovementsByPart(partId: string): Promise<StockMovement[]> {
-    return this.repo.findMovementsByPart(partId);
+  async findMovementsByPart(partId: string): Promise<StockMovementResponseDto[]> {
+    // Fetch both the part's current stock (needed to compute balanceAfter)
+    // and the raw movements with performer included.
+    const [part, rawMovements] = await Promise.all([
+      this.repo.findPartById(partId),
+      this.prisma.stockMovement.findMany({
+        where: { partId },
+        orderBy: { createdAt: 'desc' }, // newest first — matches frontend expectation
+        include: { performedBy: { select: { id: true, name: true } } },
+      }),
+    ]);
+
+    if (rawMovements.length === 0) return [];
+
+    // Helper: net change each movement contributed to stock.
+    // OUTGOING stores positive quantity but decreases stock → negate.
+    // ADJUSTMENT quantity is already signed (negative when stock decreased).
+    // INCOMING and RETURN are always positive additions.
+    function netChange(m: typeof rawMovements[0]): number {
+      if (m.type === StockMovementType.OUTGOING) return -m.quantity;
+      return m.quantity; // INCOMING, RETURN, ADJUSTMENT (signed)
+    }
+
+    // Walk backwards from current stock to assign balanceAfter to each movement.
+    // rawMovements is newest-first so index 0 → balanceAfter = currentStock.
+    let runningBalance = part.currentStock;
+    return rawMovements.map((m) => {
+      const balanceAfter = runningBalance;
+      runningBalance -= netChange(m); // undo this movement to reach the balance before it
+
+      return {
+        id: m.id,
+        type: m.type as StockMovementType,
+        quantity: netChange(m),       // signed quantity for the frontend
+        balanceAfter,
+        reason: m.note ?? (m.adjustmentReason as string | null) ?? null,
+        referenceId: m.workOrderId ?? m.partRequestId ?? null,
+        createdAt: m.createdAt.toISOString(),
+        actor: m.performedBy ?? null,
+      };
+    });
   }
 
   // ── Incoming stock ─────────────────────────────────────────────────

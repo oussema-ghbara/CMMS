@@ -9,6 +9,7 @@ import { InventoryService } from './inventory.service';
 import { RecordIncomingStockDto } from './dto/record-incoming-stock.dto';
 import { StockAdjustmentDto } from './dto/stock-adjustment.dto';
 import { RecordPartReturnDto } from './dto/record-part-return.dto';
+import { StockMovementResponseDto } from './dto/stock-movement-response.dto';
 
 type AuthRequest = { user: { sub: string } };
 
@@ -28,7 +29,7 @@ export class StockController {
   @Get('stock/movements/:partId')
   @Roles(Role.STOREKEEPER, Role.SUPERVISOR)
   @ApiOperation({ summary: 'Full stock movement history for a part' })
-  getMovements(@Param('partId') partId: string): Promise<StockMovement[]> {
+  getMovements(@Param('partId') partId: string): Promise<StockMovementResponseDto[]> {
     return this.inventory.findMovementsByPart(partId);
   }
 

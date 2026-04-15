@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
+import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
 import { WorkOrder } from '@gmao/db';
 import { WorkOrdersService } from './work-orders.service';
@@ -29,6 +30,7 @@ type AuthRequest = { user: { sub: string; roles: Role[] } };
 
 @ApiTags('Work Orders')
 @ApiBearerAuth()
+@OperationalRoles()
 @Controller('work-orders')
 export class WorkOrdersController {
   constructor(

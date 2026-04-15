@@ -879,7 +879,8 @@
       "SPECIFICATION_SHEET": "Fiche technique",
       "PROCEDURE_DOCUMENT": "Document de procédure",
       "CONTRACTOR_REPORT": "Rapport prestataire",
-      "PHOTO": "Photo"
+      "PHOTO": "Photo",
+      "COMPLIANCE_CERTIFICATE": "Document de certificat de conformité"
     },
     "certificate": {
       "createTitle": "Ajouter un certificat",

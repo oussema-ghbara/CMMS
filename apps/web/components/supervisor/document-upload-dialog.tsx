@@ -19,7 +19,11 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
-const DOC_TYPES = Object.values(DocumentType);
+// COMPLIANCE_CERTIFICATE is reserved for certificate-attached files and must
+// not be selectable when uploading regular asset documents.
+const DOC_TYPES = Object.values(DocumentType).filter(
+  (t) => t !== DocumentType.COMPLIANCE_CERTIFICATE,
+);
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;

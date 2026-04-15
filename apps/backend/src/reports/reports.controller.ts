@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
+import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -13,6 +14,7 @@ import { AddCommentDto } from './dto/add-comment.dto';
 
 @ApiTags('Problem Reports')
 @ApiBearerAuth()
+@OperationalRoles()
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}

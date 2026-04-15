@@ -29,8 +29,8 @@ import { RolesGuard } from './common/guards/roles.guard';
     ConfigModule,
 
     LoggerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (cfg: ConfigService) => ({
+        inject: [ConfigService],
+        useFactory: (cfg: ConfigService) => ({
         pinoHttp: {
           level: cfg.get<string>('NODE_ENV') !== 'production' ? 'debug' : 'info',
           transport:
@@ -40,7 +40,7 @@ import { RolesGuard } from './common/guards/roles.guard';
         },
       }),
     }),
-
+   
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
@@ -69,6 +69,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ReportsModule,
     AdminModule,
   ],
+  
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },

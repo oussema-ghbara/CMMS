@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { WorkOrder, WorkOrderStatus, WorkOrderSource, Prisma } from '@gmao/db';
+import {
+  WorkOrder,
+  WorkOrderStatus,
+  WorkOrderSource,
+  WorkOrderPriority,
+  Prisma,
+} from '@gmao/db';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
 import { nextWorkOrderReference } from '../common/reference-number.util';
@@ -157,7 +163,7 @@ export class WorkOrdersRepository {
   async updatePriority(
     id: string,
     toPriority: WorkOrder['priority'],
-    actorId: string,
+    actorId: string | null,
     isAutoEscalation: boolean,
   ): Promise<WorkOrder> {
     return this.prisma.$transaction(async (tx) => {
@@ -173,12 +179,23 @@ export class WorkOrdersRepository {
           workOrderId: id,
           fromPriority: current.priority,
           toPriority,
-          actorId,
+          ...(actorId ? { actorId } : {}),
           isAutoEscalation,
         },
       });
 
       return updated;
+    });
+  }
+
+  findOverdueForEscalation(now: Date): Promise<Array<Pick<WorkOrder, 'id' | 'priority' | 'referenceNumber'>>> {
+    return this.prisma.workOrder.findMany({
+      where: {
+        status: { notIn: [WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED] },
+        dueDate: { not: null, lt: now },
+        priority: { not: WorkOrderPriority.CRITICAL },
+      },
+      select: { id: true, priority: true, referenceNumber: true },
     });
   }
 }

@@ -1,5 +1,5 @@
 import { WorkOrder } from '@gmao/db';
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -15,6 +15,8 @@ import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine
 
 @Injectable()
 export class WorkOrdersService {
+  private readonly logger = new Logger(WorkOrdersService.name);
+
   constructor(
     private readonly repo: WorkOrdersRepository,
     private readonly prisma: PrismaService,
@@ -218,12 +220,60 @@ export class WorkOrdersService {
     };
   }
 
+  async autoEscalateOverduePriorities(): Promise<{ checked: number; escalated: number }> {
+    const now = new Date();
+    const overdue = await this.repo.findOverdueForEscalation(now);
+
+    if (overdue.length === 0) {
+      this.logger.debug('Automatic priority escalation: no overdue work orders eligible');
+      return { checked: 0, escalated: 0 };
+    }
+
+    let escalated = 0;
+
+    for (const wo of overdue) {
+      const nextPriority = this.getEscalatedPriority(wo.priority);
+      if (!nextPriority) continue;
+
+      await this.repo.updatePriority(wo.id, nextPriority, null, true);
+      escalated += 1;
+
+      this.logger.log(
+        `Automatic system escalation: WO ${wo.referenceNumber} priority ${wo.priority} -> ${nextPriority}`,
+      );
+
+      await this.notifications.notifySupervisors(
+        NotificationType.WO_AUTO_ESCALATED,
+        'Work order priority auto-escalated',
+        `Work order ${wo.referenceNumber} is overdue and was automatically escalated to ${nextPriority}`,
+        'WorkOrder',
+        wo.id,
+      );
+    }
+
+    return { checked: overdue.length, escalated };
+  }
+
   private async assertActiveTechnician(technicianId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: technicianId } });
     if (!user) throw new BadRequestException(`User ${technicianId} not found`);
     if (!user.isActive) throw new BadRequestException(`Technician ${technicianId} is not active`);
     if (!user.roles.includes(Role.TECHNICIAN)) {
       throw new BadRequestException(`User ${technicianId} does not have the TECHNICIAN role`);
+    }
+  }
+
+  private getEscalatedPriority(priority: WorkOrder['priority']): WorkOrder['priority'] | null {
+    switch (priority) {
+      case 'LOW':
+        return 'MEDIUM';
+      case 'MEDIUM':
+        return 'HIGH';
+      case 'HIGH':
+        return 'CRITICAL';
+      case 'CRITICAL':
+      default:
+        return null;
     }
   }
 }

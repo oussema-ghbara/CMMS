@@ -97,6 +97,19 @@ export class WorkOrdersController {
     return this.workOrders.changePriority(id, dto, req.user.sub);
   }
 
+  @Patch(':id/authorize-simultaneous')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({
+    summary: 'Authorize simultaneous maintenance (Supervisor)',
+    description:
+      'Allows a second work order to start on an asset that already has an active ' +
+      'IN_PROGRESS work order. The principal technician is notified so they can proceed.',
+  })
+  @HttpCode(HttpStatus.OK)
+  authorizeSimultaneous(@Param('id') id: string, @Request() req: AuthRequest): Promise<WorkOrder> {
+    return this.workOrders.authorizeSimultaneousMaintenance(id, req.user.sub);
+  }
+
   @Get(':id/status-history')
   @ApiOperation({ summary: 'Status history (all roles)' })
   getStatusHistory(@Param('id') id: string) {

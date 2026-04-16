@@ -128,6 +128,56 @@ export class WorkOrdersService {
     return updated;
   }
 
+  async authorizeSimultaneousMaintenance(id: string, actorId: string): Promise<WorkOrder> {
+    const wo = await this.repo.findById(id);
+
+    if (isTerminal(wo.status)) {
+      throw new BadRequestException(
+        'Cannot authorize simultaneous maintenance on a closed or cancelled work order',
+      );
+    }
+
+    if (wo.simultaneousMaintenanceAuthorized) {
+      throw new BadRequestException(
+        'Simultaneous maintenance is already authorized for this work order',
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.workOrder.update({
+        where: { id },
+        data: { simultaneousMaintenanceAuthorized: true },
+      });
+      await tx.workOrderStatusLog.create({
+        data: {
+          workOrderId: id,
+          fromStatus: wo.status,
+          toStatus: wo.status,
+          actorId,
+          label: 'Simultaneous maintenance authorized by supervisor',
+        },
+      });
+      return result;
+    });
+
+    this.logger.log(
+      `Simultaneous maintenance authorized on WO ${wo.referenceNumber} by actor ${actorId}`,
+    );
+
+    if (wo.principalTechnicianId) {
+      await this.notifications.notify({
+        recipientId: wo.principalTechnicianId,
+        type: NotificationType.SIMULTANEOUS_MAINTENANCE_AUTHORIZED,
+        title: 'Maintenance simultanée autorisée',
+        summary: `Le superviseur a autorisé la maintenance simultanée sur l'ordre de travail ${wo.referenceNumber}. Vous pouvez désormais démarrer l'intervention.`,
+        entityType: 'WorkOrder',
+        entityId: id,
+      });
+    }
+
+    return this.repo.findById(updated.id);
+  }
+
   async changePriority(id: string, dto: ChangePriorityDto, actorId: string): Promise<WorkOrder> {
     const wo = await this.repo.findById(id);
     if (isTerminal(wo.status)) {

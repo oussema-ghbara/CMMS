@@ -9,7 +9,7 @@ async function acquireSequenceLock(
   namespace: number,
   year: number,
 ): Promise<void> {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${namespace}, ${year})`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${namespace}::int, ${year}::int)`;
 }
 
 function extractSequence(referenceNumber: string): number {

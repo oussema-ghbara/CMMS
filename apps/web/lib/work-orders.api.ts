@@ -290,6 +290,9 @@ export const workOrdersApi = {
   resolveBlock: (woId: string, blockId: string) =>
     api.patch<WorkOrderBlockFlag>(`/work-orders/${woId}/block/${blockId}/resolve`).then((r) => r.data),
 
+  authorizeSimultaneous: (id: string) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/authorize-simultaneous`).then((r) => r.data),
+
   getAnalytics: (params?: { periodDays?: number }) =>
     api.get<WorkOrderAnalyticsResponse>('/work-orders/analytics', { params }).then((r) => r.data),
 };

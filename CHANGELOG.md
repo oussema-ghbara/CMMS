@@ -4,6 +4,22 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Simultaneous maintenance authorization (April 16, 2026)
+
+#### `feat(work-orders): add authorize-simultaneous endpoint and supervisor UI`
+- **Problem:** `InterventionService.start()` correctly blocks a second work order from starting when an asset already has an `IN_PROGRESS` WO and `simultaneousMaintenanceAuthorized` is `false`. However, no mechanism existed for the supervisor to lift that block — the technician was permanently stuck.
+- **Backend:** New `PATCH /work-orders/:id/authorize-simultaneous` endpoint (Supervisor only)
+  - Guards: `400` if WO is already terminal (CLOSED/CANCELLED); `400` if simultaneous maintenance is already authorized (idempotency)
+  - Transaction: sets `simultaneousMaintenanceAuthorized = true` and writes a `WorkOrderStatusLog` entry (`"Simultaneous maintenance authorized by supervisor"`) for full auditability
+  - Notification: dispatches `SIMULTANEOUS_MAINTENANCE_AUTHORIZED` to the principal technician so they know to retry starting the WO
+  - `WorkOrdersService.authorizeSimultaneousMaintenance()` logs the event via the `WorkOrdersService` logger
+- **Schema/enums:** Added `SIMULTANEOUS_MAINTENANCE_AUTHORIZED` to `NotificationType` in both `packages/db/prisma/schema.prisma` and `packages/shared/src/enums/notification.enum.ts`; Prisma client and `@gmao/db` rebuilt
+- **Frontend:** Supervisor work-order detail dialog gains an **"Autoriser la maintenance simultanée"** action button, visible only when the WO is `ASSIGNED` and `simultaneousMaintenanceAuthorized` is `false`
+  - Clicking the button opens a confirmation panel with a yellow warning banner explaining the risk
+  - `authorizeSimultaneous` API call, mutation, success/error toasts, and `queryClient.invalidateQueries` all wired following existing dialog patterns
+- **i18n:** 6 new French keys added under `supervisorWorkOrders` (`actions.authorizeSim`, `actions.authorizeSimWarningTitle`, `actions.authorizeSimWarningBody`, `actions.authorizeSimConfirm`, `toasts.authorizeSimSuccess`, `toasts.authorizeSimError`)
+- **Tests:** 10 unit tests covering success path (transaction shape, status-log content, notification delivery, return value), the no-principal-technician branch, both terminal-status failure modes, already-authorized guard, and DB write isolation on rejection
+
 ### Fixed — COULD_NOT_INTERVENE validation data integrity (April 16, 2026)
 
 #### `fix(work-orders): enforce assetStatusOverride when technician could not intervene`

@@ -461,7 +461,8 @@
         "OPERATIONAL": "Opérationnel (risque accepté par le superviseur)",
         "OUT_OF_SERVICE": "Hors service",
         "IN_MAINTENANCE": "En maintenance (nécessite un suivi)"
-      }
+      },
+      "simultaneousAuthorized": "Maintenance simultanée autorisée"
     },
     "actions": {
       "changePriority": "Modifier la priorité",
@@ -496,7 +497,11 @@
       "promote": "Promouvoir un contributeur",
       "promoteDescription": "Désigner un technicien contributeur actif comme nouveau technicien principal.",
       "newPrincipalContributor": "Nouveau technicien principal",
-      "resolveBlock": "Résoudre le blocage"
+      "resolveBlock": "Résoudre le blocage",
+      "authorizeSim": "Autoriser la maintenance simultanée",
+      "authorizeSimWarningTitle": "⚠ Maintenance simultanée",
+      "authorizeSimWarningBody": "Un autre ordre de travail est déjà en cours sur cet équipement. En autorisant la maintenance simultanée, vous permettez à ce technicien de démarrer malgré ce conflit. Cette action est irréversible et sera consignée dans l'historique.",
+      "authorizeSimConfirm": "Autoriser et notifier le technicien"
     },
     "states": {
       "empty": "Aucun ordre de travail trouvé",
@@ -610,7 +615,9 @@
       "promoteSuccess": "Contributeur promu technicien principal avec succès",
       "promoteError": "Impossible de promouvoir le contributeur",
       "resolveBlockSuccess": "Blocage résolu avec succès",
-      "resolveBlockError": "Impossible de résoudre le blocage"
+      "resolveBlockError": "Impossible de résoudre le blocage",
+      "authorizeSimSuccess": "Maintenance simultanée autorisée. Le technicien a été notifié.",
+      "authorizeSimError": "Impossible d'autoriser la maintenance simultanée."
     }
   },
   "supervisorPreventivePlans": {

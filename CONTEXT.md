@@ -36,6 +36,7 @@ Tech stack decisions: stack.pdf
   - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist, async PDF report generation on closure
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
 - [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs, async PDF report generation on closure
+- [x] WorkOrdersModule — simultaneous maintenance authorization: `PATCH /work-orders/:id/authorize-simultaneous` (Supervisor) lifts the start-block when an asset already has an active WO; writes a status-log audit entry; notifies the principal technician via `SIMULTANEOUS_MAINTENANCE_AUTHORIZED`; supervisor detail dialog shows the action button when applicable
 - [x] WorkOrdersModule — COULD_NOT_INTERVENE validation guard: `PATCH /work-orders/:id/validate` now requires `assetStatusOverride` when the last completed intervention result is `COULD_NOT_INTERVENE`; asset status is set to the supervisor's explicit choice instead of silently defaulting to OPERATIONAL; `FOLLOW_UP_PROMPT` notification dispatched to principal technician
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [x] InventoryModule — duplicate part `referenceCode` creates now return 409 Conflict instead of leaking Prisma unique-constraint 500s
@@ -57,7 +58,7 @@ Tech stack decisions: stack.pdf
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)
 - [x] Storekeeper module (web) — /storekeeper/analytics inventory analytics (filters + KPI cards + consumption/replenishment/dead-stock sections)
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
-- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, validate, reject-closure, cancel; list waits for auth initialization and asset selector respects backend limits; validate panel shows a mandatory asset-status override form when the last intervention result is COULD_NOT_INTERVENE)
+- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, reassign, promote, validate, reject-closure, cancel, authorize-simultaneous-maintenance; list waits for auth initialization and asset selector respects backend limits; validate panel shows a mandatory asset-status override form when the last intervention result is COULD_NOT_INTERVENE)
 - [x] Supervisor module (web) — /supervisor dashboard summary cards now wait for auth store initialization before firing queries
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)

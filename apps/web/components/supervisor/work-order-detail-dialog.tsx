@@ -114,6 +114,7 @@ type ActionPanel =
   | 'validate'
   | 'reject'
   | 'cancel'
+  | 'authorizeSim'
   | null;
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -313,6 +314,17 @@ export function WorkOrderDetailDialog({
       toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.resolveBlockError'))),
   });
 
+  const authorizeSimMutation = useMutation({
+    mutationFn: () => workOrdersApi.authorizeSimultaneous(workOrder!.id),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success(t('supervisorWorkOrders.toasts.authorizeSimSuccess'));
+      resetPanels();
+    },
+    onError: (err) =>
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.authorizeSimError'))),
+  });
+
   const isMutating =
     publishMutation.isPending ||
     assignMutation.isPending ||
@@ -321,7 +333,8 @@ export function WorkOrderDetailDialog({
     cancelMutation.isPending ||
     reassignMutation.isPending ||
     promoteMutation.isPending ||
-    resolveBlockMutation.isPending;
+    resolveBlockMutation.isPending ||
+    authorizeSimMutation.isPending;
 
   // ── Action submit handlers ─────────────────────────────────────────────────
 
@@ -458,6 +471,20 @@ export function WorkOrderDetailDialog({
                     onClick={() => setActivePanel('promote')}
                   >
                     {t('supervisorWorkOrders.actions.promote')}
+                  </Button>
+                )}
+
+              {/* ASSIGNED → authorize simultaneous maintenance (only when not yet authorized) */}
+              {status === WorkOrderStatus.ASSIGNED &&
+                detail &&
+                !detail.simultaneousMaintenanceAuthorized && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActivePanel('authorizeSim')}
+                  >
+                    {t('supervisorWorkOrders.actions.authorizeSim')}
                   </Button>
                 )}
 
@@ -832,6 +859,42 @@ export function WorkOrderDetailDialog({
                 >
                   {promoteMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                   {t('common.confirm')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Authorize simultaneous maintenance panel ── */}
+          {activePanel === 'authorizeSim' && (
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+                <p className="font-semibold">
+                  {t('supervisorWorkOrders.actions.authorizeSimWarningTitle')}
+                </p>
+                <p className="mt-0.5 text-xs">
+                  {t('supervisorWorkOrders.actions.authorizeSimWarningBody')}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetPanels}
+                  disabled={authorizeSimMutation.isPending}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={authorizeSimMutation.isPending}
+                  onClick={() => authorizeSimMutation.mutate()}
+                >
+                  {authorizeSimMutation.isPending && (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  {t('supervisorWorkOrders.actions.authorizeSimConfirm')}
                 </Button>
               </div>
             </div>

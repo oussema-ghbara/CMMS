@@ -165,29 +165,29 @@
   },
   "supervisorDashboard": {
     "title": "Tableau de bord",
-    "subtitle": "Suivez rapidement la charge de maintenance, les validations en attente et les signalements a traiter.",
+    "subtitle": "Suivez rapidement la charge de maintenance, les validations en attente et les signalements à traiter.",
     "states": {
-      "error": "Certaines donnees n'ont pas pu etre chargees."
+      "error": "Certaines données n'ont pas pu être chargées."
     },
     "cards": {
       "totalWorkOrders": {
         "title": "Ordres de travail",
-        "description": "Nombre total d'OT enregistres",
+        "description": "Nombre total d'OT enregistrés",
         "cta": "Voir les ordres de travail"
       },
       "activeWorkOrders": {
         "title": "OT actifs",
-        "description": "Assignes, en cours ou en attente",
+        "description": "Assignés, en cours ou en attente",
         "cta": "Ouvrir le suivi des OT"
       },
       "pendingValidation": {
-        "title": "A valider",
-        "description": "Clotures soumises en attente de validation",
-        "cta": "Reviser les validations"
+        "title": "À valider",
+        "description": "Clôtures soumises en attente de validation",
+        "cta": "Réviser les validations"
       },
       "pendingReports": {
         "title": "Signalements ouverts",
-        "description": "Signalements en attente ou differes",
+        "description": "Signalements en attente ou différés",
         "cta": "Traiter les signalements"
       }
     }

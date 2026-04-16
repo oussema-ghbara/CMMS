@@ -24,7 +24,9 @@ import {
   type PromoteTechnicianPayload,
   type CancelWorkOrderPayload,
   type RejectValidationPayload,
+  type ValidateWorkOrderPayload,
 } from '@/lib/work-orders.api';
+import { InterventionResult } from '@gmao/shared';
 import { usersApi } from '@/lib/users.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -137,6 +139,10 @@ export function WorkOrderDetailDialog({
   const [principalId, setPrincipalId] = useState('');
   const [contributorIds, setContributorIds] = useState<string[]>([]);
 
+  // Validate (COULD_NOT_INTERVENE) form state
+  const [validateAssetStatusOverride, setValidateAssetStatusOverride] =
+    useState<AssetStatus | ''>('');
+
   // Promote form state
   const [promoteNewPrincipalId, setPromoteNewPrincipalId] = useState('');
 
@@ -205,6 +211,7 @@ export function WorkOrderDetailDialog({
     setPrincipalId('');
     setContributorIds([]);
     setPromoteNewPrincipalId('');
+    setValidateAssetStatusOverride('');
     resetCancel();
     resetReject();
     resetReassign();
@@ -236,7 +243,8 @@ export function WorkOrderDetailDialog({
   });
 
   const validateMutation = useMutation({
-    mutationFn: () => workOrdersApi.validate(workOrder!.id),
+    mutationFn: (payload?: ValidateWorkOrderPayload) =>
+      workOrdersApi.validate(workOrder!.id, payload),
     onSuccess: () => {
       invalidateAll();
       toast.success(t('supervisorWorkOrders.toasts.validateSuccess'));
@@ -370,6 +378,21 @@ export function WorkOrderDetailDialog({
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   const status = detail?.status ?? workOrder?.status;
+
+  /**
+   * True when the most recently completed intervention log reported that the
+   * technician could not carry out the work. In that case the supervisor must
+   * explicitly choose an asset status instead of defaulting to OPERATIONAL.
+   */
+  const lastCompletedIntervention = detail?.interventionLogs
+    ?.filter((l) => l.endedAt !== null && l.result !== null)
+    .sort(
+      (a, b) =>
+        new Date(b.endedAt!).getTime() - new Date(a.endedAt!).getTime(),
+    )[0] ?? null;
+
+  const isCouldNotIntervene =
+    lastCompletedIntervention?.result === InterventionResult.COULD_NOT_INTERVENE;
 
   const renderActionPanel = () => {
     if (!detail || !status || isTerminalStatus(status)) return null;
@@ -566,27 +589,101 @@ export function WorkOrderDetailDialog({
           {/* ── Validate panel ── */}
           {activePanel === 'validate' && (
             <div className="space-y-3 rounded-md border p-3">
-              <p className="text-sm">{t('supervisorWorkOrders.actions.validateDescription')}</p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={resetPanels}
-                  disabled={validateMutation.isPending}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={validateMutation.isPending}
-                  onClick={() => validateMutation.mutate()}
-                >
-                  {validateMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                  {t('common.confirm')}
-                </Button>
-              </div>
+              {isCouldNotIntervene ? (
+                <>
+                  {/* Warning banner — technician reported they could not intervene */}
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    <p className="font-semibold">
+                      {t('supervisorWorkOrders.actions.couldNotInterveneWarningTitle')}
+                    </p>
+                    <p className="mt-0.5 text-xs">
+                      {t('supervisorWorkOrders.actions.couldNotInterveneWarningBody')}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>
+                      {t('supervisorWorkOrders.actions.assetStatusOverrideLabel')}
+                      <span className="ml-1 text-destructive">*</span>
+                    </Label>
+                    <select
+                      className={selectClass}
+                      value={validateAssetStatusOverride}
+                      onChange={(e) =>
+                        setValidateAssetStatusOverride(e.target.value as AssetStatus | '')
+                      }
+                    >
+                      <option value="">
+                        {t('supervisorWorkOrders.actions.assetStatusOverridePlaceholder')}
+                      </option>
+                      <option value={AssetStatus.OPERATIONAL}>
+                        {t('supervisorWorkOrders.labels.assetStatusOverride.OPERATIONAL')}
+                      </option>
+                      <option value={AssetStatus.OUT_OF_SERVICE}>
+                        {t('supervisorWorkOrders.labels.assetStatusOverride.OUT_OF_SERVICE')}
+                      </option>
+                      <option value={AssetStatus.IN_MAINTENANCE}>
+                        {t('supervisorWorkOrders.labels.assetStatusOverride.IN_MAINTENANCE')}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={resetPanels}
+                      disabled={validateMutation.isPending}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={validateMutation.isPending || !validateAssetStatusOverride}
+                      onClick={() =>
+                        validateMutation.mutate({
+                          assetStatusOverride: validateAssetStatusOverride as AssetStatus,
+                        })
+                      }
+                    >
+                      {validateMutation.isPending && (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {t('supervisorWorkOrders.actions.validateCouldNotInterveneConfirm')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm">
+                    {t('supervisorWorkOrders.actions.validateDescription')}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={resetPanels}
+                      disabled={validateMutation.isPending}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={validateMutation.isPending}
+                      onClick={() => validateMutation.mutate({})}
+                    >
+                      {validateMutation.isPending && (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {t('common.confirm')}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

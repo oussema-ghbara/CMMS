@@ -221,6 +221,16 @@ export interface RejectValidationPayload {
   rejectionDetail?: string;
 }
 
+/**
+ * When the last intervention result is COULD_NOT_INTERVENE, `assetStatusOverride`
+ * is mandatory — the supervisor must explicitly declare the post-validation asset
+ * status because the asset was not actually repaired.
+ * For all other intervention results the field is unused and may be omitted.
+ */
+export interface ValidateWorkOrderPayload {
+  assetStatusOverride?: AssetStatus;
+}
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
 export interface WorkOrderAnalyticsSummary {
@@ -268,8 +278,8 @@ export const workOrdersApi = {
   promote: (id: string, payload: PromoteTechnicianPayload) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/promote`, payload).then((r) => r.data),
 
-  validate: (id: string) =>
-    api.patch<WorkOrderDetail>(`/work-orders/${id}/validate`).then((r) => r.data),
+  validate: (id: string, payload?: ValidateWorkOrderPayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/validate`, payload ?? {}).then((r) => r.data),
 
   reject: (id: string, payload: RejectValidationPayload) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/reject`, payload).then((r) => r.data),

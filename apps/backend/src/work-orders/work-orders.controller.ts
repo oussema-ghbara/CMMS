@@ -22,6 +22,7 @@ import { PutOnHoldDto } from './dto/put-on-hold.dto';
 import { ResolveHoldDto } from './dto/resolve-hold.dto';
 import { SubmitClosureDto } from './dto/submit-closure.dto';
 import { RejectValidationDto } from './dto/reject-validation.dto';
+import { ValidateWorkOrderDto } from './dto/validate-work-order.dto';
 import { CompleteChecklistItemDto } from './dto/complete-checklist-item.dto';
 import { CancelWorkOrderDto } from './dto/cancel-work-order.dto';
 import { ChangePriorityDto } from './dto/change-priority.dto';
@@ -183,10 +184,20 @@ export class WorkOrdersController {
 
   @Patch(':id/validate')
   @Roles(Role.SUPERVISOR)
-  @ApiOperation({ summary: 'Validate and close — PENDING_VALIDATION → CLOSED (Supervisor)' })
+  @ApiOperation({
+    summary: 'Validate and close — PENDING_VALIDATION → CLOSED (Supervisor)',
+    description:
+      'When the last intervention result is COULD_NOT_INTERVENE, ' +
+      'assetStatusOverride is mandatory and the supervisor must explicitly ' +
+      'declare the post-validation asset status.',
+  })
   @HttpCode(HttpStatus.OK)
-  validate(@Param('id') id: string, @Request() req: AuthRequest): Promise<WorkOrder> {
-    return this.validation.validate(id, req.user.sub);
+  validate(
+    @Param('id') id: string,
+    @Body() dto: ValidateWorkOrderDto,
+    @Request() req: AuthRequest,
+  ): Promise<WorkOrder> {
+    return this.validation.validate(id, req.user.sub, dto);
   }
 
   @Patch(':id/reject')

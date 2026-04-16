@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ClipboardCheck, ClipboardList, Loader2, Wrench } from 'lucide-react';
 import { workOrdersApi } from '@/lib/work-orders.api';
 import { reportsApi } from '@/lib/reports.api';
+import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -50,36 +51,44 @@ function SummaryCard({ title, description, value, isLoading, icon: Icon, href, c
 
 export default function SupervisorDashboardPage() {
   const { t } = useTranslation();
+  const isInitialized = useAuthStore((state) => state.isInitialized);
 
   const results = useQueries({
     queries: [
       {
         queryKey: ['supervisor', 'dashboard', 'work-orders', 'all'],
         queryFn: () => workOrdersApi.list({ page: 1, limit: 1 }),
+        enabled: isInitialized,
       },
       {
         queryKey: ['supervisor', 'dashboard', 'work-orders', 'assigned'],
         queryFn: () => workOrdersApi.list({ page: 1, limit: 1, status: WorkOrderStatus.ASSIGNED }),
+        enabled: isInitialized,
       },
       {
         queryKey: ['supervisor', 'dashboard', 'work-orders', 'in-progress'],
         queryFn: () => workOrdersApi.list({ page: 1, limit: 1, status: WorkOrderStatus.IN_PROGRESS }),
+        enabled: isInitialized,
       },
       {
         queryKey: ['supervisor', 'dashboard', 'work-orders', 'on-hold'],
         queryFn: () => workOrdersApi.list({ page: 1, limit: 1, status: WorkOrderStatus.ON_HOLD }),
+        enabled: isInitialized,
       },
       {
         queryKey: ['supervisor', 'dashboard', 'work-orders', 'pending-validation'],
         queryFn: () => workOrdersApi.list({ page: 1, limit: 1, status: WorkOrderStatus.PENDING_VALIDATION }),
+        enabled: isInitialized,
       },
       {
         queryKey: ['supervisor', 'dashboard', 'reports', 'pending'],
         queryFn: () => reportsApi.list({ page: 1, limit: 1, status: ProblemReportStatus.PENDING }),
+        enabled: isInitialized,
       },
       {
         queryKey: ['supervisor', 'dashboard', 'reports', 'deferred'],
         queryFn: () => reportsApi.list({ page: 1, limit: 1, status: ProblemReportStatus.DEFERRED }),
+        enabled: isInitialized,
       },
     ],
   });

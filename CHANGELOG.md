@@ -4,6 +4,21 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Automatic PDF report generation for closed work orders (April 16, 2026)
+
+#### `feat(work-orders): generate and store PDF reports on validation`
+- Added `WorkOrder.reportPdfKey` to persist the generated PDF storage key
+- Introduced a dedicated PDF generation service, BullMQ queue, and processor for closed work orders
+- Validation now enqueues PDF generation asynchronously after a successful closure
+- PDFs are uploaded to MinIO and stored under the `reports/` prefix
+
+### Fixed — Supervisor work-order loading and equipment selection (April 16, 2026)
+
+#### `fix(web-supervisor): wait for auth init before loading work orders`
+- Supervisor work-order list now waits for auth initialization before firing its query
+- Create work-order equipment selection now uses a backend-valid asset query limit and waits for auth initialization
+- Prevents premature request failures and empty equipment dropdowns during app startup
+
 ### Added — Automatic work order priority escalation (April 16, 2026)
 
 #### `feat(work-orders): add automatic priority escalation job scheduler`

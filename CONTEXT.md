@@ -33,9 +33,9 @@ Tech stack decisions: stack.pdf
   - [x] StorageModule — MinIO/S3 wrapper, multi-bucket, presigned URLs
   - [x] NotificationsModule — in-app + email notifications, global
   - [x] AssetsModule — locations, categories, assets, certificates, documents
-  - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist
+  - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist, async PDF report generation on closure
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
-- [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs
+- [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs, async PDF report generation on closure
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
@@ -54,7 +54,7 @@ Tech stack decisions: stack.pdf
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)
 - [x] Storekeeper module (web) — /storekeeper/analytics inventory analytics (filters + KPI cards + consumption/replenishment/dead-stock sections)
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
-- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, validate, reject-closure, cancel)
+- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, validate, reject-closure, cancel; list waits for auth initialization and asset selector respects backend limits)
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
 - [x] Supervisor module (web) — asset certificates: full CRUD (add/edit/delete + optional file upload) wired in asset-detail-dialog
@@ -93,7 +93,7 @@ Tech stack decisions: stack.pdf
 - Global guards: JwtAuthGuard + RolesGuard applied to everything. Use @Public() to opt out.
 - Global filter: AllExceptionsFilter on all routes.
 - Email: NEVER send synchronously. Always enqueue via MailService.enqueue().
-- PDF generation: always BullMQ job, never synchronous (not yet built).
+- PDF generation: always BullMQ job, never synchronous. Implemented for closed work-order report generation.
 - Offline queue (mobile): only checklist completions, log drafts, photo attachments.
 - Status transitions require connectivity — never queue them.
 - Prisma migrations: never edit applied. Always create new.

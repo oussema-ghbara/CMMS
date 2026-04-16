@@ -230,6 +230,7 @@ Expected behavior:
 - Priority can still be updated inline from the pencil icon in the row for non-terminal work orders
 - All actions refresh the list without a page reload
 - Terminal work orders (`CLOSED`, `CANCELLED`) show no action buttons in the detail dialog
+- Validating a work order queues PDF report generation asynchronously; the resulting file is stored in MinIO and linked on the work order
 - Empty and error states render correctly when applicable
 
 ## Supervisor preventive plans module testing

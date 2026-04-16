@@ -35,7 +35,7 @@ Tech stack decisions: stack.pdf
   - [x] AssetsModule — locations, categories, assets, certificates, documents
   - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
-- [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist
+- [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive

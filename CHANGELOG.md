@@ -4,6 +4,17 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Automatic work order priority escalation (April 16, 2026)
+
+#### `feat(work-orders): add automatic priority escalation job scheduler`
+- New hourly Cron job (`PriorityEscalationJob`) evaluates and escalates overdue work orders
+- Escalation follows strict priority chain: LOW → MEDIUM → HIGH → CRITICAL
+- Already-CRITICAL work orders are excluded to prevent redundant escalations
+- Terminal states (CLOSED, CANCELLED) are skipped automatically
+- Full audit trail preserved via `WorkOrderPriorityLog` with `isAutoEscalation=true` flag
+- Supervisor notifications sent via `NotificationType.WO_AUTO_ESCALATED` for every escalated work order
+- System escalations logged explicitly as "automatic system escalation" per spec §4.3
+
 ### Fixed — Reference number integrity under concurrency (April 13, 2026)
 
 #### `fix(backend): eliminate WO/PR reference race conditions with tx-level locks`

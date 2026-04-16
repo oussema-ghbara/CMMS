@@ -136,7 +136,7 @@ npx prisma studio    # visual DB browser
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
 | AssetsModule | done — locations, categories, assets, certificates, documents |
 | NotificationsModule | done — in-app notifications, unread count, mark-read endpoints |
-| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist |
+| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
 | ReportsModule | done — problem report lifecycle, comments, conversion, defer/reopen, reject, archive |

@@ -507,6 +507,7 @@ model WorkOrder {
   validatedBy                       User?                   @relation("WOValidatedBy", fields: [validatedById], references: [id])
   validatedAt                       DateTime?
   closedAt                          DateTime?
+  reportPdfKey                      String?
   createdAt                         DateTime                @default(now())
   updatedAt                         DateTime                @updatedAt
 

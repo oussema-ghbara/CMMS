@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { WorkOrdersController } from './work-orders.controller';
 import { WorkOrdersService } from './work-orders.service';
 import { WorkOrdersRepository } from './work-orders.repository';
@@ -7,12 +8,22 @@ import { InterventionService } from './intervention.service';
 import { OnHoldService } from './on-hold.service';
 import { ValidationService } from './validation.service';
 import { ChecklistService } from './checklist.service';
+import { ReportGenerationService } from './report-generation.service';
 import { PriorityEscalationJob } from './jobs/priority-escalation.job';
+import { ReportGenerationProcessor } from './jobs/report-generation.processor';
+import { ReportGenerationJobService } from './jobs/report-generation-job.service';
+import { REPORT_GENERATION_QUEUE } from './jobs/report-generation.constants';
 import { AssetsModule } from '../assets/assets.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [AssetsModule, InventoryModule],
+  imports: [
+    AssetsModule,
+    InventoryModule,
+    StorageModule,
+    BullModule.registerQueue({ name: REPORT_GENERATION_QUEUE }),
+  ],
   controllers: [WorkOrdersController],
   providers: [
     WorkOrdersService,
@@ -22,8 +33,11 @@ import { InventoryModule } from '../inventory/inventory.module';
     OnHoldService,
     ValidationService,
     ChecklistService,
+    ReportGenerationService,
+    ReportGenerationJobService,
+    ReportGenerationProcessor,
     PriorityEscalationJob,
   ],
-  exports: [WorkOrdersService],
+  exports: [WorkOrdersService, ReportGenerationJobService],
 })
 export class WorkOrdersModule {}

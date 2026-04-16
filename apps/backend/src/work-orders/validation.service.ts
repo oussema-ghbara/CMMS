@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ReportGenerationJobService } from './jobs/report-generation-job.service';
 import { RejectValidationDto } from './dto/reject-validation.dto';
 import { WorkOrderStatus, AssetStatus, NotificationType, Role } from '@gmao/db';
 import { assertTransitionAllowed } from './work-orders.state-machine';
@@ -13,6 +14,7 @@ export class ValidationService {
     private readonly prisma: PrismaService,
     private readonly repo: WorkOrdersRepository,
     private readonly notifications: NotificationsService,
+    private readonly reportGenerationJob: ReportGenerationJobService,
   ) {}
 
   async validate(woId: string, actorId: string): Promise<WorkOrder> {
@@ -46,6 +48,10 @@ export class ValidationService {
         },
       });
     });
+
+    // Enqueue PDF report generation job (fire-and-forget)
+    // This runs asynchronously after the WO is successfully closed
+    void this.reportGenerationJob.enqueueReportGeneration(woId);
 
     return this.repo.findById(woId);
   }

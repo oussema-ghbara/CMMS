@@ -1,13 +1,16 @@
 import { redirect } from 'next/navigation';
 
 type LegacyResetPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     token?: string;
-  };
+  }>;
 };
 
-export default function LegacyAuthResetPasswordPage({ searchParams }: LegacyResetPageProps) {
-  const token = searchParams?.token;
+export default async function LegacyAuthResetPasswordPage({
+  searchParams,
+}: LegacyResetPageProps) {
+  const params = await searchParams;
+  const token = params?.token;
   const target = token ? `/reset-password?token=${encodeURIComponent(token)}` : '/reset-password';
   redirect(target);
 }

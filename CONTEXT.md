@@ -37,6 +37,7 @@ Tech stack decisions: stack.pdf
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
 - [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs, async PDF report generation on closure
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
+- [x] InventoryModule — duplicate part `referenceCode` creates now return 409 Conflict instead of leaking Prisma unique-constraint 500s
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
 - [x] Backend integrity hardening — WO/PR reference generation now uses transaction advisory locks to prevent duplicate references under concurrent writes

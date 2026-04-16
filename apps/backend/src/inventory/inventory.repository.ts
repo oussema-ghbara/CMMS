@@ -57,17 +57,27 @@ export class InventoryRepository {
       );
     }
 
-    return this.prisma.part.create({
-      data: {
-        name: dto.name,
-        referenceCode: dto.referenceCode,
-        description: dto.description,
-        unit: dto.unit,
-        minimumStockThreshold: dto.minimumStockThreshold ?? 0,
-        warehouseLocation: dto.warehouseLocation,
-        unitCost: dto.unitCost ?? 0,
-      },
-    });
+    try {
+      return await this.prisma.part.create({
+        data: {
+          name: dto.name,
+          referenceCode: dto.referenceCode,
+          description: dto.description,
+          unit: dto.unit,
+          minimumStockThreshold: dto.minimumStockThreshold ?? 0,
+          warehouseLocation: dto.warehouseLocation,
+          unitCost: dto.unitCost ?? 0,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(
+          `A part with reference code "${dto.referenceCode}" already exists`,
+        );
+      }
+
+      throw error;
+    }
   }
 
   async updatePart(id: string, dto: UpdatePartDto): Promise<Part> {

@@ -4,6 +4,13 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Inventory part creation conflict handling (April 16, 2026)
+
+#### `fix(inventory): return 409 on duplicate part reference codes`
+- `POST /parts` now maps both the repository precheck and Prisma unique-constraint failures to `409 Conflict`
+- Duplicate `referenceCode` values no longer surface as opaque 500 errors during concurrent or repeated creates
+- Added backend unit coverage for the repository conflict paths and an HTTP integration test for the controller response
+
 ### Fixed — Stability and seed reliability hardening (April 16, 2026)
 
 #### `fix(web): gate supervisor dashboard queries on auth initialization`

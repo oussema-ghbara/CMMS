@@ -17,6 +17,7 @@ import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { WorkOrderFormDialog } from './work-order-form-dialog';
 import { WorkOrderDetailDialog } from './work-order-detail-dialog';
+import { useAuthStore } from '@/store/auth.store';
 
 const LIMIT = 20;
 
@@ -95,6 +96,7 @@ function getPrincipalName(item: WorkOrderListItem, fallback: string): string {
 export function WorkOrdersBoard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const isInitialized = useAuthStore((state) => state.isInitialized);
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
@@ -130,6 +132,7 @@ export function WorkOrdersBoard() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['supervisor', 'work-orders', queryParams],
     queryFn: () => workOrdersApi.list(queryParams),
+    enabled: isInitialized,
   });
 
   const priorityMutation = useMutation({

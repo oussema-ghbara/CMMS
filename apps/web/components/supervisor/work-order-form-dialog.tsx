@@ -13,6 +13,7 @@ import { WorkOrderType, WorkOrderPriority } from '@gmao/shared';
 import { workOrdersApi } from '@/lib/work-orders.api';
 import { assetsApi } from '@/lib/assets.api';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/store/auth.store';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,7 @@ const PRIORITY_OPTIONS = [
 export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const isInitialized = useAuthStore((state) => state.isInitialized);
 
   const {
     register,
@@ -92,8 +94,8 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
 
   const { data: assetsData, isLoading: assetsLoading } = useQuery({
     queryKey: ['supervisor', 'assets', 'all-for-select'],
-    queryFn: () => assetsApi.list({ limit: 500 }),
-    enabled: open,
+    queryFn: () => assetsApi.list({ page: 1, limit: 100 }),
+    enabled: open && isInitialized,
   });
 
   const createMutation = useMutation({

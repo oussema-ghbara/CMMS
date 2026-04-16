@@ -40,6 +40,7 @@ Tech stack decisions: stack.pdf
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
 - [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
 - [x] Backend integrity hardening — WO/PR reference generation now uses transaction advisory locks to prevent duplicate references under concurrent writes
+- [x] Backend runtime compatibility — advisory lock SQL now casts lock keys to `int` to match PostgreSQL function overloads used in production
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
 - [x] apps/web — Next.js started (auth + protected layouts + admin pages)
 - [x] Auth module (web) — login page + account setup (/auth/setup) + password recovery (/auth/forgot-password, /auth/reset-password)
@@ -55,6 +56,7 @@ Tech stack decisions: stack.pdf
 - [x] Storekeeper module (web) — /storekeeper/analytics inventory analytics (filters + KPI cards + consumption/replenishment/dead-stock sections)
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
 - [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, validate, reject-closure, cancel; list waits for auth initialization and asset selector respects backend limits)
+- [x] Supervisor module (web) — /supervisor dashboard summary cards now wait for auth store initialization before firing queries
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
 - [x] Supervisor module (web) — asset certificates: full CRUD (add/edit/delete + optional file upload) wired in asset-detail-dialog
@@ -80,6 +82,8 @@ Tech stack decisions: stack.pdf
 | admin@gmao.local | Admin1234! | ADMIN |
 | supervisor@gmao.local | Admin1234! | SUPERVISOR, STOREKEEPER |
 | tech@gmao.local | Admin1234! | TECHNICIAN |
+| tech2@gmao.local | Admin1234! | TECHNICIAN |
+| requester@gmao.local | Admin1234! | REQUESTER |
 
 ## API
 - Base URL (recommended split): http://localhost:3000/api/v1

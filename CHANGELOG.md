@@ -4,6 +4,27 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Stability and seed reliability hardening (April 16, 2026)
+
+#### `fix(web): gate supervisor dashboard queries on auth initialization`
+- Added `enabled: isInitialized` on all supervisor dashboard summary queries
+- Prevents early unauthenticated requests, refresh-token race conditions, and dashboard bootstrap failures after full page reloads
+
+#### `fix(i18n): restore French accents in supervisor dashboard copy`
+- Restored missing accent marks in `supervisorDashboard` French translations (subtitle, error state, and card labels)
+
+#### `fix(backend): cast advisory lock arguments for PostgreSQL overload resolution`
+- Explicitly cast advisory lock parameters to `int` in reference-number generation queries
+- Prevents `pg_advisory_xact_lock(bigint, bigint)` resolution errors that could fail WO/PR creation under runtime bindings
+
+#### `fix(db): make seed execution robust with generated Prisma client mapping`
+- Updated `packages/db/tsconfig.seed.json` with `baseUrl` and `paths` so `@prisma/client` resolves to `packages/db/src/generated/client` during seed compilation
+- Seed data now includes a broader baseline fixture set (users, assets, plans, reports, work orders, inventory movements, notifications) while remaining idempotent
+
+#### `chore(repo): stop tracking TypeScript incremental cache artifacts`
+- Added `*.tsbuildinfo` to `.gitignore`
+- Removed tracked `apps/web/tsconfig.tsbuildinfo` from version control
+
 ### Added — Automatic PDF report generation for closed work orders (April 16, 2026)
 
 #### `feat(work-orders): generate and store PDF reports on validation`

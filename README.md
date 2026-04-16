@@ -121,6 +121,8 @@ npx prisma studio    # visual DB browser
 | admin@gmao.local | Admin1234! | ADMIN |
 | supervisor@gmao.local | Admin1234! | SUPERVISOR, STOREKEEPER |
 | tech@gmao.local | Admin1234! | TECHNICIAN |
+| tech2@gmao.local | Admin1234! | TECHNICIAN |
+| requester@gmao.local | Admin1234! | REQUESTER |
 
 ## Backend module status
 

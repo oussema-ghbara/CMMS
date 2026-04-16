@@ -7,6 +7,7 @@ import { InterventionService } from './intervention.service';
 import { OnHoldService } from './on-hold.service';
 import { ValidationService } from './validation.service';
 import { ChecklistService } from './checklist.service';
+import { PriorityEscalationJob } from './jobs/priority-escalation.job';
 import { AssetsModule } from '../assets/assets.module';
 import { InventoryModule } from '../inventory/inventory.module';
 
@@ -21,6 +22,7 @@ import { InventoryModule } from '../inventory/inventory.module';
     OnHoldService,
     ValidationService,
     ChecklistService,
+    PriorityEscalationJob,
   ],
   exports: [WorkOrdersService],
 })

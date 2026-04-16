@@ -4,6 +4,19 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — COULD_NOT_INTERVENE validation data integrity (April 16, 2026)
+
+#### `fix(work-orders): enforce assetStatusOverride when technician could not intervene`
+- `ValidationService.validate()` previously set the asset to `OPERATIONAL` unconditionally, even when the technician submitted `result: COULD_NOT_INTERVENE` — marking an unrepaired asset as back in service
+- The service now reads the most recent **completed** intervention log (i.e. with `endedAt IS NOT NULL` and `result IS NOT NULL`) before deciding the post-validation asset status:
+  - **Normal results** (RESOLVED, PARTIALLY_RESOLVED, NEEDS_FOLLOW_UP, or no log): asset → `OPERATIONAL` as before
+  - **COULD_NOT_INTERVENE**: `assetStatusOverride` is **mandatory**; missing it raises `400 BadRequestException` with an explicit message; the chosen status is applied and logged
+- A `FOLLOW_UP_PROMPT` in-app notification is dispatched to the principal technician on the CNI path to signal that a follow-up intervention may be needed
+- The WO status log label records `"COULD_NOT_INTERVENE acknowledged — asset set to <status>"` for full auditability
+- New DTO `ValidateWorkOrderDto` with `assetStatusOverride?: AssetStatus` wired into `PATCH /work-orders/:id/validate`
+- Frontend validate panel detects CNI from `detail.interventionLogs`: shows a **red warning banner** and a mandatory asset-status select (OUT_OF_SERVICE / IN_MAINTENANCE / OPERATIONAL — risk accepted); Confirm button is disabled until a choice is made
+- 7 new French i18n keys added for the warning banner, status-select label, placeholder and per-option labels
+
 ### Fixed — Inventory part creation conflict handling (April 16, 2026)
 
 #### `fix(inventory): return 409 on duplicate part reference codes`

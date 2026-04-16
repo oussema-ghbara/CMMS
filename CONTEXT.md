@@ -60,11 +60,13 @@ Tech stack decisions: stack.pdf
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
 - [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, reassign, promote, validate, reject-closure, cancel, authorize-simultaneous-maintenance; list waits for auth initialization and asset selector respects backend limits; validate panel shows a mandatory asset-status override form when the last intervention result is COULD_NOT_INTERVENE)
 - [x] Supervisor module (web) — /supervisor dashboard summary cards now wait for auth store initialization before firing queries
+- [x] Web auth compatibility — legacy redirect pages `/app/auth/setup` and `/app/auth/reset-password` aligned with Next 15 `searchParams` Promise PageProps contract
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
 - [x] Supervisor module (web) — asset certificates: full CRUD (add/edit/delete + optional file upload) wired in asset-detail-dialog
 - [x] Supervisor module (web) — asset documents: upload + delete wired in asset-detail-dialog; document type label displayed
 - [x] Storekeeper module (web) — part returns: record-return dialog with cancelled-WO picker, wired in inventory catalog
+- [x] Repo hygiene — TypeScript incremental cache artifacts (`*.tsbuildinfo`) are ignored and untracked from git to keep working trees clean during local dev
 - [x] Top bar / notifications (web) — balanced header layout + notification list, unread badge, mark-read actions
 - [x] Admin audit (backend) — GET /admin/audit-log now accepts `actionType` query filter alongside `targetType`; admins can isolate specific action types (USER_DEACTIVATED, CONFIG_UPDATED, etc.)
 - [x] Admin audit (web) — audit-log-table: `actionType` filter dropdown added (15 known action types with French labels); page resets on filter change; all hardcoded strings replaced with i18n

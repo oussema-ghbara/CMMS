@@ -4,6 +4,19 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Next.js 15 auth redirect compatibility (April 16, 2026)
+
+#### `fix(web): align legacy auth redirect pages with Next 15 PageProps`
+- Updated `app/auth/setup/page.tsx` and `app/auth/reset-password/page.tsx` to use the Next 15 `searchParams` Promise signature
+- Both legacy redirect pages are now `async`, await `searchParams`, and preserve token forwarding to `/setup` and `/reset-password`
+- Removes TypeScript build failures generated from `.next/types` (`TS2344` PageProps mismatch)
+
+### Changed — Repository hygiene for local build caches (April 16, 2026)
+
+#### `chore(repo): untrack remaining tsbuildinfo cache artifacts`
+- Removed tracked `tsconfig.tsbuildinfo` files from git index so local incremental TypeScript caches no longer pollute `git status`
+- `.gitignore` already contains `*.tsbuildinfo`; this change makes the ignore rule effective for all previously tracked cache artifacts
+
 ### Added — Simultaneous maintenance authorization (April 16, 2026)
 
 #### `feat(work-orders): add authorize-simultaneous endpoint and supervisor UI`

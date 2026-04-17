@@ -4,6 +4,43 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Admin analytics dashboard (April 17, 2026)
+
+#### `feat(admin): add admin analytics endpoints and dashboard (§6.3)`
+- **Problem:** `AdminController` exposed only system-config CRUD and the audit log. No user-activity analytics (inactive accounts, login frequency) and no system-health view (BullMQ queue statuses, failed notification counts) existed anywhere in the application.
+- **Backend — `AdminAnalyticsService`:**
+  - `GET /admin/analytics/users` — user activity stats: total/active/inactive user counts, accounts that have never logged in, accounts inactive for 30 + and 90 + days, breakdown by role (one count per `Role` enum value), and a five-bucket login-recency distribution (< 7 d, 7–30 d, 30–90 d, > 90 d, never); all ten base counts run inside a single `$transaction` for consistency
+  - `GET /admin/analytics/system` — system health stats: job counts (waiting / active / failed / completed / delayed) from all three BullMQ queues (`mail`, `report-generation`, `preventive-plan-generation`) fetched via `@InjectQueue`; notification delivery counters (email-failed total, pending-delivery count, emails sent in last 24 h) from the `Notification` table
+  - Both endpoints are restricted to `Role.ADMIN` via the existing `@Roles` guard
+- **Module wiring:** `AdminModule` now imports `BullModule.registerQueue()` for all three queues and registers `AdminAnalyticsService` as a provider; existing `PrismaModule` and `SystemConfigModule` imports are preserved
+- **Frontend — `AdminAnalyticsBoard`:**
+  - Two-section layout: *User Activity* and *System Health*, rendered with the existing `Card`, `Badge`, and Lucide icon components
+  - User Activity: six KPI cards + an inline progress-bar login-recency breakdown + a by-role table; warning/danger colour variants applied on inactive counts
+  - System Health: three notification KPI cards (failed, pending, sent-24h) + one `QueueCard` per BullMQ queue showing all five count fields; failed > 0 renders as a destructive red badge
+  - Two independent `useQuery` calls (keys `['admin','analytics','users']` and `['admin','analytics','system']`); shared loading and error states
+- **Navigation:** `Activity` icon + `nav.analytics` key added to the ADMIN sidebar module in `sidebar-nav.config.ts`
+- **API client:** `adminApi.getUserAnalytics()` and `adminApi.getSystemHealth()` added to `lib/admin.api.ts` alongside the full TypeScript response types
+- **i18n:** `adminAnalytics` section added to `public/locales/fr/common.json` (title, subtitle, section labels, all user-stat and system-stat keys, loading and error states — 30 + French keys, zero hardcoded strings in the component)
+- **Tests:** 22 unit tests for `AdminAnalyticsService` — all pass:
+  - `getUserActivityStats`: all 10 queries wrapped in one `$transaction`, positional result mapping, all 5 `loginRecency` buckets, `never === neverLoggedIn` invariant, `byRole` iterates every `Role` enum value exactly once, `isActive: true` filter enforced per role, 30-day and 90-day `lt` thresholds verified, zero-count boundary
+  - `getSystemHealthStats`: all 3 queues called, correct queue-name constants in response, per-field count mapping, `?? 0` fallback for absent states, 3 notification queries in one `$transaction`, email-pending filter (`emailSent: false AND emailFailed: false`), `emailSentAt >= 24 h ago` threshold verified, `emailSent: true` guard
+
+### Added — Daily supervisor summary email (April 17, 2026)
+
+#### `feat(work-orders): implement daily supervisor summary email (§12.3)`
+- **Problem:** `SystemConfig` stored the `DAILY_SUMMARY_HOUR` key but nothing consumed it; no cron job or email existed to send the daily digest required by spec §12.3.
+- **`DailySummaryJob`** (`@Cron(EVERY_HOUR)`):
+  - Reads `DAILY_SUMMARY_HOUR` from `SystemConfig` (default 17; validated to 0–23 range, falls back to 17 on invalid value)
+  - Hour-gate: skips silently when the current hour does not match the configured hour, ensuring exactly one send per day regardless of process restarts
+  - Collects seven work-order metrics in a single `$transaction`: `openCount` (OPEN + ASSIGNED), `inProgressCount`, `pendingValidationCount`, `onHoldCount`, `overdueCount` (active WOs past `dueDate`), `criticalCount` (active CRITICAL WOs), `closedTodayCount` (CLOSED with `closedAt >= midnight today`)
+  - Fetches all active users whose `roles` array contains `'SUPERVISOR'`
+  - Enqueues one `daily-summary` mail job per supervisor via `MailService.enqueue()` using `Promise.all` (parallel, not sequential)
+  - Logs a summary line including metrics and supervisor count
+- **`daily-summary.hbs`** Handlebars template: HTML email showing the supervisor's name, today's date (formatted `fr-FR`), and a styled seven-row metrics table with badge-like colouring for critical/overdue values
+- **Mail integration:** `'daily-summary'` added to the `MailTemplate` union type in `send-mail.dto.ts`; `'[GMAO] Résumé quotidien des ordres de travail'` subject added to `SUBJECT_MAP` in `mail.processor.ts`
+- **Module wiring:** `WorkOrdersModule` imports `MailModule` and registers `DailySummaryJob` as a provider; `SystemConfigModule` is already transitively available via `PrismaModule`
+- **Tests:** 36 unit tests for `DailySummaryJob` — all pass (hour-gate, config resolution, no-supervisors guard, mail dispatch count, template name, recipient addresses, mail context fields, all seven metric predicates, `$transaction` wrapping, idempotency regression)
+
 ### Fixed — Next.js 15 auth redirect compatibility (April 16, 2026)
 
 #### `fix(web): align legacy auth redirect pages with Next 15 PageProps`

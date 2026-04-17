@@ -4,6 +4,24 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Admin audit-log endpoint rate limiting (April 17, 2026)
+
+#### `fix(admin): add dedicated throttle on GET /admin/audit-log`
+- Added endpoint-level throttling on `GET /admin/audit-log` with `@Throttle({ default: { limit: 10, ttl: 60000 } })`
+- Keeps existing auth/role guards intact while reducing high-volume audit-log scraping risk via page iteration
+- Added backend coverage:
+  - `admin.controller.spec.ts` for pagination/filter normalization and failure propagation
+  - `admin.controller.integration.spec.ts` for auth/role enforcement plus route-level 429 behavior after threshold
+
+### Fixed — Backend TypeScript editor diagnostics cleanup (April 17, 2026)
+
+#### `fix(backend): resolve persistent VS Code Problems without runtime behavior changes`
+- Switched backend bootstrap cookie parser import to CommonJS call-compatible syntax in `apps/backend/src/main.ts`
+- Added explicit `rootDir` to `apps/backend/tsconfig.json` to stabilize source/output layout diagnostics
+- Removed deprecated `baseUrl` from `apps/backend/tsconfig.json`
+- Removed deprecated shared defaults `moduleResolution` and `baseUrl` from `tsconfig.base.json`
+- Verified no backend test regressions and confirmed `@gmao/db` build still succeeds
+
 ### Fixed — Auth session inactivity timeout enforcement (April 17, 2026)
 
 #### `fix(auth): enforce SESSION_IDLE_TIMEOUT_HOURS for refresh token lifecycle`

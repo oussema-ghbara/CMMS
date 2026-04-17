@@ -71,11 +71,13 @@ Tech stack decisions: stack.pdf
 - [x] Repo hygiene — TypeScript incremental cache artifacts (`*.tsbuildinfo`) are ignored and untracked from git to keep working trees clean during local dev
 - [x] Top bar / notifications (web) — balanced header layout + notification list, unread badge, mark-read actions
 - [x] Admin audit (backend) — GET /admin/audit-log now accepts `actionType` query filter alongside `targetType`; admins can isolate specific action types (USER_DEACTIVATED, CONFIG_UPDATED, etc.)
+- [x] Admin audit (backend) — GET /admin/audit-log now has dedicated route-level throttling (`10/min`) in addition to global throttling
 - [x] Admin audit (web) — audit-log-table: `actionType` filter dropdown added (15 known action types with French labels); page resets on filter change; all hardcoded strings replaced with i18n
 - [x] Admin users (web) — users-table and user-form-dialog fully converted to i18n (role labels, column headers, filters, toasts, confirm dialog, form labels)
 - [x] WorkOrdersModule — daily supervisor summary email: `DailySummaryJob` (@Cron EVERY_HOUR, hour-gated via `DAILY_SUMMARY_HOUR` SystemConfig key, default 17); collects 7 WO metrics in a single $transaction; sends one `daily-summary` mail per active supervisor via BullMQ; `daily-summary.hbs` template added; `MailTemplate` union and `SUBJECT_MAP` extended
 - [x] AdminModule (backend) — analytics endpoints: `GET /admin/analytics/users` (inactive accounts, login frequency, by-role breakdown) and `GET /admin/analytics/system` (BullMQ queue job counts for all 3 queues, failed/pending/sent notification stats); `AdminAnalyticsService` with 22 passing unit tests
 - [x] Admin module (web) — analytics dashboard: `AdminAnalyticsBoard` with user-activity section (6 KPI cards, login-recency progress bars, by-role table) and system-health section (notification KPIs, one queue card per BullMQ queue); `Activity` icon nav entry in admin sidebar; `adminAnalytics` i18n section (30 + French keys)
+- [x] Backend TypeScript diagnostics hygiene — `apps/backend/src/main.ts` cookie-parser import aligned with callable type usage; backend `tsconfig.json` now sets explicit `rootDir`; deprecated `baseUrl`/`moduleResolution` defaults removed where safe
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

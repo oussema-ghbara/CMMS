@@ -7,6 +7,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@gmao/shared';
@@ -20,6 +21,8 @@ import type { Request } from 'express';
 interface AuthenticatedRequest extends Request {
   user: AccessTokenPayload;
 }
+
+const AUDIT_LOG_RATE_LIMIT = { limit: 10, ttl: 60_000 };
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -68,6 +71,7 @@ export class AdminController {
   // ── Audit log ────────────────────────────────────────────────────────────────
 
   @Get('audit-log')
+  @Throttle({ default: AUDIT_LOG_RATE_LIMIT })
   @ApiOperation({ summary: 'List audit log entries paginated (Admin)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })

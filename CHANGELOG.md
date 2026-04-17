@@ -4,6 +4,21 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Certificate expiry scheduling architecture compliance (April 17, 2026)
+
+#### `fix(assets): migrate certificate expiry job from setInterval to @nestjs/schedule`
+- Replaced manual lifecycle scheduling (`OnModuleInit` + `setInterval`) in `CertificateExpiryJob` with framework-managed decorators:
+  - `@Timeout(0)` for immediate startup execution
+  - `@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)` for daily recurring execution
+- Removed interval-handle lifecycle cleanup (`OnModuleDestroy`) because scheduling is now fully managed by Nest Scheduler
+- Preserved business behavior: each run still refreshes certificate statuses, scans expiring certificates, writes in-app notifications, and enqueues certificate-expiry emails
+- Added dedicated unit coverage for the job:
+  - scheduler metadata registration (`@Cron` and `@Timeout`)
+  - startup delegation path (`runOnStartup -> run`)
+  - success path (status refresh + reminder processing)
+  - failure path (errors are caught and logged, no throw)
+  - threshold notification matrix (`60`, `30`, and `<= 7` days notify; non-threshold values are skipped)
+
 ### Added — Admin analytics dashboard (April 17, 2026)
 
 #### `feat(admin): add admin analytics endpoints and dashboard (§6.3)`

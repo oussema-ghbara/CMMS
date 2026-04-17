@@ -35,6 +35,7 @@ Tech stack decisions: stack.pdf
   - [x] AssetsModule — locations, categories, assets, certificates, documents
   - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist, async PDF report generation on closure
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
+- [x] AssetsModule — certificate expiry scheduler migrated to `@nestjs/schedule` (`@Timeout(0)` startup trigger + daily midnight `@Cron`) to replace legacy lifecycle `setInterval`
 - [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs, async PDF report generation on closure
 - [x] WorkOrdersModule — simultaneous maintenance authorization: `PATCH /work-orders/:id/authorize-simultaneous` (Supervisor) lifts the start-block when an asset already has an active WO; writes a status-log audit entry; notifies the principal technician via `SIMULTANEOUS_MAINTENANCE_AUTHORIZED`; supervisor detail dialog shows the action button when applicable
 - [x] WorkOrdersModule — COULD_NOT_INTERVENE validation guard: `PATCH /work-orders/:id/validate` now requires `assetStatusOverride` when the last completed intervention result is `COULD_NOT_INTERVENE`; asset status is set to the supervisor's explicit choice instead of silently defaulting to OPERATIONAL; `FOLLOW_UP_PROMPT` notification dispatched to principal technician

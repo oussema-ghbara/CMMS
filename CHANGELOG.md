@@ -4,6 +4,20 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Auth session inactivity timeout enforcement (April 17, 2026)
+
+#### `fix(auth): enforce SESSION_IDLE_TIMEOUT_HOURS for refresh token lifecycle`
+- `AuthService` no longer uses a hardcoded 7-day refresh-session lifetime for active sessions.
+- Refresh-token TTL is now sourced from `SystemConfig` key `SESSION_IDLE_TIMEOUT_HOURS` and applied consistently to:
+  - refresh JWT `expiresIn`
+  - Redis refresh-token key TTL (`rt:<userId>:<jti>`)
+  - Redis token-set TTL (`rt-set:<userId>`)
+  - HTTP-only `refresh_token` cookie `maxAge`
+- Added resilience guard: if `SESSION_IDLE_TIMEOUT_HOURS` is missing/invalid/non-positive, auth falls back to the previous 7-day default and logs a warning.
+- Added backend test coverage:
+  - `auth.service.spec.ts`: configured-timeout path, rotation path, invalid-config fallback, revoked-token rejection, invalid-signature rejection
+  - `auth.controller.integration.spec.ts`: `/auth/refresh` missing-cookie 401, valid-cookie 200, invalid-refresh 401
+
 ### Fixed — Certificate expiry scheduling architecture compliance (April 17, 2026)
 
 #### `fix(assets): migrate certificate expiry job from setInterval to @nestjs/schedule`

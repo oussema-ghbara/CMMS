@@ -26,6 +26,7 @@ Tech stack decisions: stack.pdf
   - [x] PrismaModule (global)
   - [x] RedisModule (global, ioredis)
   - [x] AuthModule — login/refresh/logout, JWT + refresh token rotation, Redis revocation
+  - [x] AuthModule — session inactivity timeout enforced from `SystemConfig` (`SESSION_IDLE_TIMEOUT_HOURS`) across refresh JWT expiry, Redis refresh-token TTL, and refresh cookie maxAge (with 7-day fallback on invalid config)
   - [x] MailModule — BullMQ queue, Nodemailer processor, Handlebars templates (setup-account, password-reset)
   - [x] SystemConfigModule — password policy, 14 config keys seeded
   - [x] UsersModule — Admin CRUD, setup token flow, deactivate/reactivate, resend setup

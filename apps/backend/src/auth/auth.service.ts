@@ -24,7 +24,8 @@ import type { UsersService } from '../users/users.service';
 
 const RT_PREFIX = 'rt:';
 const RT_SET_PREFIX = 'rt-set:';
-const RT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const DEFAULT_RT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const SESSION_IDLE_TIMEOUT_HOURS_KEY = 'SESSION_IDLE_TIMEOUT_HOURS';
 
 // Dummy hash used to keep validateUser constant-time when user is not found.
 // Generated with bcrypt.hash('dummy', 12) — not a real secret.
@@ -68,14 +69,18 @@ export class AuthService {
   }
 
   async login(user: User, res: Response): Promise<AuthResponseDto> {
-    const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(user);
-    await this.storeRefreshToken(user.id, refreshJti);
+    const refreshTokenTtlSeconds = await this.getRefreshTokenTtlSeconds();
+    const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(
+      user,
+      refreshTokenTtlSeconds,
+    );
+    await this.storeRefreshToken(user.id, refreshJti, refreshTokenTtlSeconds);
     await this.prisma.user
       .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
       .catch((err: unknown) =>
         this.logger.error(`lastLoginAt update failed for ${user.id}`, err),
       );
-    this.attachRefreshCookie(res, refreshToken);
+    this.attachRefreshCookie(res, refreshToken, refreshTokenTtlSeconds);
     return { accessToken, roles: user.roles as Role[], userId: user.id, name: user.name };
   }
 
@@ -102,10 +107,14 @@ export class AuthService {
     pipeline.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
     pipeline.srem(`${RT_SET_PREFIX}${payload.sub}`, payload.jti);
     await pipeline.exec();
-    const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(user);
-    await this.storeRefreshToken(user.id, refreshJti);
+    const refreshTokenTtlSeconds = await this.getRefreshTokenTtlSeconds();
+    const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(
+      user,
+      refreshTokenTtlSeconds,
+    );
+    await this.storeRefreshToken(user.id, refreshJti, refreshTokenTtlSeconds);
 
-    this.attachRefreshCookie(res, refreshToken);
+    this.attachRefreshCookie(res, refreshToken, refreshTokenTtlSeconds);
     return { accessToken, roles: user.roles as Role[], userId: user.id, name: user.name };
   }
 
@@ -135,7 +144,7 @@ export class AuthService {
     await pipeline.exec();
   }
 
-  private async issueTokenPair(user: User): Promise<TokenPair> {
+  private async issueTokenPair(user: User, refreshTokenTtlSeconds: number): Promise<TokenPair> {
     const refreshJti = uuidv4();
 
     const accessPayload: AccessTokenPayload = {
@@ -153,29 +162,43 @@ export class AuthService {
       }),
       this.jwt.signAsync(refreshPayload, {
         secret: this.cfg.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.cfg.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
+        expiresIn: refreshTokenTtlSeconds,
       }),
     ]);
 
     return { accessToken, refreshToken, refreshJti };
   }
 
-  private async storeRefreshToken(userId: string, jti: string): Promise<void> {
+  private async storeRefreshToken(userId: string, jti: string, refreshTokenTtlSeconds: number): Promise<void> {
     const pipeline = this.redis.pipeline();
-    pipeline.setex(`${RT_PREFIX}${userId}:${jti}`, RT_TTL_SECONDS, '1');
+    pipeline.setex(`${RT_PREFIX}${userId}:${jti}`, refreshTokenTtlSeconds, '1');
     pipeline.sadd(`${RT_SET_PREFIX}${userId}`, jti);
-    pipeline.expire(`${RT_SET_PREFIX}${userId}`, RT_TTL_SECONDS);
+    pipeline.expire(`${RT_SET_PREFIX}${userId}`, refreshTokenTtlSeconds);
     await pipeline.exec();
   }
 
-  private attachRefreshCookie(res: Response, token: string): void {
+  private attachRefreshCookie(res: Response, token: string, refreshTokenTtlSeconds: number): void {
     res.cookie('refresh_token', token, {
       httpOnly: true,
       secure: this.cfg.get<string>('NODE_ENV') === 'production',
       sameSite: 'strict',
       path: '/api/v1/auth',
-      maxAge: RT_TTL_SECONDS * 1000,
+      maxAge: refreshTokenTtlSeconds * 1000,
     });
+  }
+
+  private async getRefreshTokenTtlSeconds(): Promise<number> {
+    const configuredHours = await this.systemConfig.get(SESSION_IDLE_TIMEOUT_HOURS_KEY);
+    const parsedHours = Number.parseInt(configuredHours ?? '', 10);
+
+    if (Number.isInteger(parsedHours) && parsedHours > 0) {
+      return parsedHours * 60 * 60;
+    }
+
+    this.logger.warn(
+      `Invalid ${SESSION_IDLE_TIMEOUT_HOURS_KEY} value "${configuredHours}". Falling back to ${DEFAULT_RT_TTL_SECONDS} seconds.`,
+    );
+    return DEFAULT_RT_TTL_SECONDS;
   }
 
   private clearRefreshCookie(res: Response): void {

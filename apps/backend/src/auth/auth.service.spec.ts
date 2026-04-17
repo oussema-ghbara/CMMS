@@ -1,0 +1,257 @@
+import { UnauthorizedException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
+import type { User } from '@gmao/db';
+import type { Response } from 'express';
+import { AuthService } from './auth.service';
+
+type PipelineMock = {
+  setex: jest.Mock;
+  sadd: jest.Mock;
+  expire: jest.Mock;
+  del: jest.Mock;
+  srem: jest.Mock;
+  exec: jest.Mock;
+};
+
+function createPipeline(): PipelineMock {
+  const pipeline = {
+    setex: jest.fn(),
+    sadd: jest.fn(),
+    expire: jest.fn(),
+    del: jest.fn(),
+    srem: jest.fn(),
+    exec: jest.fn().mockResolvedValue([]),
+  } as PipelineMock;
+
+  pipeline.setex.mockReturnValue(pipeline);
+  pipeline.sadd.mockReturnValue(pipeline);
+  pipeline.expire.mockReturnValue(pipeline);
+  pipeline.del.mockReturnValue(pipeline);
+  pipeline.srem.mockReturnValue(pipeline);
+
+  return pipeline;
+}
+
+function createService(configuredSessionHours: string | null = '8') {
+  const prisma = {
+    user: {
+      update: jest.fn().mockResolvedValue(undefined),
+      findUnique: jest.fn(),
+    },
+  };
+
+  const jwt = {
+    signAsync: jest.fn(),
+    verifyAsync: jest.fn(),
+  };
+
+  const cfg = {
+    getOrThrow: jest.fn((key: string) => {
+      const map: Record<string, string> = {
+        JWT_ACCESS_SECRET: 'access-secret',
+        JWT_REFRESH_SECRET: 'refresh-secret',
+      };
+      return map[key];
+    }),
+    get: jest.fn((key: string, defaultValue?: string) => {
+      if (key === 'JWT_ACCESS_EXPIRES_IN') return '15m';
+      if (key === 'NODE_ENV') return 'test';
+      return defaultValue;
+    }),
+  } as unknown as ConfigService;
+
+  const systemConfig = {
+    get: jest.fn().mockResolvedValue(configuredSessionHours),
+    validatePassword: jest.fn(),
+  };
+
+  const pipelines: PipelineMock[] = [];
+  const redis = {
+    pipeline: jest.fn(() => {
+      const pipeline = createPipeline();
+      pipelines.push(pipeline);
+      return pipeline;
+    }),
+    get: jest.fn(),
+    smembers: jest.fn(),
+  };
+
+  const usersService = {
+    consumeSetupToken: jest.fn(),
+    markTokenUsed: jest.fn(),
+    generateResetToken: jest.fn(),
+    consumeResetToken: jest.fn(),
+  };
+
+  const service = new AuthService(
+    prisma as never,
+    jwt as never,
+    cfg,
+    systemConfig as never,
+    redis as never,
+    usersService as never,
+  );
+
+  const response = {
+    cookie: jest.fn(),
+    clearCookie: jest.fn(),
+  } as unknown as Response;
+
+  return {
+    service,
+    prisma,
+    jwt,
+    cfg,
+    systemConfig,
+    redis,
+    pipelines,
+    response,
+  };
+}
+
+describe('AuthService session timeout enforcement', () => {
+  const user: User = {
+    id: 'user-1',
+    name: 'Supervisor One',
+    email: 'supervisor@gmao.local',
+    passwordHash: 'hash',
+    roles: ['SUPERVISOR'],
+    isActive: true,
+    hourlyRate: '0.00',
+    createdAt: new Date('2026-04-17T00:00:00.000Z'),
+    updatedAt: new Date('2026-04-17T00:00:00.000Z'),
+    lastLoginAt: null,
+  } as unknown as User;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('uses SESSION_IDLE_TIMEOUT_HOURS for refresh JWT, Redis TTL, and cookie maxAge during login', async () => {
+    const { service, jwt, pipelines, response, systemConfig } = createService('8');
+    jwt.signAsync
+      .mockResolvedValueOnce('access-token')
+      .mockResolvedValueOnce('refresh-token');
+
+    const result = await service.login(user, response);
+
+    expect(systemConfig.get).toHaveBeenCalledWith('SESSION_IDLE_TIMEOUT_HOURS');
+    expect(jwt.signAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sub: 'user-1', jti: expect.any(String) }),
+      expect.objectContaining({ expiresIn: 8 * 60 * 60 }),
+    );
+
+    const storePipeline = pipelines[0];
+    expect(storePipeline.setex).toHaveBeenCalledWith(
+      expect.stringMatching(/^rt:user-1:/),
+      8 * 60 * 60,
+      '1',
+    );
+    expect(storePipeline.expire).toHaveBeenCalledWith('rt-set:user-1', 8 * 60 * 60);
+    expect(response.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'refresh-token',
+      expect.objectContaining({
+        path: '/api/v1/auth',
+        httpOnly: true,
+        sameSite: 'strict',
+        maxAge: 8 * 60 * 60 * 1000,
+      }),
+    );
+    expect(result).toEqual({
+      accessToken: 'access-token',
+      roles: ['SUPERVISOR'],
+      userId: 'user-1',
+      name: 'Supervisor One',
+    });
+  });
+
+  it('rotates refresh token with configured inactivity timeout during refresh()', async () => {
+    const { service, jwt, redis, prisma, pipelines, response, systemConfig } = createService('2');
+
+    jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', jti: 'old-jti' });
+    redis.get.mockResolvedValue('1');
+    prisma.user.findUnique.mockResolvedValue(user);
+    jwt.signAsync
+      .mockResolvedValueOnce('access-token-2')
+      .mockResolvedValueOnce('refresh-token-2');
+
+    const result = await service.refresh('raw-refresh-token', response);
+
+    expect(systemConfig.get).toHaveBeenCalledWith('SESSION_IDLE_TIMEOUT_HOURS');
+    expect(pipelines).toHaveLength(2);
+
+    const revokePipeline = pipelines[0];
+    expect(revokePipeline.del).toHaveBeenCalledWith('rt:user-1:old-jti');
+    expect(revokePipeline.srem).toHaveBeenCalledWith('rt-set:user-1', 'old-jti');
+
+    const storePipeline = pipelines[1];
+    expect(storePipeline.setex).toHaveBeenCalledWith(
+      expect.stringMatching(/^rt:user-1:/),
+      2 * 60 * 60,
+      '1',
+    );
+    expect(storePipeline.expire).toHaveBeenCalledWith('rt-set:user-1', 2 * 60 * 60);
+
+    expect(jwt.signAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sub: 'user-1', jti: expect.any(String) }),
+      expect.objectContaining({ expiresIn: 2 * 60 * 60 }),
+    );
+    expect(response.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'refresh-token-2',
+      expect.objectContaining({ maxAge: 2 * 60 * 60 * 1000 }),
+    );
+    expect(result.accessToken).toBe('access-token-2');
+  });
+
+  it('falls back to 7 days when SESSION_IDLE_TIMEOUT_HOURS is missing or invalid', async () => {
+    const { service, jwt, pipelines, response, systemConfig } = createService('0');
+    const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
+
+    jwt.signAsync
+      .mockResolvedValueOnce('access-token')
+      .mockResolvedValueOnce('refresh-token');
+
+    await service.login(user, response);
+
+    expect(systemConfig.get).toHaveBeenCalledWith('SESSION_IDLE_TIMEOUT_HOURS');
+    expect(jwt.signAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sub: 'user-1', jti: expect.any(String) }),
+      expect.objectContaining({ expiresIn: 7 * 24 * 60 * 60 }),
+    );
+    expect(pipelines[0].setex).toHaveBeenCalledWith(
+      expect.stringMatching(/^rt:user-1:/),
+      7 * 24 * 60 * 60,
+      '1',
+    );
+    expect(response.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'refresh-token',
+      expect.objectContaining({ maxAge: 7 * 24 * 60 * 60 * 1000 }),
+    );
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects refresh when token was revoked', async () => {
+    const { service, jwt, redis, response } = createService('8');
+    jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', jti: 'revoked-jti' });
+    redis.get.mockResolvedValue(null);
+
+    await expect(service.refresh('revoked-token', response)).rejects.toEqual(
+      new UnauthorizedException('auth.refreshTokenRevoked'),
+    );
+  });
+
+  it('rejects refresh when refresh token signature is invalid', async () => {
+    const { service, jwt, response } = createService('8');
+    jwt.verifyAsync.mockRejectedValue(new Error('invalid'));
+
+    await expect(service.refresh('bad-token', response)).rejects.toEqual(
+      new UnauthorizedException('auth.invalidRefreshToken'),
+    );
+  });
+});

@@ -1,13 +1,13 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression, Timeout } from '@nestjs/schedule';
 import { CertificatesService } from '../certificates.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { NotificationType } from '@gmao/db';
 
 @Injectable()
-export class CertificateExpiryJob implements OnModuleInit, OnModuleDestroy {
+export class CertificateExpiryJob {
   private readonly logger = new Logger(CertificateExpiryJob.name);
-  private intervalHandle: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly certificates: CertificatesService,
@@ -15,16 +15,12 @@ export class CertificateExpiryJob implements OnModuleInit, OnModuleDestroy {
     private readonly mail: MailService,
   ) {}
 
-  onModuleInit() {
-    // Run immediately on startup, then every 24 hours
-    void this.run();
-    this.intervalHandle = setInterval(() => void this.run(), 24 * 60 * 60 * 1000);
+  @Timeout(0)
+  async runOnStartup(): Promise<void> {
+    await this.run();
   }
 
-  onModuleDestroy() {
-    if (this.intervalHandle) clearInterval(this.intervalHandle);
-  }
-
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async run(): Promise<void> {
     this.logger.log('Running certificate expiry check');
     try {

@@ -29,6 +29,7 @@ const SUBJECT_MAP: Record<string, string> = {
   'password-reset': 'Réinitialisation de votre mot de passe GMAO',
   'certificate-expiry': '[GMAO] Certificat de conformité expirant',
   'notification': '[GMAO] Notification',
+  'daily-summary': '[GMAO] Résumé quotidien des ordres de travail',
 };
 
 @Processor(MAIL_QUEUE)

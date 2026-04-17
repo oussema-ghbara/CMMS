@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
+    th { background-color: #f5f5f5; font-weight: 600; }
+    .badge-critical { color: #c0392b; font-weight: bold; }
+    .badge-warn { color: #e67e22; font-weight: bold; }
+    .footer { margin-top: 24px; font-size: 12px; color: #999; }
+  </style>
+</head>
+<body>
+  <p>Bonjour {{supervisorName}},</p>
+  <p>Voici le résumé quotidien des ordres de travail pour le <strong>{{date}}</strong>.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Indicateur</th>
+        <th>Valeur</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Ordres ouverts / assignés (non démarrés)</td>
+        <td>{{openCount}}</td>
+      </tr>
+      <tr>
+        <td>En cours d'intervention</td>
+        <td>{{inProgressCount}}</td>
+      </tr>
+      <tr>
+        <td>En attente de validation superviseur</td>
+        <td>{{pendingValidationCount}}</td>
+      </tr>
+      <tr>
+        <td>En pause (ON_HOLD)</td>
+        <td>{{onHoldCount}}</td>
+      </tr>
+      <tr>
+        <td>En retard (date d'échéance dépassée)</td>
+        <td class="badge-warn">{{overdueCount}}</td>
+      </tr>
+      <tr>
+        <td>Priorité CRITIQUE (actifs)</td>
+        <td class="badge-critical">{{criticalCount}}</td>
+      </tr>
+      <tr>
+        <td>Clôturés aujourd'hui</td>
+        <td>{{closedTodayCount}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="footer">— Système GMAO · Ce message est généré automatiquement, merci de ne pas y répondre.</p>
+</body>
+</html>

@@ -10,18 +10,21 @@ import { ValidationService } from './validation.service';
 import { ChecklistService } from './checklist.service';
 import { ReportGenerationService } from './report-generation.service';
 import { PriorityEscalationJob } from './jobs/priority-escalation.job';
+import { DailySummaryJob } from './jobs/daily-summary.job';
 import { ReportGenerationProcessor } from './jobs/report-generation.processor';
 import { ReportGenerationJobService } from './jobs/report-generation-job.service';
 import { REPORT_GENERATION_QUEUE } from './jobs/report-generation.constants';
 import { AssetsModule } from '../assets/assets.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { StorageModule } from '../storage/storage.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     AssetsModule,
     InventoryModule,
     StorageModule,
+    MailModule,
     BullModule.registerQueue({ name: REPORT_GENERATION_QUEUE }),
   ],
   controllers: [WorkOrdersController],
@@ -37,6 +40,7 @@ import { StorageModule } from '../storage/storage.module';
     ReportGenerationJobService,
     ReportGenerationProcessor,
     PriorityEscalationJob,
+    DailySummaryJob,
   ],
   exports: [WorkOrdersService, ReportGenerationJobService],
 })

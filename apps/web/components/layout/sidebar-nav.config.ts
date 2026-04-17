@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks, Activity } from 'lucide-react';
 import { Role } from '@gmao/shared';
 import type { LucideIcon } from 'lucide-react';
 
@@ -113,6 +113,11 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         labelKey: 'nav.auditLog',
         href: '/admin/audit-log',
         icon: BarChart3,
+      },
+      {
+        labelKey: 'nav.analytics',
+        href: '/admin/analytics',
+        icon: Activity,
       },
     ],
   },

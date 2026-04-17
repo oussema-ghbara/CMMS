@@ -12,6 +12,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@gmao/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { SystemConfigService } from '../system-config/system-config.service';
+import { AdminAnalyticsService } from './admin-analytics.service';
 import { UpdateConfigDto } from './dto/update-config.dto';
 import type { AccessTokenPayload } from '../auth/types/jwt-payload.type';
 import type { Request } from 'express';
@@ -28,6 +29,7 @@ export class AdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly systemConfig: SystemConfigService,
+    private readonly adminAnalytics: AdminAnalyticsService,
   ) {}
 
   // ── System config ────────────────────────────────────────────────────────────
@@ -47,6 +49,20 @@ export class AdminController {
   ) {
     await this.systemConfig.set(key, dto.value, req.user.sub);
     return this.prisma.systemConfig.findUnique({ where: { key } });
+  }
+
+  // ── Analytics ────────────────────────────────────────────────────────────────
+
+  @Get('analytics/users')
+  @ApiOperation({ summary: 'User activity analytics — inactive accounts, login frequency (Admin)' })
+  getUserAnalytics() {
+    return this.adminAnalytics.getUserActivityStats();
+  }
+
+  @Get('analytics/system')
+  @ApiOperation({ summary: 'System health — queue statuses, failed notification counts (Admin)' })
+  getSystemHealth() {
+    return this.adminAnalytics.getSystemHealthStats();
   }
 
   // ── Audit log ────────────────────────────────────────────────────────────────

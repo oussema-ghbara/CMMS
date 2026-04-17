@@ -1453,5 +1453,48 @@
       "itemDeleteError": "Erreur lors de la suppression",
       "reorderError": "Erreur lors de la réorganisation"
     }
+  },
+  "adminAnalytics": {
+    "title": "Analytiques système",
+    "subtitle": "Activité des comptes utilisateurs et santé des services en arrière-plan.",
+    "sections": {
+      "userActivity": "Activité utilisateurs",
+      "userActivityDescription": "Statut des comptes, fréquence de connexion et répartition par rôle.",
+      "systemHealth": "Santé du système",
+      "systemHealthDescription": "État des files d'attente BullMQ et statistiques de livraison des notifications."
+    },
+    "userStats": {
+      "totalUsers": "Utilisateurs (total)",
+      "activeUsers": "Comptes actifs",
+      "inactiveAccounts": "Comptes désactivés",
+      "neverLoggedIn": "Jamais connectés",
+      "inactiveLast30Days": "Inactifs > 30 j",
+      "inactiveLast90Days": "Inactifs > 90 j",
+      "byRole": "Répartition par rôle",
+      "byRoleDescription": "Nombre de comptes actifs par rôle attribué.",
+      "loginRecency": "Fréquence de connexion",
+      "loginRecencyDescription": "Répartition des utilisateurs selon la date de leur dernière connexion.",
+      "last7Days": "7 derniers jours",
+      "last7To30Days": "7 – 30 jours",
+      "last30To90Days": "30 – 90 jours",
+      "over90Days": "> 90 jours",
+      "never": "Jamais connectés"
+    },
+    "systemStats": {
+      "queues": "Files d'attente de jobs",
+      "queueWaiting": "En attente",
+      "queueActive": "En cours",
+      "queueFailed": "Échouées",
+      "queueCompleted": "Terminées",
+      "queueDelayed": "Différées",
+      "notifications": "Notifications",
+      "emailFailed": "Envois d'email échoués",
+      "emailPending": "Notifications en attente d'envoi",
+      "emailSentLast24h": "Emails envoyés (24 h)"
+    },
+    "states": {
+      "loading": "Chargement des analytiques…",
+      "error": "Impossible de charger les analytiques. Veuillez réessayer."
+    }
   }
 }

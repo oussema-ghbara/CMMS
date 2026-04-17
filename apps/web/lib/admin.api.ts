@@ -27,6 +27,50 @@ export interface AuditLogResponse {
   limit: number;
 }
 
+export interface UserRoleCount {
+  role: string;
+  count: number;
+}
+
+export interface LoginRecency {
+  last7Days: number;
+  last7To30Days: number;
+  last30To90Days: number;
+  over90Days: number;
+  never: number;
+}
+
+export interface UserActivityStats {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveAccounts: number;
+  neverLoggedIn: number;
+  inactiveLast30Days: number;
+  inactiveLast90Days: number;
+  byRole: UserRoleCount[];
+  loginRecency: LoginRecency;
+}
+
+export interface QueueStats {
+  name: string;
+  waiting: number;
+  active: number;
+  failed: number;
+  completed: number;
+  delayed: number;
+}
+
+export interface NotificationStats {
+  emailFailed: number;
+  emailPendingDelivery: number;
+  totalSentLast24h: number;
+}
+
+export interface SystemHealthStats {
+  queues: QueueStats[];
+  notifications: NotificationStats;
+}
+
 export const adminApi = {
   getSystemConfig: () =>
     api.get<SystemConfigEntry[]>('/admin/system-config').then((r) => r.data),
@@ -38,4 +82,10 @@ export const adminApi = {
 
   getAuditLog: (params?: { page?: number; limit?: number; targetType?: string; actionType?: string }) =>
     api.get<AuditLogResponse>('/admin/audit-log', { params }).then((r) => r.data),
+
+  getUserAnalytics: () =>
+    api.get<UserActivityStats>('/admin/analytics/users').then((r) => r.data),
+
+  getSystemHealth: () =>
+    api.get<SystemHealthStats>('/admin/analytics/system').then((r) => r.data),
 };

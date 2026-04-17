@@ -485,6 +485,7 @@ describe('E2E: Work Order Validation → PDF Report Generation', () => {
             fromStatus: mockWorkOrder.status,
             toStatus: WorkOrderStatus.CLOSED,
             actorId: supervisor.id,
+            label: 'Work order validated and closed',
           },
         });
     });

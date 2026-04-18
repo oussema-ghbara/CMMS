@@ -12,6 +12,7 @@ import { ReportGenerationService } from './report-generation.service';
 import { PriorityEscalationJob } from './jobs/priority-escalation.job';
 import { DailySummaryJob } from './jobs/daily-summary.job';
 import { DueDateApproachingJob } from './jobs/due-date-approaching.job';
+import { ValidationReminderJob } from './jobs/validation-reminder.job';
 import { ReportGenerationProcessor } from './jobs/report-generation.processor';
 import { ReportGenerationJobService } from './jobs/report-generation-job.service';
 import { REPORT_GENERATION_QUEUE } from './jobs/report-generation.constants';
@@ -43,6 +44,7 @@ import { MailModule } from '../mail/mail.module';
     PriorityEscalationJob,
     DailySummaryJob,
     DueDateApproachingJob,
+    ValidationReminderJob,
   ],
   exports: [WorkOrdersService, ReportGenerationJobService],
 })

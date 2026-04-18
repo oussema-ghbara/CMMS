@@ -11,6 +11,7 @@ import { ChangePriorityDto } from './dto/change-priority.dto';
 import {
   WorkOrderSource, WorkOrderStatus, AssetStatus, NotificationType, Role,
 } from '@gmao/db';
+import { WOCancellationReason } from '@gmao/shared';
 import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine';
 
 const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
@@ -21,6 +22,11 @@ const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
   WorkOrderStatus.ON_HOLD,
   WorkOrderStatus.PENDING_VALIDATION,
 ];
+
+const CANCELLATION_DETAIL_REQUIRED_REASONS = new Set<WOCancellationReason>([
+  WOCancellationReason.EXTERNAL_DECISION,
+  WOCancellationReason.RESOLVED_OTHERWISE,
+]);
 
 @Injectable()
 export class WorkOrdersService {
@@ -99,6 +105,17 @@ export class WorkOrdersService {
 
     assertTransitionAllowed(wo.status, WorkOrderStatus.CANCELLED, [Role.SUPERVISOR]);
 
+    const normalizedDetail = dto.detail?.trim();
+    if (
+      CANCELLATION_DETAIL_REQUIRED_REASONS.has(dto.reason)
+      && !normalizedDetail
+    ) {
+      throw new BadRequestException({
+        message: 'workOrders.cancellationDetailRequired',
+        reason: dto.reason,
+      });
+    }
+
     const postAssetStatus = dto.postCancellationAssetStatus ?? AssetStatus.OPERATIONAL;
     const assetWasActive = (
       [WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.ON_HOLD] as WorkOrderStatus[]
@@ -111,7 +128,7 @@ export class WorkOrdersService {
       `Cancelled: ${dto.reason}`,
       {
         cancellationReason: dto.reason,
-        cancellationDetail: dto.detail,
+        cancellationDetail: normalizedDetail,
         cancelledBy: { connect: { id: actorId } },
         cancelledAt: new Date(),
         postCancellationAssetStatus: postAssetStatus,

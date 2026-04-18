@@ -1,0 +1,240 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  INestApplication,
+  UnauthorizedException,
+  ValidationPipe,
+} from '@nestjs/common';
+import { APP_GUARD, Reflector } from '@nestjs/core';
+import { Test, TestingModule } from '@nestjs/testing';
+import request = require('supertest');
+import { Role, WOCancellationReason } from '@gmao/shared';
+import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { WorkOrdersController } from './work-orders.controller';
+import { WorkOrdersService } from './work-orders.service';
+import { AssignmentService } from './assignment.service';
+import { InterventionService } from './intervention.service';
+import { OnHoldService } from './on-hold.service';
+import { ValidationService } from './validation.service';
+import { ChecklistService } from './checklist.service';
+
+interface TestUser {
+  sub: string;
+  roles: Role[];
+}
+
+class MockJwtAuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const req = context.switchToHttp().getRequest<{
+      headers: Record<string, string | undefined>;
+      user?: TestUser;
+    }>();
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      throw new UnauthorizedException();
+    }
+
+    const rawRole = authHeader.replace(/^Bearer\s+/i, '').trim();
+    req.user = {
+      sub: 'supervisor-1',
+      roles: [rawRole as Role],
+    };
+
+    return true;
+  }
+}
+
+@Injectable()
+class MockRolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (!requiredRoles || requiredRoles.length === 0) {
+      return true;
+    }
+
+    const req = context.switchToHttp().getRequest<{ user?: TestUser }>();
+    const roles = req.user?.roles ?? [];
+
+    if (!requiredRoles.some((role) => roles.includes(role))) {
+      throw new ForbiddenException();
+    }
+
+    return true;
+  }
+}
+
+describe('WorkOrdersController cancel integration', () => {
+  let app: INestApplication;
+
+  const workOrders = {
+    findAll: jest.fn(),
+    getAnalytics: jest.fn(),
+    findById: jest.fn(),
+    create: jest.fn(),
+    publish: jest.fn(),
+    cancel: jest.fn(),
+    changePriority: jest.fn(),
+    authorizeSimultaneousMaintenance: jest.fn(),
+    getStatusHistory: jest.fn(),
+  };
+
+  const assignment = {
+    assign: jest.fn(),
+    reassign: jest.fn(),
+    promote: jest.fn(),
+    raiseContributorBlock: jest.fn(),
+    resolveContributorBlock: jest.fn(),
+  };
+
+  const intervention = {
+    start: jest.fn(),
+    submitClosure: jest.fn(),
+  };
+
+  const onHold = {
+    putOnHold: jest.fn(),
+    resume: jest.fn(),
+  };
+
+  const validation = {
+    validate: jest.fn(),
+    reject: jest.fn(),
+  };
+
+  const checklist = {
+    completeChecklistItem: jest.fn(),
+    markChecklistItemNotApplicable: jest.fn(),
+  };
+
+  async function buildApp(): Promise<INestApplication> {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      controllers: [WorkOrdersController],
+      providers: [
+        { provide: WorkOrdersService, useValue: workOrders },
+        { provide: AssignmentService, useValue: assignment },
+        { provide: InterventionService, useValue: intervention },
+        { provide: OnHoldService, useValue: onHold },
+        { provide: ValidationService, useValue: validation },
+        { provide: ChecklistService, useValue: checklist },
+        { provide: APP_GUARD, useClass: MockJwtAuthGuard },
+        { provide: APP_GUARD, useClass: MockRolesGuard },
+      ],
+    }).compile();
+
+    const nestApp = moduleRef.createNestApplication();
+    nestApp.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    await nestApp.init();
+
+    return nestApp;
+  }
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    workOrders.cancel.mockResolvedValue({ id: 'wo-1', status: 'CANCELLED' });
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('PATCH /work-orders/:id/cancel returns 401 when authentication is missing', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/cancel')
+      .send({ reason: WOCancellationReason.DUPLICATE });
+
+    expect(response.status).toBe(401);
+    expect(workOrders.cancel).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /work-orders/:id/cancel returns 403 for non-supervisor roles', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/cancel')
+      .set('Authorization', 'Bearer TECHNICIAN')
+      .send({ reason: WOCancellationReason.DUPLICATE });
+
+    expect(response.status).toBe(403);
+    expect(workOrders.cancel).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    WOCancellationReason.EXTERNAL_DECISION,
+    WOCancellationReason.RESOLVED_OTHERWISE,
+  ])('PATCH /work-orders/:id/cancel returns 400 when %s has no detail', async (reason) => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/cancel')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({ reason });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toEqual(
+      expect.arrayContaining(['workOrders.cancellationDetailRequired']),
+    );
+    expect(workOrders.cancel).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /work-orders/:id/cancel returns 400 when detail is whitespace-only for required reasons', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/cancel')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({
+        reason: WOCancellationReason.EXTERNAL_DECISION,
+        detail: '   ',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toEqual(
+      expect.arrayContaining(['workOrders.cancellationDetailRequired']),
+    );
+    expect(workOrders.cancel).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /work-orders/:id/cancel succeeds without detail for non-required reasons', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/cancel')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({ reason: WOCancellationReason.DUPLICATE });
+
+    expect(response.status).toBe(200);
+    expect(workOrders.cancel).toHaveBeenCalledWith(
+      'wo-1',
+      { reason: WOCancellationReason.DUPLICATE },
+      'supervisor-1',
+    );
+  });
+
+  it('PATCH /work-orders/:id/cancel succeeds with detail for required reasons', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/cancel')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({
+        reason: WOCancellationReason.RESOLVED_OTHERWISE,
+        detail: 'Resolved externally by certified contractor',
+      });
+
+    expect(response.status).toBe(200);
+    expect(workOrders.cancel).toHaveBeenCalledWith(
+      'wo-1',
+      {
+        reason: WOCancellationReason.RESOLVED_OTHERWISE,
+        detail: 'Resolved externally by certified contractor',
+      },
+      'supervisor-1',
+    );
+  });
+});

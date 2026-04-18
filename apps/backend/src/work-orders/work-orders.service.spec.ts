@@ -15,7 +15,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PartRequestsService } from '../inventory/part-requests.service';
 import { AssetStatus, WorkOrderStatus } from '@gmao/db';
-import { WorkOrderPriority, WorkOrderSource, WorkOrderType } from '@gmao/shared';
+import {
+  WorkOrderPriority,
+  WorkOrderSource,
+  WorkOrderType,
+  WOCancellationReason,
+} from '@gmao/shared';
 
 const ASSET_ID = 'asset-1';
 const ACTOR_ID = 'actor-1';
@@ -193,5 +198,138 @@ describe('WorkOrdersService.create', () => {
         }),
       }),
     );
+  });
+});
+
+describe('WorkOrdersService.cancel', () => {
+  let service: WorkOrdersService;
+  let prisma: jest.Mocked<PrismaService>;
+  let repo: jest.Mocked<WorkOrdersRepository>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.CANCELLED }),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            asset: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
+            workOrder: { findFirst: jest.fn(), update: jest.fn() },
+            workOrderStatusLog: { create: jest.fn() },
+            assetStatusLog: { create: jest.fn() },
+            workOrderAssignment: { findMany: jest.fn().mockResolvedValue([]) },
+            $transaction: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn().mockResolvedValue(undefined) },
+        },
+      ],
+    }).compile();
+
+    service = module.get(WorkOrdersService);
+    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+    repo = module.get(WorkOrdersRepository) as jest.Mocked<WorkOrdersRepository>;
+  });
+
+  it.each([
+    WOCancellationReason.EXTERNAL_DECISION,
+    WOCancellationReason.RESOLVED_OTHERWISE,
+  ])('throws BadRequestException when %s is used without detail', async (reason) => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-010',
+      status: WorkOrderStatus.OPEN,
+    });
+
+    await expect(service.cancel('wo-1', { reason } as any, ACTOR_ID)).rejects.toThrow(BadRequestException);
+    expect(repo.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when required detail is whitespace-only', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-010',
+      status: WorkOrderStatus.OPEN,
+    });
+
+    await expect(
+      service.cancel('wo-1', {
+        reason: WOCancellationReason.EXTERNAL_DECISION,
+        detail: '   ',
+      } as any, ACTOR_ID),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(repo.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('allows cancellation without detail for reasons that do not require it', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-010',
+      status: WorkOrderStatus.OPEN,
+    });
+
+    await service.cancel(
+      'wo-1',
+      { reason: WOCancellationReason.DUPLICATE } as any,
+      ACTOR_ID,
+    );
+
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      'wo-1',
+      WorkOrderStatus.CANCELLED,
+      ACTOR_ID,
+      'Cancelled: DUPLICATE',
+      expect.objectContaining({ cancellationReason: WOCancellationReason.DUPLICATE }),
+    );
+  });
+
+  it('persists trimmed detail when reason requires detail', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-010',
+      status: WorkOrderStatus.OPEN,
+    });
+
+    await service.cancel(
+      'wo-1',
+      {
+        reason: WOCancellationReason.RESOLVED_OTHERWISE,
+        detail: '  resolved by vendor patch  ',
+      } as any,
+      ACTOR_ID,
+    );
+
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      'wo-1',
+      WorkOrderStatus.CANCELLED,
+      ACTOR_ID,
+      'Cancelled: RESOLVED_OTHERWISE',
+      expect.objectContaining({ cancellationDetail: 'resolved by vendor patch' }),
+    );
+    expect(prisma.workOrderAssignment.findMany).toHaveBeenCalledWith({
+      where: { workOrderId: 'wo-1', isActive: true },
+    });
   });
 });

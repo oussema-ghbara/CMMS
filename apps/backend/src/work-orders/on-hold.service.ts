@@ -143,6 +143,25 @@ export class OnHoldService {
       });
     });
 
+    // Notify active contributor technicians that the WO is back in progress.
+    // The principal is the actor who triggered the resume and does not need a self-notification.
+    type Assignment = { technicianId: string; isPrincipal: boolean; isActive: boolean };
+    const contributors = ((wo as unknown as { assignments: Assignment[] }).assignments ?? [])
+      .filter((a) => !a.isPrincipal && a.isActive);
+
+    if (contributors.length > 0) {
+      await this.notifications.notifyMany(
+        contributors.map((a) => ({
+          recipientId: a.technicianId,
+          type: NotificationType.WO_RESUMED,
+          title: 'Ordre de travail repris',
+          summary: `L'ordre de travail ${wo.referenceNumber} est de nouveau en cours d'intervention.`,
+          entityType: 'WorkOrder',
+          entityId: woId,
+        })),
+      );
+    }
+
     return this.repo.findById(woId);
   }
 }

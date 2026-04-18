@@ -64,7 +64,7 @@ packages/
 | Cache / Queue | Redis + BullMQ |
 | File storage | MinIO (S3-compatible) |
 | Dev email | MailHog + Nodemailer + Handlebars |
-| Real-time | Socket.io (not started) |
+| Real-time | Socket.io (active — `NotificationsGateway`, JWT auth-on-connect) |
 
 ## Infrastructure (Docker)
 ```bash
@@ -138,7 +138,7 @@ npx prisma studio    # visual DB browser
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
 | AssetsModule | done — locations, categories, assets, certificates, documents, compliance certificate soft-archive |
 | NotificationsModule | done — in-app notifications, unread count, mark-read endpoints, Socket.io live push |
-| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation, duplicate guard, source report panel, overdue highlighting |
+| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation, duplicate guard, source report panel, overdue highlighting, WO_RESUMED/LINKED_WO_CLOSED/DUE_DATE_APPROACHING notifications, notification deep-linking |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
 | ReportsModule | done — problem report lifecycle, comments, conversion, three-tier deferred aging, defer/reopen, reject, archive |
@@ -289,6 +289,8 @@ Expected behavior:
 - The unread badge hides at zero, shows a single value correctly, and collapses large counts to `99+`
 - Opening the bell dropdown fetches the current notification list for the signed-in user
 - Clicking one notification marks it read and updates the unread count immediately
+- Clicking a notification with a linked entity navigates to the relevant page (`/supervisor/work-orders?id=<id>`, `/supervisor/reports?id=<id>`, `/storekeeper/part-requests?id=<id>`, or `/supervisor/assets?id=<id>`) and closes the dropdown
+- Opening `/supervisor/work-orders?id=<id>` directly (e.g., from email or notification click) auto-opens the detail dialog for that work order
 - Clicking "Tout marquer comme lu" clears the unread badge and marks remaining unread items as read
 - Refreshing the page preserves the badge state from the backend
 - Empty state renders when the user has no notifications

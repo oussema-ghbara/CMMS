@@ -4,6 +4,35 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Notification system completeness: WO_RESUMED, LINKED_WO_CLOSED, DUE_DATE_APPROACHING, deep-linking (April 18, 2026)
+
+#### `feat(work-orders): emit WO_RESUMED notification to contributors on hold resume`
+- `OnHoldService.resume()` now emits `WO_RESUMED` to every **active contributor** technician after the work order transitions back to `IN_PROGRESS`
+- The principal technician (who initiates the resume) is intentionally excluded — notification targets collaborators who were not involved in the decision
+- Uses existing `notifyMany()` for batch delivery with in-app + conditional email channels
+- 14 unit tests: `putOnHold` asset-status derivation per reason (MISSING_PART, EXTERNAL_CONTRACTOR, ACCESS_DENIED corrective/preventive, OTHER with/without choice), forbidden guard, supervisor notification; `resume` no-contributors no-op, active-only targeting, principal exclusion, correct `WO_RESUMED` type/entityId, state-machine guard
+
+#### `feat(work-orders): notify requester via LINKED_WO_CLOSED on WO validation`
+- `ValidationService.validate()` reads `sourceReport.reporter.id` from the eagerly-loaded `findById` result and emits `LINKED_WO_CLOSED` to the original requester when a WO was created from a problem report
+- Works on both normal-path and `COULD_NOT_INTERVENE` paths — the requester is notified regardless of the technical outcome
+- Summary message contains the WO reference number for traceability
+- 4 new tests appended to `validation.service.spec.ts`: notify with reporter, not notify without source report, notify on CNI path too, summary contains reference number
+
+#### `feat(work-orders): add DueDateApproachingJob for 24h technician alerts`
+- New `DueDateApproachingJob` (`@Cron(EVERY_HOUR)`) queries WOs in any active status (`OPEN / ASSIGNED / IN_PROGRESS / ON_HOLD / PENDING_VALIDATION`) whose `dueDate` falls within the next 24 hours and have a `principalTechnicianId`
+- Deduplication: checks the `notification` table for existing `DUE_DATE_APPROACHING` entries for the same WO within the last 23 hours — prevents re-notifying every hour for the same WO
+- `DueDateApproachingJob` registered in `WorkOrdersModule` alongside the existing `PriorityEscalationJob` and `DailySummaryJob`
+- 15 unit tests: cron decorator metadata, empty-case no-op, single WO notification, dedup skip, mixed new/already-notified, all three get notified, 23h dedup window boundary, workOrder query predicate (status filter, time window, principalTechnicianId not null)
+
+#### `feat(web): implement notification deep-linking with entity routing`
+- New pure-function module `apps/web/lib/notification-routing.ts`: `resolveNotificationRoute(notification, roles)` maps `entityType + user roles → URL string | null`; `WorkOrder` → `/supervisor/work-orders?id=X`; `ProblemReport` → `/supervisor/reports?id=X`; `PartRequest` → `/storekeeper/part-requests?id=X`; `Asset` + `ComplianceCertificate` → `/supervisor/assets?id=X`
+- `notification-menu.tsx`: clicking a notification now calls `resolveNotificationRoute`, closes the dropdown, marks the notification read, and navigates via `useRouter`; notifications without a resolvable route still mark read only (backward-compatible)
+- `work-order-detail-dialog.tsx`: prop type widened from `WorkOrderListItem | null` to `WorkOrderListItem | { id: string } | null` — accepts a minimal object for deep-link open; header fields guarded with `'referenceNumber' in workOrder` checks; internal `getById` query still fetches full details
+- `work-orders-board.tsx`: reads `?id=` query param via `useSearchParams`; when present and auth is initialized, auto-opens the detail dialog with `{ id }` and replaces the URL to prevent re-open on refresh
+- `supervisor/work-orders/page.tsx`: wraps `WorkOrdersBoard` in `<Suspense>` as required by Next.js for components using `useSearchParams`
+- `apps/web/package.json`: Jest + ts-jest + `@types/jest` added as devDependencies with `jest` config block; `test` and `test:watch` scripts added
+- 17 unit tests in `notification-routing.spec.ts`: null entityType/entityId, empty roles, WorkOrder/ProblemReport/PartRequest/Asset/ComplianceCertificate per role, multi-role, unknown entity type, entityId in query param
+
 ### Added — Real-time WebSocket notifications (April 18, 2026)
 
 #### `feat(notifications): add Socket.io WebSocket gateway and real-time push`

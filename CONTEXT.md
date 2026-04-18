@@ -84,6 +84,11 @@ Tech stack decisions: stack.pdf
 - [x] WorkOrdersModule — duplicate active WO guard: `create()` checks for existing non-terminal WO and throws `ConflictException` with `existingWorkOrder` payload; `forceCreate?: boolean` DTO field allows supervisor override; frontend intercepts 409, shows amber warning panel with "Créer quand même" button; 12 unit tests
 - [x] WorkOrdersModule — source report panel: `findById` repository query now includes `sourceReport` with reporter + description; supervisor WO detail dialog renders a source report card when applicable
 - [x] WorkOrdersModule — overdue row highlighting: work orders with `dueDate < now` and non-terminal status get a red row background and "En retard" label in the supervisor board
+- [x] WorkOrdersModule — WO_RESUMED notification: `resume()` emits `WO_RESUMED` to active contributor technicians (excluding the principal actor who triggered the resume); uses `notifyMany()`; 14 unit tests
+- [x] WorkOrdersModule — LINKED_WO_CLOSED notification: `validate()` reads `sourceReport.reporter.id` from eagerly-loaded `findById` result and notifies the original requester on every WO closure that originated from a problem report; also fires on the CNI path
+- [x] WorkOrdersModule — DueDateApproachingJob (`@Cron(EVERY_HOUR)`): queries WOs with `dueDate` in next 24h and active statuses; 23h dedup window prevents hourly re-notification for the same WO; notifies `principalTechnicianId` with `DUE_DATE_APPROACHING`; registered in `WorkOrdersModule`; 15 unit tests
+- [x] Notifications (web) — deep-linking: `notification-menu.tsx` resolves `entityType + roles[]` to a URL via `resolveNotificationRoute` (`lib/notification-routing.ts`); clicking a notification navigates and closes the dropdown; `work-orders-board.tsx` reads `?id=` via `useSearchParams` and auto-opens the detail dialog; `supervisor/work-orders/page.tsx` wraps the board in `<Suspense>` (required by Next.js 15)
+- [x] apps/web — Jest test infrastructure: `jest` + `ts-jest` + `@types/jest` devDependencies; `moduleNameMapper` for `@/` path alias and `@gmao/shared`; 17 unit tests for `notification-routing.ts`
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

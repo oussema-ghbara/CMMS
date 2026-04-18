@@ -4,6 +4,53 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Real-time WebSocket notifications (April 18, 2026)
+
+#### `feat(notifications): add Socket.io WebSocket gateway and real-time push`
+- `NotificationsGateway` (`@WebSocketGateway`) validates JWT on connect and assigns each client to a personal `user:<id>` room
+- `NotificationsService.notify()` calls `gateway.emitToUser()` after persisting the notification to DB, so every in-app notification is also pushed live without polling
+- `IoAdapter` (from `@nestjs/platform-socket.io`) registered in `main.ts`
+- Frontend `notification-menu.tsx` subscribes via `useSocket()` and refetches the notification list on each `notification` event
+- Unit tests for gateway: JWT auth-on-connect, room join, `emitToUser`, missing/invalid token cases
+
+### Added — Three-tier deferred report aging (April 18, 2026)
+
+#### `feat(reports): implement three-tier deferred report aging with windowed queries`
+- Replaced the single 7-day aging threshold with three tiers: 48h (warning), 7d (escalation), 14d (critical)
+- `findReportsDeferredInWindow(minHours, maxHours)`: queries `deferredAt ∈ [now-maxHours, now-minHours)` — half-open window ensures each deferred report receives exactly one notification per tier, never repeated
+- `DeferredReportReminderJob` iterates a TIERS constant array and dispatches tier-specific French notification titles/summaries to all supervisors
+- `reports-board.tsx`: `getDeferredAgingTier()` renders a colored badge (Rappel 48h / Suivi 7j / Escalade 14j) below the DEFERRED status badge
+- Test coverage: all three tiers, windowing logic, no-op for non-deferred reports, notification count accuracy
+
+### Added — Compliance certificate soft-archive (April 18, 2026)
+
+#### `feat(assets): soft-archive compliance certificates instead of hard delete`
+- Schema: added `isArchived Boolean @default(false)`, `archivedAt DateTime?`, `archivedById String?` to `ComplianceCertificate`; named relations `CreatedCertificates` / `ArchivedCertificates`
+- Migration: `20260418000000_soft_archive_compliance_certificate`
+- All `findMany` queries filter `isArchived: false` (`findByAsset`, `findExpiringSoon`, `refreshStatuses`)
+- `DELETE /assets/:id/certificates/:certId` now calls `archive(certId, actorId)` — preserves audit history
+- 7 unit tests: archive happy path, double-archive guard (400), not-found (404), filtered queries
+
+### Added — Duplicate active WO guard with supervisor override (April 18, 2026)
+
+#### `feat(work-orders): duplicate active WO guard with supervisor override`
+- `create()` checks for any existing WO in a non-terminal status (`ACTIVE_WO_STATUSES` constant) and throws `ConflictException` with `{ message, existingWorkOrder }` payload
+- `forceCreate?: boolean` DTO field (IsBoolean, optional) allows supervisors to bypass the guard
+- Frontend: 409 responses intercepted by `isDuplicateConflict()` type guard; amber warning panel displays the conflicting WO reference and a "Créer quand même" button that resubmits with `forceCreate: true`
+- 12 unit tests: decommissioned asset, not found, ConflictException shape, all 6 active statuses via `it.each`, forceCreate bypass, happy path, terminal WO exclusion
+
+### Added — Source report panel in WO detail (April 18, 2026)
+
+#### `feat(work-orders): expose source report in WO detail view`
+- `work-orders.repository.ts findById` now includes `sourceReport` (reference, description, urgencyPerception, reporter, createdAt)
+- Supervisor WO detail dialog renders a muted source report card when `sourceReport` is non-null
+
+### Added — Overdue row highlighting in supervisor board (April 18, 2026)
+
+#### `feat(work-orders): highlight overdue rows in supervisor board`
+- Rows with `dueDate < now` and non-terminal status receive a red background (`bg-red-50 dark:bg-red-950/20`)
+- Due date cell renders an "En retard" label in destructive color
+
 ### Fixed — Admin audit-log endpoint rate limiting (April 17, 2026)
 
 #### `fix(admin): add dedicated throttle on GET /admin/audit-log`

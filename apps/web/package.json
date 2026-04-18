@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start --port 3001",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "next": "15.3.9",
@@ -45,11 +47,26 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "@types/jest": "^29.5.13",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.3.9",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "tailwindcss": "^3.4.17",
     "postcss": "^8.5.3",
     "autoprefixer": "^10.4.21",
     "typescript": "^5.8.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1",
+      "^@gmao/shared$": "<rootDir>/../../packages/shared/src/index.ts"
+    },
+    "transform": {
+      "^.+\\.ts$": ["ts-jest", { "tsconfig": { "module": "commonjs" } }]
+    }
   }
 }

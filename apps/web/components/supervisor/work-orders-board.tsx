@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
@@ -97,6 +98,8 @@ export function WorkOrdersBoard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isInitialized = useAuthStore((state) => state.isInitialized);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
@@ -113,9 +116,19 @@ export function WorkOrdersBoard() {
   // Create dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  // Detail dialog
-  const [detailWorkOrder, setDetailWorkOrder] = useState<WorkOrderListItem | null>(null);
+  // Detail dialog — accepts either a full list item or a minimal { id } object (deep-link).
+  const [detailWorkOrder, setDetailWorkOrder] = useState<WorkOrderListItem | { id: string } | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+
+  // Deep-link: open the detail dialog for the WO id supplied via ?id= query param.
+  const deepLinkId = searchParams.get('id');
+  useEffect(() => {
+    if (!deepLinkId || !isInitialized) return;
+    setDetailWorkOrder({ id: deepLinkId });
+    setDetailDialogOpen(true);
+    // Remove the ?id param so a page refresh does not re-open the dialog.
+    router.replace('/supervisor/work-orders', { scroll: false });
+  }, [deepLinkId, isInitialized, router]);
 
   const queryParams = useMemo(
     () => ({

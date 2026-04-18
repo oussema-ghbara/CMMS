@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Bell, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,8 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useNotificationsStore } from '@/store/notifications.store';
+import { useAuthStore } from '@/store/auth.store';
 import { useSocket } from '@/hooks/use-socket';
 import { NotificationBadge } from './notification-badge';
+import { resolveNotificationRoute } from '@/lib/notification-routing';
 
 export function NotificationMenu() {
   const { t, i18n } = useTranslation();
@@ -25,6 +28,8 @@ export function NotificationMenu() {
     markAsRead,
     markAllAsRead,
   } = useNotificationsStore();
+  const user = useAuthStore((state) => state.user);
+  const router = useRouter();
 
   const { socket } = useSocket();
 
@@ -103,32 +108,43 @@ export function NotificationMenu() {
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto">
-            {notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                className="flex w-full flex-col gap-1 border-b px-3 py-3 text-left transition-colors hover:bg-muted/50"
-                onClick={() => {
-                  if (!notification.isRead) {
-                    void markAsRead(notification.id);
-                  }
-                }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-medium leading-tight">{notification.title}</p>
-                  {!notification.isRead ? (
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                  ) : null}
-                </div>
-                <p className="text-xs text-muted-foreground">{notification.summary}</p>
-                <p className="text-[11px] text-muted-foreground/90">
-                  {new Intl.DateTimeFormat(i18n.language || 'fr', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  }).format(new Date(notification.createdAt))}
-                </p>
-              </button>
-            ))}
+            {notifications.map((notification) => {
+              const route = resolveNotificationRoute(
+                notification,
+                user?.roles ?? [],
+              );
+              return (
+                <button
+                  key={notification.id}
+                  type="button"
+                  className="flex w-full flex-col gap-1 border-b px-3 py-3 text-left transition-colors hover:bg-muted/50"
+                  aria-label={route ? t('notifications.navigateTo') : undefined}
+                  onClick={() => {
+                    if (!notification.isRead) {
+                      void markAsRead(notification.id);
+                    }
+                    if (route) {
+                      setOpen(false);
+                      router.push(route);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium leading-tight">{notification.title}</p>
+                    {!notification.isRead ? (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{notification.summary}</p>
+                  <p className="text-[11px] text-muted-foreground/90">
+                    {new Intl.DateTimeFormat(i18n.language || 'fr', {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    }).format(new Date(notification.createdAt))}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         )}
       </DropdownMenuContent>

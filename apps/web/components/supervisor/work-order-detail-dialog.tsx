@@ -122,7 +122,11 @@ type ActionPanel =
 interface WorkOrderDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  workOrder: WorkOrderListItem | null;
+  /**
+   * Full list item or a minimal object with just `id` (used for deep-link open,
+   * where the full detail is fetched from the server by the internal query).
+   */
+  workOrder: WorkOrderListItem | { id: string } | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -390,7 +394,9 @@ export function WorkOrderDetailDialog({
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
-  const status = detail?.status ?? workOrder?.status;
+  const status =
+    detail?.status ??
+    (workOrder && 'status' in workOrder ? (workOrder as WorkOrderListItem).status : undefined);
 
   /**
    * True when the most recently completed intervention log reported that the
@@ -981,14 +987,16 @@ export function WorkOrderDetailDialog({
           <DialogTitle>{t('supervisorWorkOrders.detail.title')}</DialogTitle>
           {workOrder && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
-              <span className="text-sm font-mono font-medium">{workOrder.referenceNumber}</span>
+              {'referenceNumber' in workOrder && workOrder.referenceNumber && (
+                <span className="text-sm font-mono font-medium">{workOrder.referenceNumber}</span>
+              )}
               {status && (
                 <Badge variant={getStatusBadgeVariant(status as WorkOrderStatus)}>
                   {t(`supervisorWorkOrders.status.${status}`)}
                 </Badge>
               )}
-              {workOrder.priority && (
-                <Badge variant={getPriorityBadgeVariant(workOrder.priority)}>
+              {'priority' in workOrder && workOrder.priority && (
+                <Badge variant={getPriorityBadgeVariant(workOrder.priority as WorkOrderPriority)}>
                   {t(`supervisorWorkOrders.priority.${workOrder.priority}`)}
                 </Badge>
               )}

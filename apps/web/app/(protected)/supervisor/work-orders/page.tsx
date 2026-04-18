@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WorkOrdersBoard } from '@/components/supervisor/work-orders-board';
 
@@ -13,7 +14,10 @@ export default function SupervisorWorkOrdersPage() {
         <p className="text-muted-foreground">{t('supervisorWorkOrders.subtitle')}</p>
       </div>
 
-      <WorkOrdersBoard />
+      {/* Suspense required because WorkOrdersBoard uses useSearchParams (§2.3 deep-link support) */}
+      <Suspense>
+        <WorkOrdersBoard />
+      </Suspense>
     </div>
   );
 }

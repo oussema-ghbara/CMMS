@@ -100,7 +100,8 @@
   "notifications": {
     "title": "Notifications",
     "noNotifications": "Aucune notification",
-    "markAllRead": "Tout marquer comme lu"
+    "markAllRead": "Tout marquer comme lu",
+    "navigateTo": "Accéder à l'élément"
   },
   "storekeeperPartRequests": {
     "title": "Demandes de pièces",

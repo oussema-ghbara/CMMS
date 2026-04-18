@@ -54,6 +54,13 @@ All notable changes to the GMAO project are documented here.
 - `DueDateApproachingJob` registered in `WorkOrdersModule` alongside the existing `PriorityEscalationJob` and `DailySummaryJob`
 - 15 unit tests: cron decorator metadata, empty-case no-op, single WO notification, dedup skip, mixed new/already-notified, all three get notified, 23h dedup window boundary, workOrder query predicate (status filter, time window, principalTechnicianId not null)
 
+#### `feat(work-orders): add ValidationReminderJob for stale pending validations`
+- New `ValidationReminderJob` (`@Cron(EVERY_HOUR)`) queries work orders in `PENDING_VALIDATION` for at least 24 hours (`updatedAt <= now - 24h`)
+- Deduplication: checks the `notification` table for existing `VALIDATION_REMINDER_24H` entries for the same WO within the last 23 hours — prevents hourly re-notification spam
+- Uses existing `NotificationsService.notifySupervisors()` path to alert active supervisors with `entityType='WorkOrder'` and `entityId=<woId>`
+- `ValidationReminderJob` registered in `WorkOrdersModule` with the other scheduled work-order jobs
+- 8 unit tests: cron metadata, empty-case no-op, send path, dedup skip, mixed send/skip, 23h dedup query window, 24h stale threshold query, and error propagation on notification failure
+
 #### `feat(web): implement notification deep-linking with entity routing`
 - New pure-function module `apps/web/lib/notification-routing.ts`: `resolveNotificationRoute(notification, roles)` maps `entityType + user roles → URL string | null`; `WorkOrder` → `/supervisor/work-orders?id=X`; `ProblemReport` → `/supervisor/reports?id=X`; `PartRequest` → `/storekeeper/part-requests?id=X`; `Asset` + `ComplianceCertificate` → `/supervisor/assets?id=X`
 - `notification-menu.tsx`: clicking a notification now calls `resolveNotificationRoute`, closes the dropdown, marks the notification read, and navigates via `useRouter`; notifications without a resolvable route still mark read only (backward-compatible)

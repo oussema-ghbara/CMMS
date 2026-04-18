@@ -72,7 +72,7 @@ class MockRolesGuard implements CanActivate {
   }
 }
 
-describe('WorkOrdersController cancel integration', () => {
+describe('WorkOrdersController integration', () => {
   let app: INestApplication;
 
   const workOrders = {
@@ -146,6 +146,7 @@ describe('WorkOrdersController cancel integration', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     workOrders.cancel.mockResolvedValue({ id: 'wo-1', status: 'CANCELLED' });
+    assignment.promote.mockResolvedValue({ id: 'wo-1', status: 'ASSIGNED' });
     app = await buildApp();
   });
 
@@ -234,6 +235,40 @@ describe('WorkOrdersController cancel integration', () => {
         reason: WOCancellationReason.RESOLVED_OTHERWISE,
         detail: 'Resolved externally by certified contractor',
       },
+      'supervisor-1',
+    );
+  });
+
+  it('PATCH /work-orders/:id/promote returns 403 for non-supervisor roles', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/promote')
+      .set('Authorization', 'Bearer TECHNICIAN')
+      .send({ newPrincipalId: 'tech-new' });
+
+    expect(response.status).toBe(403);
+    expect(assignment.promote).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /work-orders/:id/promote returns 400 when newPrincipalId is missing', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/promote')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(assignment.promote).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /work-orders/:id/promote succeeds for supervisors with a valid contributor', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/promote')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({ newPrincipalId: 'tech-new' });
+
+    expect(response.status).toBe(200);
+    expect(assignment.promote).toHaveBeenCalledWith(
+      'wo-1',
+      { newPrincipalId: 'tech-new' },
       'supervisor-1',
     );
   });

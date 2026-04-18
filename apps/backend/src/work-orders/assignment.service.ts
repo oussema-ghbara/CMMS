@@ -10,6 +10,7 @@ import { ReassignTechnicianDto } from './dto/reassign-technician.dto';
 import { PromoteTechnicianDto } from './dto/promote-technician.dto';
 import { ContributorBlockDto } from './dto/contributor-block.dto';
 import { WorkOrderStatus, AssignmentRole, NotificationType, Role } from '@gmao/db';
+import { isTerminal } from './work-orders.state-machine';
 
 @Injectable()
 export class AssignmentService {
@@ -129,6 +130,12 @@ export class AssignmentService {
 
   async promote(woId: string, dto: PromoteTechnicianDto, actorId: string): Promise<WorkOrder> {
     const wo = await this.repo.findById(woId);
+    if (isTerminal(wo.status)) {
+      throw new BadRequestException(
+        `Work order is in terminal status ${wo.status} — no further transitions allowed`,
+      );
+    }
+
     const oldPrincipalId = wo.principalTechnicianId;
     if (!oldPrincipalId) throw new BadRequestException('No current principal to replace');
 
@@ -148,6 +155,12 @@ export class AssignmentService {
         where: { id: contributorAssignment.id },
         data: { role: AssignmentRole.PRINCIPAL },
       });
+      if (wo.status === WorkOrderStatus.IN_PROGRESS) {
+        await tx.interventionLog.updateMany({
+          where: { workOrderId: woId, technicianId: oldPrincipalId, endedAt: null },
+          data: { endedAt: new Date(), isReassignmentRemnant: true },
+        });
+      }
       await tx.workOrder.update({
         where: { id: woId },
         data: { principalTechnicianId: dto.newPrincipalId },

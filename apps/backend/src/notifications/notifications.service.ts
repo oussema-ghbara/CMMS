@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationType } from '@gmao/db';
 import { NotificationQueryDto } from './dto/notification-query.dto';
+import { NotificationsGateway } from './notifications.gateway';
 
 export interface CreateNotificationInput {
   recipientId: string;
@@ -36,6 +37,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    @Optional() private readonly gateway: NotificationsGateway | null = null,
   ) {}
 
   async notify(input: CreateNotificationInput): Promise<void> {
@@ -46,7 +48,7 @@ export class NotificationsService {
 
     if (!user || !user.isActive) return;
 
-    await this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         recipientId: input.recipientId,
         type: input.type,
@@ -55,6 +57,20 @@ export class NotificationsService {
         entityType: input.entityType,
         entityId: input.entityId,
       },
+    });
+
+    // Real-time push — deliver immediately to any open socket session for the recipient.
+    // Uses @Optional() injection so the service remains usable in test contexts where
+    // the gateway is not wired up.
+    this.gateway?.emitToUser(input.recipientId, 'notification', {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      summary: notification.summary,
+      entityType: notification.entityType,
+      entityId: notification.entityId,
+      isRead: false,
+      createdAt: notification.createdAt,
     });
 
     if (user.emailNotificationsEnabled) {

@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser = require('cookie-parser');
 import { AppModule } from './app.module';
 
@@ -10,6 +11,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   app.useLogger(app.get(Logger));
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   const configService = app.get(ConfigService);
   const isDev = configService.get<string>('NODE_ENV') !== 'production';

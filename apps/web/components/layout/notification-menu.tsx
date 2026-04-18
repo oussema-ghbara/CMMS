@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useNotificationsStore } from '@/store/notifications.store';
+import { useSocket } from '@/hooks/use-socket';
 import { NotificationBadge } from './notification-badge';
 
 export function NotificationMenu() {
@@ -25,6 +26,10 @@ export function NotificationMenu() {
     markAllAsRead,
   } = useNotificationsStore();
 
+  const { socket } = useSocket();
+
+  // Initial load + 60-second polling fallback for environments where WebSockets
+  // are unavailable (proxies, load-balancers without WS upgrade support).
   React.useEffect(() => {
     void fetchNotifications({ page: 1, limit: 20 });
 
@@ -34,6 +39,21 @@ export function NotificationMenu() {
 
     return () => window.clearInterval(intervalId);
   }, [fetchNotifications]);
+
+  // Real-time push: invalidate the local store whenever the backend emits a
+  // new notification via the Socket.io `notification` event.
+  React.useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => {
+      void fetchNotifications({ page: 1, limit: 20 });
+    };
+
+    socket.on('notification', handler);
+    return () => {
+      socket.off('notification', handler);
+    };
+  }, [socket, fetchNotifications]);
 
   const onOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);

@@ -60,7 +60,7 @@ Tech stack decisions: stack.pdf
 - [x] Storekeeper module (web) — /storekeeper/part-requests queue (list/filter/pagination + fulfill/reject dialogs)
 - [x] Storekeeper module (web) — /storekeeper/analytics inventory analytics (filters + KPI cards + consumption/replenishment/dead-stock sections)
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
-- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, reassign, promote, validate, reject-closure, cancel, authorize-simultaneous-maintenance; list waits for auth initialization and asset selector respects backend limits; validate panel shows a mandatory asset-status override form when the last intervention result is COULD_NOT_INTERVENE)
+- [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, reassign, promote, validate, reject-closure, cancel, authorize-simultaneous-maintenance; promote rejects terminal work orders and closes the old principal intervention log when promotion happens in IN_PROGRESS; list waits for auth initialization and asset selector respects backend limits; validate panel shows a mandatory asset-status override form when the last intervention result is COULD_NOT_INTERVENE)
 - [x] Supervisor module (web) — /supervisor dashboard summary cards now wait for auth store initialization before firing queries
 - [x] Web auth compatibility — legacy redirect pages `/app/auth/setup` and `/app/auth/reset-password` aligned with Next 15 `searchParams` Promise PageProps contract
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
@@ -90,6 +90,7 @@ Tech stack decisions: stack.pdf
 - [x] Notifications (web) — deep-linking: `notification-menu.tsx` resolves `entityType + roles[]` to a URL via `resolveNotificationRoute` (`lib/notification-routing.ts`); clicking a notification navigates and closes the dropdown; `work-orders-board.tsx` reads `?id=` via `useSearchParams` and auto-opens the detail dialog; `supervisor/work-orders/page.tsx` wraps the board in `<Suspense>` (required by Next.js 15)
 - [x] apps/web — Jest test infrastructure: `jest` + `ts-jest` + `@types/jest` devDependencies; `moduleNameMapper` for `@/` path alias and `@gmao/shared`; 17 unit tests for `notification-routing.ts`
 - [x] WorkOrdersModule — cancellation contract guard: cancelling with `EXTERNAL_DECISION` or `RESOLVED_OTHERWISE` now requires non-blank `detail` at DTO and service levels (`workOrders.cancellationDetailRequired`); cancellation detail is trimmed before persistence; backend unit + controller integration coverage added
+- [x] WorkOrdersModule — promotion guard: `promote()` now rejects terminal work orders via the shared state-machine guard and closes the old principal's open intervention log when the work order is already `IN_PROGRESS`; backend unit + controller integration coverage added
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

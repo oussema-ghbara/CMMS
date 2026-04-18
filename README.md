@@ -138,7 +138,7 @@ npx prisma studio    # visual DB browser
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
 | AssetsModule | done — locations, categories, assets, certificates, documents, compliance certificate soft-archive |
 | NotificationsModule | done — in-app notifications, unread count, mark-read endpoints, Socket.io live push |
-| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation, duplicate guard, source report panel, overdue highlighting, WO_RESUMED/LINKED_WO_CLOSED/DUE_DATE_APPROACHING notifications, notification deep-linking |
+| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation, duplicate guard, source report panel, overdue highlighting, promote terminal guard, WO_RESUMED/LINKED_WO_CLOSED/DUE_DATE_APPROACHING notifications, notification deep-linking |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
 | ReportsModule | done — problem report lifecycle, comments, conversion, three-tier deferred aging, defer/reopen, reject, archive |

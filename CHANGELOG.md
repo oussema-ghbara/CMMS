@@ -4,6 +4,15 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Work-order promotion guard and intervention-log cleanup (April 18, 2026)
+
+#### `fix(work-orders): reject promote on terminal WOs and close the previous principal log on in-progress promotion`
+- `AssignmentService.promote()` now reuses the shared terminal-state guard, so `CLOSED` and `CANCELLED` work orders cannot be promoted
+- When promotion happens on an `IN_PROGRESS` work order, the old principal's open `InterventionLog` is closed with the same reassignment-remnant semantics used by the reassignment flow
+- Added full coverage:
+  - `assignment.service.spec.ts`: terminal rejection, in-progress log closure, and non-in-progress no-op on intervention logs
+  - `work-orders.controller.integration.spec.ts`: promote route auth, validation, and success wiring
+
 ### Fixed — Work-order cancellation detail contract enforcement (April 18, 2026)
 
 #### `fix(work-orders): require cancellation detail for EXTERNAL_DECISION and RESOLVED_OTHERWISE`

@@ -313,10 +313,15 @@ export function WorkOrdersBoard() {
                 const isTerminal =
                   item.status === WorkOrderStatus.CLOSED || item.status === WorkOrderStatus.CANCELLED;
 
+                const isOverdue =
+                  !isTerminal &&
+                  !!item.dueDate &&
+                  new Date(item.dueDate) < new Date();
+
                 return (
                   <TableRow
                     key={item.id}
-                    className="cursor-pointer"
+                    className={`cursor-pointer${isOverdue ? ' bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30' : ''}`}
                     onClick={() => openDetailDialog(item)}
                   >
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
@@ -347,8 +352,19 @@ export function WorkOrdersBoard() {
                         {t(`supervisorWorkOrders.status.${item.status}`)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDateTime(item.dueDate)}
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {item.dueDate ? (
+                        <span className={isOverdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}>
+                          {formatDateTime(item.dueDate)}
+                          {isOverdue && (
+                            <span className="ml-1.5 text-xs font-medium text-destructive">
+                              {t('supervisorWorkOrders.labels.overdue')}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div

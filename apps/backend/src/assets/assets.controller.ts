@@ -123,9 +123,12 @@ export class AssetsController {
   @Delete(':id/certificates/:certId')
   @Roles(Role.SUPERVISOR)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete certificate (Supervisor)' })
-  deleteCertificate(@Param('certId') certId: string) {
-    return this.certificates.delete(certId);
+  @ApiOperation({ summary: 'Archive certificate — soft delete preserving audit trail (Supervisor)' })
+  archiveCertificate(
+    @Param('certId') certId: string,
+    @Request() req: { user: { sub: string } },
+  ) {
+    return this.certificates.archive(certId, req.user.sub);
   }
 
   @Get(':id/certificates/:certId/download')

@@ -299,7 +299,8 @@ model User {
   notifications           Notification[]
   auditLogs               AuditLog[]
   documents               Document[]
-  certificates            ComplianceCertificate[]
+  createdCertificates     ComplianceCertificate[]  @relation("CreatedCertificates")
+  archivedCertificates    ComplianceCertificate[]  @relation("ArchivedCertificates")
   createdWorkOrders       WorkOrder[]              @relation("WOCreatedBy")
   cancelledWorkOrders     WorkOrder[]              @relation("WOCancelledBy")
   validatedWorkOrders     WorkOrder[]              @relation("WOValidatedBy")
@@ -455,16 +456,21 @@ model ComplianceCertificate {
   issueDate        DateTime
   expirationDate   DateTime
   status           CertificateStatus @default(VALID)
+  isArchived       Boolean           @default(false)
+  archivedAt       DateTime?
+  archivedById     String?
+  archivedBy       User?             @relation("ArchivedCertificates", fields: [archivedById], references: [id])
   documentId       String?           @unique
   document         Document?         @relation("CertificateDocument", fields: [documentId], references: [id])
   createdById      String
-  createdBy        User              @relation(fields: [createdById], references: [id])
+  createdBy        User              @relation("CreatedCertificates", fields: [createdById], references: [id])
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
   @@index([assetId])
   @@index([expirationDate])
   @@index([status])
+  @@index([isArchived])
 }
 
 model WorkOrder {

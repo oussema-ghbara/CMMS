@@ -2,13 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateCertificateDto } from './dto/create-certificate.dto';
 import { UpdateCertificateDto } from './dto/update-certificate.dto';
-import { CertificateStatus, CertificateType, DocumentEntityType, DocumentType } from '@gmao/db';
+import { CertificateStatus, CertificateType, DocumentEntityType, DocumentType, Prisma } from '@gmao/db';
 
 function deriveCertificateStatus(expirationDate: Date): CertificateStatus {
   const now = new Date();
@@ -30,8 +29,9 @@ export class CertificatesService {
 
   async findByAsset(assetId: string) {
     await this.assertAssetExists(assetId);
+    const where = { assetId, isArchived: false } as Prisma.ComplianceCertificateWhereInput;
     return this.prisma.complianceCertificate.findMany({
-      where: { assetId },
+      where,
       orderBy: { expirationDate: 'asc' },
       include: { document: true },
     });
@@ -152,13 +152,16 @@ export class CertificatesService {
     });
   }
 
-  async delete(id: string) {
+  async archive(id: string, actorId: string): Promise<void> {
     const cert = await this.findById(id);
-    if (cert.documentId && cert.document) {
-      await this.storage.delete('documents', cert.document.filePath);
-      await this.prisma.document.delete({ where: { id: cert.documentId } });
+    // isArchived may not exist in the current Prisma client until `prisma generate` is run
+    if ((cert as any).isArchived) {
+      throw new BadRequestException(`Certificate ${id} is already archived`);
     }
-    await this.prisma.complianceCertificate.delete({ where: { id } });
+    await this.prisma.complianceCertificate.update({
+      where: { id },
+      data: { isArchived: true, archivedAt: new Date(), archivedById: actorId } as Prisma.ComplianceCertificateUpdateInput,
+    });
   }
 
   async getDocumentUrl(id: string): Promise<string> {
@@ -174,18 +177,21 @@ export class CertificatesService {
     const in60Days = new Date();
     in60Days.setDate(in60Days.getDate() + 60);
 
+    const where = {
+      expirationDate: { lte: in60Days },
+      status: { not: CertificateStatus.EXPIRED },
+      isArchived: false,
+    } as Prisma.ComplianceCertificateWhereInput;
     return this.prisma.complianceCertificate.findMany({
-      where: {
-        expirationDate: { lte: in60Days },
-        status: { not: CertificateStatus.EXPIRED },
-      },
+      where,
       select: { id: true, assetId: true, expirationDate: true, asset: { select: { name: true } } },
-    });
+    }) as Promise<Array<{ id: string; assetId: string; expirationDate: Date; asset: { name: string } }>>;
   }
 
   async refreshStatuses(): Promise<void> {
+    const refreshWhere = { status: { not: CertificateStatus.EXPIRED }, isArchived: false } as Prisma.ComplianceCertificateWhereInput;
     const certs = await this.prisma.complianceCertificate.findMany({
-      where: { status: { not: CertificateStatus.EXPIRED } },
+      where: refreshWhere,
       select: { id: true, expirationDate: true, status: true },
     });
 

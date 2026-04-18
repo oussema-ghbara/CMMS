@@ -104,6 +104,22 @@ export class ValidationService {
       });
     }
 
+    // Notify the original requester when the WO was created from a problem report (§12.4).
+    type SourceReport = { reporter: { id: string; name: string } };
+    const sourceReport = (wo as unknown as { sourceReport: SourceReport | null }).sourceReport;
+    if (sourceReport?.reporter?.id) {
+      await this.notifications.notify({
+        recipientId: sourceReport.reporter.id,
+        type: NotificationType.LINKED_WO_CLOSED,
+        title: 'Votre signalement a été traité',
+        summary:
+          `L'ordre de travail ${wo.referenceNumber}, issu de votre signalement, ` +
+          `a été clôturé avec succès.`,
+        entityType: 'WorkOrder',
+        entityId: woId,
+      });
+    }
+
     // Enqueue PDF report generation job (fire-and-forget)
     // This runs asynchronously after the WO is successfully closed
     void this.reportGenerationJob.enqueueReportGeneration(woId);

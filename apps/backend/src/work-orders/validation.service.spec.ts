@@ -692,4 +692,102 @@ describe('ValidationService', () => {
       expect(notifications.notify).not.toHaveBeenCalled();
     });
   });
+
+  // ── LINKED_WO_CLOSED notification (§1.3) ───────────────────────────────────
+
+  describe('validate() — LINKED_WO_CLOSED notification', () => {
+    it('notifies the requester when the WO was created from a problem report', async () => {
+      const { service, prisma, repo, notifications } = buildMocks();
+
+      const woWithReport = buildWorkOrder({
+        interventionLogs: [buildInterventionLog(InterventionResult.RESOLVED)],
+        sourceReport: { reporter: { id: 'requester-1', name: 'Ahmed Ben Ali' } },
+      });
+
+      repo.findById
+        .mockResolvedValueOnce(woWithReport)
+        .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.CLOSED }));
+
+      prisma.asset.findUniqueOrThrow.mockResolvedValue(buildAsset());
+
+      await service.validate('wo-1', 'supervisor-1', {});
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 'requester-1',
+          type: NotificationType.LINKED_WO_CLOSED,
+          entityType: 'WorkOrder',
+          entityId: 'wo-1',
+        }),
+      );
+    });
+
+    it('does NOT notify when the WO has no source report', async () => {
+      const { service, prisma, repo, notifications } = buildMocks();
+
+      repo.findById
+        .mockResolvedValueOnce(
+          buildWorkOrder({
+            interventionLogs: [buildInterventionLog(InterventionResult.RESOLVED)],
+            sourceReport: null,
+          }),
+        )
+        .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.CLOSED }));
+
+      prisma.asset.findUniqueOrThrow.mockResolvedValue(buildAsset());
+
+      await service.validate('wo-1', 'supervisor-1', {});
+
+      const linkedWoClosedCalls = (notifications.notify as jest.Mock).mock.calls.filter(
+        (call: [{ type: string }]) => call[0].type === NotificationType.LINKED_WO_CLOSED,
+      );
+      expect(linkedWoClosedCalls).toHaveLength(0);
+    });
+
+    it('sends LINKED_WO_CLOSED even on COULD_NOT_INTERVENE path when source report exists', async () => {
+      const { service, prisma, repo, notifications } = buildMocks();
+
+      const woWithReport = buildWorkOrder({
+        interventionLogs: [buildInterventionLog(InterventionResult.COULD_NOT_INTERVENE)],
+        principalTechnicianId: 'tech-1',
+        sourceReport: { reporter: { id: 'requester-1', name: 'Requester' } },
+      });
+
+      repo.findById
+        .mockResolvedValueOnce(woWithReport)
+        .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.CLOSED }));
+
+      prisma.asset.findUniqueOrThrow.mockResolvedValue(buildAsset());
+
+      await service.validate('wo-1', 'supervisor-1', { assetStatusOverride: AssetStatus.OUT_OF_SERVICE });
+
+      const linkedWoClosedCalls = (notifications.notify as jest.Mock).mock.calls.filter(
+        (call: [{ type: string }]) => call[0].type === NotificationType.LINKED_WO_CLOSED,
+      );
+      expect(linkedWoClosedCalls).toHaveLength(1);
+      expect(linkedWoClosedCalls[0][0].recipientId).toBe('requester-1');
+    });
+
+    it('includes the WO reference number in the summary', async () => {
+      const { service, prisma, repo, notifications } = buildMocks();
+
+      repo.findById
+        .mockResolvedValueOnce(
+          buildWorkOrder({
+            interventionLogs: [buildInterventionLog(InterventionResult.RESOLVED)],
+            sourceReport: { reporter: { id: 'requester-1', name: 'Requester' } },
+          }),
+        )
+        .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.CLOSED }));
+
+      prisma.asset.findUniqueOrThrow.mockResolvedValue(buildAsset());
+
+      await service.validate('wo-1', 'supervisor-1', {});
+
+      const linkedWoClosedCall = (notifications.notify as jest.Mock).mock.calls.find(
+        (call: [{ type: string }]) => call[0].type === NotificationType.LINKED_WO_CLOSED,
+      );
+      expect(linkedWoClosedCall?.[0].summary).toContain('WO-2026-001');
+    });
+  });
 });

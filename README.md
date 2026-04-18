@@ -136,12 +136,12 @@ npx prisma studio    # visual DB browser
 | SystemConfigModule | done — 14 config keys, password policy |
 | UsersModule | done — Admin CRUD, setup token flow, deactivate/reactivate |
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
-| AssetsModule | done — locations, categories, assets, certificates, documents |
-| NotificationsModule | done — in-app notifications, unread count, mark-read endpoints |
-| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation |
+| AssetsModule | done — locations, categories, assets, certificates, documents, compliance certificate soft-archive |
+| NotificationsModule | done — in-app notifications, unread count, mark-read endpoints, Socket.io live push |
+| WorkOrdersModule | done — state machine, assignments, intervention, on-hold, validation, checklist, automatic priority escalation, duplicate guard, source report panel, overdue highlighting |
 | InventoryModule | done — parts catalog, stock movements, part requests, analytics |
 | PreventivePlansModule | done — plan CRUD, checklist templates, BullMQ WO generator, daily scheduler |
-| ReportsModule | done — problem report lifecycle, comments, conversion, defer/reopen, reject, archive |
+| ReportsModule | done — problem report lifecycle, comments, conversion, three-tier deferred aging, defer/reopen, reject, archive |
 | AdminModule | done — system config endpoints and paginated audit log |
 
 ## Storekeeper module testing

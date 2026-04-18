@@ -4,6 +4,17 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Work-order cost summary in analytics and PDF reports (April 18, 2026)
+
+#### `feat(work-orders): compute labor, parts, and contractor cost for closed work orders`
+- Added a shared work-order cost calculator that rolls up contractor cost, labor cost from intervention logs, and parts cost from outgoing stock movements
+- `GET /work-orders/analytics` now includes a `costSummary` payload for the requested period
+- PDF generation for closed work orders now renders a dedicated cost section with parts, labor, contractor, and total cost values
+- Added coverage:
+  - `work-orders.service.spec.ts`: analytics cost summary calculation
+  - `work-orders.controller.integration.spec.ts`: analytics endpoint payload shape
+  - `report-generation.service.spec.ts`: PDF cost section rendering and computed totals
+
 ### Fixed — Work-order promotion guard and intervention-log cleanup (April 18, 2026)
 
 #### `fix(work-orders): reject promote on terminal WOs and close the previous principal log on in-progress promotion`

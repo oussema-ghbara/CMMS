@@ -34,7 +34,7 @@ Tech stack decisions: stack.pdf
   - [x] StorageModule — MinIO/S3 wrapper, multi-bucket, presigned URLs
   - [x] NotificationsModule — in-app + email notifications, global
   - [x] AssetsModule — locations, categories, assets, certificates, documents
-  - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist, async PDF report generation on closure
+  - [x] WorkOrdersModule — state machine, assignments, intervention logs, on-hold, validation, checklist, async PDF report generation on closure, analytics cost summary, PDF cost breakdown
 - [x] AssetsModule — locations, categories, assets, certificates, documents, storage
 - [x] AssetsModule — certificate expiry scheduler migrated to `@nestjs/schedule` (`@Timeout(0)` startup trigger + daily midnight `@Cron`) to replace legacy lifecycle `setInterval`
 - [x] WorkOrdersModule — full state machine, assignments, intervention logs, on-hold, validation, checklist, automatic priority escalation for overdue WOs, async PDF report generation on closure

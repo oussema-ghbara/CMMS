@@ -24,7 +24,7 @@ WorkOrder {
 **Responsibility:** Generate PDF reports with comprehensive WO data
 - **Input:** Closed WorkOrder (ID)
 - **Output:** PDF Buffer
-- **Data:** Asset info, technician, checklist, intervention logs, parts, validation
+- **Data:** Asset info, technician, checklist, intervention logs, parts, validation, cost summary (contractor, labor, parts, total)
 
 **Key Methods:**
 - `generateReport(woId)` - Main method, returns Buffer
@@ -137,12 +137,14 @@ async validate(woId: string, actorId: string): Promise<WorkOrder> {
 - ✅ Includes all sections in PDF
 - ✅ Handles rejection validation records
 - ✅ Handles complex intervention logs (multiple)
+- ✅ Renders cost breakdown section with contractor, labor, parts, and total values
 
 **Assertions:**
 - PDF is Buffer instance
 - PDF size > 0
 - PDF starts with %PDF magic bytes
 - Proper error messages for invalid states
+- Cost totals are computed from persisted intervention and stock movement data
 
 ### 2. Integration Tests (report-generation.integration.spec.ts)
 

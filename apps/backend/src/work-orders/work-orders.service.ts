@@ -1,5 +1,5 @@
 import { WorkOrder } from '@gmao/db';
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -12,6 +12,15 @@ import {
   WorkOrderSource, WorkOrderStatus, AssetStatus, NotificationType, Role,
 } from '@gmao/db';
 import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine';
+
+const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
+  WorkOrderStatus.DRAFT,
+  WorkOrderStatus.OPEN,
+  WorkOrderStatus.ASSIGNED,
+  WorkOrderStatus.IN_PROGRESS,
+  WorkOrderStatus.ON_HOLD,
+  WorkOrderStatus.PENDING_VALIDATION,
+];
 
 @Injectable()
 export class WorkOrdersService {
@@ -41,6 +50,28 @@ export class WorkOrdersService {
     if (!asset) throw new BadRequestException(`Asset ${dto.assetId} not found`);
     if (asset.status === AssetStatus.DECOMMISSIONED) {
       throw new BadRequestException('Cannot create a work order for a decommissioned asset');
+    }
+
+    if (!dto.forceCreate) {
+      const existing = await this.prisma.workOrder.findFirst({
+        where: {
+          assetId: dto.assetId,
+          status: { in: ACTIVE_WO_STATUSES },
+        },
+        select: { id: true, referenceNumber: true, status: true, type: true },
+      });
+
+      if (existing) {
+        throw new ConflictException({
+          message: 'workOrders.duplicateActiveWo',
+          existingWorkOrder: {
+            id: existing.id,
+            referenceNumber: existing.referenceNumber,
+            status: existing.status,
+            type: existing.type,
+          },
+        });
+      }
     }
 
     // Technician validation happens in AssignmentService at the OPEN → ASSIGNED transition.

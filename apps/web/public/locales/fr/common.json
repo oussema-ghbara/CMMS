@@ -605,6 +605,11 @@
       "cancellationReasonRequired": "Le motif d'annulation est obligatoire",
       "rejectionReasonRequired": "Le motif de rejet est obligatoire"
     },
+    "duplicateWarning": {
+      "title": "Un ordre de travail actif existe déjà pour cet équipement",
+      "body": "L'OT {{reference}} ({{type}} — {{status}}) est déjà en cours sur cet équipement. Souhaitez-vous créer un second ordre malgré tout ?",
+      "createAnyway": "Créer quand même"
+    },
     "toasts": {
       "priorityUpdateSuccess": "Priorité mise à jour",
       "priorityUpdateError": "Impossible de mettre à jour la priorité",

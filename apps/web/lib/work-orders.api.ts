@@ -193,6 +193,14 @@ export interface CreateWorkOrderPayload {
   internalNotes?: string;
   dueDate?: string;
   estimatedDurationMinutes?: number;
+  forceCreate?: boolean;
+}
+
+export interface DuplicateWoConflict {
+  id: string;
+  referenceNumber: string;
+  status: WorkOrderStatus;
+  type: WorkOrderType;
 }
 
 export interface AssignWorkOrderPayload {

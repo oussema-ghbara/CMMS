@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,9 +8,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TriangleAlert } from 'lucide-react';
 import { WorkOrderType, WorkOrderPriority } from '@gmao/shared';
-import { workOrdersApi } from '@/lib/work-orders.api';
+import { workOrdersApi, type DuplicateWoConflict } from '@/lib/work-orders.api';
 import { assetsApi } from '@/lib/assets.api';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth.store';
@@ -30,6 +30,19 @@ const selectClass =
 
 const textareaClass =
   'w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none';
+
+interface DuplicateConflictResponse {
+  message: string;
+  existingWorkOrder: DuplicateWoConflict;
+}
+
+function isDuplicateConflict(error: unknown): error is AxiosError<DuplicateConflictResponse> {
+  const axiosError = error as AxiosError<DuplicateConflictResponse>;
+  return (
+    axiosError.response?.status === 409 &&
+    axiosError.response?.data?.message === 'workOrders.duplicateActiveWo'
+  );
+}
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
@@ -74,6 +87,9 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
   const queryClient = useQueryClient();
   const isInitialized = useAuthStore((state) => state.isInitialized);
 
+  const [duplicateConflict, setDuplicateConflict] = useState<DuplicateWoConflict | null>(null);
+  const [pendingValues, setPendingValues] = useState<WorkOrderFormValues | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -98,25 +114,33 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
     enabled: open && isInitialized,
   });
 
+  const doCreate = (values: WorkOrderFormValues, forceCreate: boolean) =>
+    workOrdersApi.create({
+      type: values.type,
+      priority: values.priority,
+      assetId: values.assetId,
+      description: values.description,
+      internalNotes: values.internalNotes || undefined,
+      dueDate: values.dueDate || undefined,
+      estimatedDurationMinutes: values.estimatedDurationMinutes
+        ? Number(values.estimatedDurationMinutes)
+        : undefined,
+      forceCreate,
+    });
+
   const createMutation = useMutation({
-    mutationFn: (values: WorkOrderFormValues) =>
-      workOrdersApi.create({
-        type: values.type,
-        priority: values.priority,
-        assetId: values.assetId,
-        description: values.description,
-        internalNotes: values.internalNotes || undefined,
-        dueDate: values.dueDate || undefined,
-        estimatedDurationMinutes: values.estimatedDurationMinutes
-          ? Number(values.estimatedDurationMinutes)
-          : undefined,
-      }),
+    mutationFn: ({ values, force }: { values: WorkOrderFormValues; force: boolean }) =>
+      doCreate(values, force),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['supervisor', 'work-orders'] });
       toast.success(t('supervisorWorkOrders.toasts.createSuccess'));
       onOpenChange(false);
     },
     onError: (error) => {
+      if (isDuplicateConflict(error)) {
+        setDuplicateConflict(error.response!.data.existingWorkOrder);
+        return;
+      }
       toast.error(getErrorMessage(error, t('supervisorWorkOrders.toasts.createError')));
     },
   });
@@ -124,11 +148,26 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
   useEffect(() => {
     if (!open) {
       reset();
+      setDuplicateConflict(null);
+      setPendingValues(null);
     }
   }, [open, reset]);
 
   const onSubmit = (values: WorkOrderFormValues) => {
-    createMutation.mutate(values);
+    setPendingValues(values);
+    setDuplicateConflict(null);
+    createMutation.mutate({ values, force: false });
+  };
+
+  const onForceCreate = () => {
+    if (!pendingValues) return;
+    setDuplicateConflict(null);
+    createMutation.mutate({ values: pendingValues, force: true });
+  };
+
+  const onCancelForce = () => {
+    setDuplicateConflict(null);
+    setPendingValues(null);
   };
 
   return (
@@ -138,6 +177,53 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
           <DialogTitle>{t('supervisorWorkOrders.form.createTitle')}</DialogTitle>
           <DialogDescription>{t('supervisorWorkOrders.form.createDescription')}</DialogDescription>
         </DialogHeader>
+
+        {/* Duplicate WO warning panel */}
+        {duplicateConflict && (
+          <div
+            role="alert"
+            className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3 dark:border-amber-800 dark:bg-amber-950/30"
+          >
+            <div className="flex items-start gap-2">
+              <TriangleAlert className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  {t('supervisorWorkOrders.duplicateWarning.title')}
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  {t('supervisorWorkOrders.duplicateWarning.body', {
+                    reference: duplicateConflict.referenceNumber,
+                    status: t(`supervisorWorkOrders.status.${duplicateConflict.status}`),
+                    type: t(`supervisorWorkOrders.types.${duplicateConflict.type}`),
+                  })}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCancelForce}
+                disabled={createMutation.isPending}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={onForceCreate}
+                disabled={createMutation.isPending}
+              >
+                {createMutation.isPending && (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                )}
+                {t('supervisorWorkOrders.duplicateWarning.createAnyway')}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Type */}
@@ -252,8 +338,10 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={createMutation.isPending || !!duplicateConflict}>
+              {createMutation.isPending && !duplicateConflict && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {t('common.create')}
             </Button>
           </DialogFooter>

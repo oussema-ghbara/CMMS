@@ -1,5 +1,5 @@
 import {
-  IsString, IsEnum, IsOptional, IsDateString, IsInt, Min, MaxLength,
+  IsString, IsEnum, IsOptional, IsDateString, IsInt, Min, MaxLength, IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { WorkOrderType, WorkOrderPriority } from '@gmao/shared';
@@ -38,4 +38,14 @@ export class CreateWorkOrderDto {
   @IsInt()
   @Min(1)
   estimatedDurationMinutes?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Set to true to bypass the duplicate-WO guard when you intentionally ' +
+      'create a second work order for an asset that already has an active one.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  forceCreate?: boolean;
 }

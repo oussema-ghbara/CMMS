@@ -308,6 +308,16 @@
       "workOrdersEmpty": "Aucun ordre de travail lié"
     },
     "pagination": "Page {{page}} / {{totalPages}}",
+    "aging": {
+      "hours_one": "{{count}} heure",
+      "hours_other": "{{count}} heures",
+      "days_one": "{{count}} jour",
+      "days_other": "{{count}} jours",
+      "deferredFor": "Différé depuis {{duration}}",
+      "tier48h": "Rappel 48 h",
+      "tier7d": "Suivi 7 j",
+      "tier14d": "Escalade 14 j"
+    },
     "detail": {
       "title": "Détail du signalement",
       "summary": "Résumé",

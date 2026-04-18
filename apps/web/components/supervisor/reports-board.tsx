@@ -140,6 +140,19 @@ function getWorkOrderStatusVariant(status: WorkOrderStatus) {
   }
 }
 
+/** Returns aging info for a DEFERRED report based on elapsed time since deferral. */
+function getDeferredAgingTier(
+  deferredAt: string | null,
+): { label: string; variant: 'warning' | 'destructive' } | null {
+  if (!deferredAt) return null;
+  const elapsedHours =
+    (Date.now() - new Date(deferredAt).getTime()) / (1000 * 60 * 60);
+  if (elapsedHours >= 336) return { label: 'tier14d', variant: 'destructive' };
+  if (elapsedHours >= 168) return { label: 'tier7d', variant: 'warning' };
+  if (elapsedHours >= 48) return { label: 'tier48h', variant: 'warning' };
+  return null;
+}
+
 function FieldValue({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-foreground">{children}</p>;
 }
@@ -543,9 +556,40 @@ export function ReportsBoard() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusVariant(report.status)}>
-                          {t(`supervisorReports.status.${report.status}`)}
-                        </Badge>
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge variant={getStatusVariant(report.status)}>
+                            {t(`supervisorReports.status.${report.status}`)}
+                          </Badge>
+                          {report.status === ProblemReportStatus.DEFERRED &&
+                            (() => {
+                              const aging = getDeferredAgingTier(report.deferredAt);
+                              return aging ? (
+                                <Badge
+                                  variant={aging.variant}
+                                  className="text-[10px] px-1.5 py-0"
+                                  title={t('supervisorReports.aging.deferredFor', {
+                                    duration: report.deferredAt
+                                      ? (() => {
+                                          const h = Math.floor(
+                                            (Date.now() - new Date(report.deferredAt).getTime()) /
+                                              (1000 * 60 * 60),
+                                          );
+                                          return h >= 24
+                                            ? t('supervisorReports.aging.days_other', {
+                                                count: Math.floor(h / 24),
+                                              })
+                                            : t('supervisorReports.aging.hours_other', {
+                                                count: h,
+                                              });
+                                        })()
+                                      : '',
+                                  })}
+                                >
+                                  {t(`supervisorReports.aging.${aging.label}`)}
+                                </Badge>
+                              ) : null;
+                            })()}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {report.replacedByWorkOrderRef ? (

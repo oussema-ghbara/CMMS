@@ -92,11 +92,26 @@ export class ReportsRepository {
     });
   }
 
-  async findAgingDeferredReports(agingDays: number) {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - agingDays);
+  /**
+   * Returns deferred reports whose `deferredAt` timestamp falls inside the
+   * half-open window [now - maxHours, now - minHours).
+   *
+   * Sending once per 24-hour window (job runs daily at 08:00) for each tier
+   * guarantees exactly one notification per threshold per report:
+   *   - 48 h tier  → minHours=48, maxHours=72
+   *   - 7-day tier → minHours=168, maxHours=192
+   *   - 14-day tier→ minHours=336, maxHours=360
+   */
+  async findReportsDeferredInWindow(minHours: number, maxHours: number) {
+    const now = new Date();
+    const lowerBound = new Date(now.getTime() - maxHours * 60 * 60 * 1000);
+    const upperBound = new Date(now.getTime() - minHours * 60 * 60 * 1000);
     return this.prisma.problemReport.findMany({
-      where: { status: ProblemReportStatus.DEFERRED, deferredAt: { lte: cutoff } },
+      where: {
+        status: ProblemReportStatus.DEFERRED,
+        deferredAt: { gte: lowerBound, lt: upperBound },
+      },
+      select: { id: true, referenceNumber: true, deferredAt: true },
     });
   }
 }

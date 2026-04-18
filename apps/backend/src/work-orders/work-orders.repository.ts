@@ -5,6 +5,7 @@ import {
   WorkOrderStatus,
   WorkOrderSource,
   WorkOrderPriority,
+  StockMovementType,
   Prisma,
 } from '@gmao/db';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
@@ -87,6 +88,17 @@ export class WorkOrdersRepository {
         onHoldPeriods: { orderBy: { startedAt: 'desc' } },
         partRequests: {
           include: { part: { select: { id: true, name: true, referenceCode: true } } },
+        },
+        stockMovements: {
+          where: { type: StockMovementType.OUTGOING },
+          select: {
+            id: true,
+            type: true,
+            quantity: true,
+            unitCostAtTime: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
         },
         sourceReport: {
           select: {

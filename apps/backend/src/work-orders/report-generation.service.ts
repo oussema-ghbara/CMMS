@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { WorkOrderStatus } from '@gmao/db';
+import { calculateWorkOrderCostSummary, roundCurrency } from './work-order-costs';
 
 @Injectable()
 export class ReportGenerationService {
@@ -38,6 +39,7 @@ export class ReportGenerationService {
         this.renderChecklistSection(doc, wo);
         this.renderInterventionLogs(doc, wo);
         this.renderPartRequests(doc, wo);
+        this.renderCostSection(doc, wo);
         this.renderValidation(doc, wo);
 
         doc.end();
@@ -116,6 +118,18 @@ export class ReportGenerationService {
     doc.moveDown(0.5);
   }
 
+  private renderCostSection(doc: any, wo: any): void {
+    const costSummary = calculateWorkOrderCostSummary(wo);
+
+    doc.fontSize(12).font('Helvetica-Bold').text('COÛTS');
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Pièces: ${this.formatCurrency(costSummary.partsCost)}`);
+    doc.text(`Main d'oeuvre: ${this.formatCurrency(costSummary.laborCost)}`);
+    doc.text(`Sous-traitance: ${this.formatCurrency(costSummary.contractorCost)}`);
+    doc.text(`Total: ${this.formatCurrency(costSummary.totalCost)}`);
+    doc.moveDown(0.5);
+  }
+
   private renderValidation(doc: any, wo: any): void {
     doc.fontSize(12).font('Helvetica-Bold').text('VALIDATION');
     doc.fontSize(11).font('Helvetica');
@@ -130,5 +144,12 @@ export class ReportGenerationService {
   private formatDate(date: Date | null | undefined): string {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('fr-FR');
+  }
+
+  private formatCurrency(value: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(roundCurrency(value));
   }
 }

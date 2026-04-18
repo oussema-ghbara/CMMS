@@ -272,4 +272,41 @@ describe('WorkOrdersController integration', () => {
       'supervisor-1',
     );
   });
+
+  it('GET /work-orders/analytics returns the analytics payload including cost summary', async () => {
+    workOrders.getAnalytics.mockResolvedValue({
+      periodDays: 45,
+      summary: {
+        total: 3,
+        open: 1,
+        overdue: 0,
+        closedThisPeriod: 1,
+        cancelledThisPeriod: 1,
+        resolutionRate: 0.5,
+      },
+      byStatus: {},
+      byType: {},
+      byPriority: {},
+      avgResolutionDays: 4.2,
+      costSummary: {
+        contractorCost: 120,
+        laborCost: 80.5,
+        partsCost: 40,
+        totalCost: 240.5,
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/analytics?periodDays=45')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(workOrders.getAnalytics).toHaveBeenCalledWith(45);
+    expect(response.body.costSummary).toEqual({
+      contractorCost: 120,
+      laborCost: 80.5,
+      partsCost: 40,
+      totalCost: 240.5,
+    });
+  });
 });

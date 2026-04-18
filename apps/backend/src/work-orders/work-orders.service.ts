@@ -11,8 +11,10 @@ import { ChangePriorityDto } from './dto/change-priority.dto';
 import {
   WorkOrderSource, WorkOrderStatus, AssetStatus, NotificationType, Role,
 } from '@gmao/db';
+import { StockMovementType } from '@gmao/db';
 import { WOCancellationReason } from '@gmao/shared';
 import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine';
+import { calculateWorkOrderCostSummary } from './work-order-costs';
 
 const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
   WorkOrderStatus.DRAFT,
@@ -258,6 +260,7 @@ export class WorkOrdersService {
       closedThisPeriod,
       cancelledThisPeriod,
       closedWOs,
+      costWOs,
     ] = await Promise.all([
       this.prisma.workOrder.groupBy({ by: ['status'], _count: { id: true } }),
       this.prisma.workOrder.groupBy({ by: ['type'], _count: { id: true } }),
@@ -282,6 +285,31 @@ export class WorkOrdersService {
       this.prisma.workOrder.findMany({
         where: { status: WorkOrderStatus.CLOSED, closedAt: { not: null } },
         select: { createdAt: true, closedAt: true },
+      }),
+      this.prisma.workOrder.findMany({
+        where: {
+          OR: [
+            { status: WorkOrderStatus.CLOSED, closedAt: { gte: since } },
+            { status: WorkOrderStatus.CANCELLED, cancelledAt: { gte: since } },
+          ],
+        },
+        select: {
+          contractorCost: true,
+          interventionLogs: {
+            select: {
+              activeDurationMinutes: true,
+              hourlyRateAtTime: true,
+            },
+          },
+          stockMovements: {
+            where: { type: StockMovementType.OUTGOING },
+            select: {
+              type: true,
+              quantity: true,
+              unitCostAtTime: true,
+            },
+          },
+        },
       }),
     ]);
 
@@ -308,6 +336,25 @@ export class WorkOrdersService {
         Math.round((totalMs / closedWOs.length / (1000 * 60 * 60 * 24)) * 10) / 10;
     }
 
+    const costSummary = costWOs.reduce(
+      (summary, wo) => {
+        const cost = calculateWorkOrderCostSummary(wo as never);
+        summary.contractorCost += cost.contractorCost;
+        summary.laborCost += cost.laborCost;
+        summary.partsCost += cost.partsCost;
+        return summary;
+      },
+      { contractorCost: 0, laborCost: 0, partsCost: 0 },
+    );
+
+    costSummary.contractorCost = Math.round((costSummary.contractorCost + Number.EPSILON) * 100) / 100;
+    costSummary.laborCost = Math.round((costSummary.laborCost + Number.EPSILON) * 100) / 100;
+    costSummary.partsCost = Math.round((costSummary.partsCost + Number.EPSILON) * 100) / 100;
+
+    const totalCost = Math.round(
+      (costSummary.contractorCost + costSummary.laborCost + costSummary.partsCost + Number.EPSILON) * 100,
+    ) / 100;
+
     return {
       periodDays,
       summary: { total, open, overdue, closedThisPeriod, cancelledThisPeriod, resolutionRate },
@@ -315,6 +362,10 @@ export class WorkOrdersService {
       byType,
       byPriority,
       avgResolutionDays,
+      costSummary: {
+        ...costSummary,
+        totalCost,
+      },
     };
   }
 

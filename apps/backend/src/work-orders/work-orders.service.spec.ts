@@ -333,3 +333,113 @@ describe('WorkOrdersService.cancel', () => {
     });
   });
 });
+
+describe('WorkOrdersService.getAnalytics', () => {
+  let service: WorkOrdersService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            workOrder: {
+              groupBy: jest.fn(),
+              count: jest.fn(),
+              findMany: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get(WorkOrdersService);
+  });
+
+  it('returns analytics with a computed cost summary', async () => {
+    const prisma = service['prisma'] as any;
+
+    prisma.workOrder.groupBy
+      .mockResolvedValueOnce([
+        { status: WorkOrderStatus.OPEN, _count: { id: 1 } },
+        { status: WorkOrderStatus.CLOSED, _count: { id: 2 } },
+      ])
+      .mockResolvedValueOnce([{ type: WorkOrderType.CORRECTIVE, _count: { id: 3 } }])
+      .mockResolvedValueOnce([{ priority: WorkOrderPriority.HIGH, _count: { id: 3 } }]);
+    prisma.workOrder.count
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+    prisma.workOrder.findMany
+      .mockResolvedValueOnce([
+        {
+          createdAt: new Date('2026-04-01T00:00:00Z'),
+          closedAt: new Date('2026-04-03T00:00:00Z'),
+        },
+        {
+          createdAt: new Date('2026-04-04T00:00:00Z'),
+          closedAt: new Date('2026-04-06T00:00:00Z'),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          contractorCost: '120.00',
+          interventionLogs: [
+            { activeDurationMinutes: 120, hourlyRateAtTime: '50.00' },
+            { activeDurationMinutes: null, hourlyRateAtTime: '40.00' },
+          ],
+          stockMovements: [
+            { type: 'OUTGOING', quantity: 3, unitCostAtTime: '10.00' },
+          ],
+        },
+        {
+          contractorCost: '0.00',
+          interventionLogs: [
+            { activeDurationMinutes: 30, hourlyRateAtTime: '80.00' },
+          ],
+          stockMovements: [
+            { type: 'OUTGOING', quantity: 2, unitCostAtTime: '5.00' },
+          ],
+        },
+      ]);
+
+    const analytics = await service.getAnalytics(30);
+
+    expect(analytics.summary).toMatchObject({
+      total: 4,
+      open: 1,
+      overdue: 1,
+      closedThisPeriod: 1,
+      cancelledThisPeriod: 0,
+      resolutionRate: 1,
+    });
+    expect(analytics.avgResolutionDays).toBe(2);
+    expect(analytics.costSummary).toEqual({
+      contractorCost: 120,
+      laborCost: 140,
+      partsCost: 40,
+      totalCost: 300,
+    });
+  });
+});

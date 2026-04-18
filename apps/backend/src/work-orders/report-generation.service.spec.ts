@@ -1,9 +1,14 @@
 import { EventEmitter } from 'events';
 
+const createdDocuments: any[] = [];
+
 jest.mock('pdfkit', () => {
   class MockPDFDocument extends EventEmitter {
+    public readonly textCalls: string[] = [];
+
     constructor() {
       super();
+      createdDocuments.push(this);
     }
 
     end() {
@@ -16,7 +21,10 @@ jest.mock('pdfkit', () => {
 
     fontSize() { return this; }
     font() { return this; }
-    text() { return this; }
+    text(value?: unknown) {
+      this.textCalls.push(String(value ?? ''));
+      return this;
+    }
     moveDown() { return this; }
     moveTo() { return this; }
     lineTo() { return this; }
@@ -194,6 +202,7 @@ describe('ReportGenerationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    createdDocuments.splice(0, createdDocuments.length);
   });
 
   describe('generateReport()', () => {
@@ -330,6 +339,46 @@ describe('ReportGenerationService', () => {
 
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       expect(pdfBuffer.length).toBeGreaterThan(0);
+    });
+
+    it('renders a cost breakdown section from persisted cost data', async () => {
+      const { service, repo } = createService();
+      const mockWO = createMockWorkOrder({
+        contractorCost: '120.50',
+        interventionLogs: [
+          {
+            id: 'log-1',
+            technicianId: 'tech-1',
+            startedAt: new Date('2026-04-18T09:00:00Z'),
+            endedAt: new Date('2026-04-18T12:30:00Z'),
+            activeDurationMinutes: 210,
+            hourlyRateAtTime: '45.50',
+            result: 'SUCCESS',
+            resultExplanation: 'Bearing successfully replaced',
+            isReassignmentRemnant: false,
+            technician: { id: 'tech-1', name: 'John Smith' },
+            actions: [],
+            offListParts: [],
+          },
+        ],
+        stockMovements: [
+          { id: 'sm-1', type: 'OUTGOING', quantity: 2, unitCostAtTime: '30.00', createdAt: new Date() },
+        ],
+      });
+      repo.findById.mockResolvedValue(mockWO);
+
+      const pdfBuffer = await service.generateReport('wo-1');
+
+      expect(pdfBuffer).toBeInstanceOf(Buffer);
+      expect(pdfBuffer.length).toBeGreaterThan(0);
+
+      expect(createdDocuments[0].textCalls).toEqual(expect.arrayContaining([
+        'COÛTS',
+        'Pièces: 60,00',
+        "Main d'oeuvre: 159,25",
+        'Sous-traitance: 120,50',
+        'Total: 339,75',
+      ]));
     });
   });
 });

@@ -4,6 +4,16 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Work-order cancellation detail contract enforcement (April 18, 2026)
+
+#### `fix(work-orders): require cancellation detail for EXTERNAL_DECISION and RESOLVED_OTHERWISE`
+- `CancelWorkOrderDto` now enforces conditional validation: `detail` is mandatory only when reason is `EXTERNAL_DECISION` or `RESOLVED_OTHERWISE`
+- Whitespace-only values are rejected at DTO level with `workOrders.cancellationDetailRequired`
+- `WorkOrdersService.cancel()` now applies the same rule defensively (service-layer guard) and trims persisted `cancellationDetail`
+- Added full coverage:
+  - `work-orders.service.spec.ts`: required/missing detail, whitespace-only edge case, optional detail for other reasons, trimming behavior
+  - `work-orders.controller.integration.spec.ts`: auth (401), role enforcement (403), validation failures (400), and success paths (200)
+
 ### Added — Notification system completeness: WO_RESUMED, LINKED_WO_CLOSED, DUE_DATE_APPROACHING, deep-linking (April 18, 2026)
 
 #### `feat(work-orders): emit WO_RESUMED notification to contributors on hold resume`

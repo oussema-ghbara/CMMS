@@ -229,6 +229,9 @@ Expected behavior:
   - `OPEN` → **Assigner un technicien** — select principal + optional contributors, moves to ASSIGNED
   - `PENDING_VALIDATION` → **Valider la clôture** (moves to CLOSED) or **Rejeter la clôture** (select reason, moves back to IN_PROGRESS)
   - Any non-terminal → **Annuler l'ordre de travail** — select cancellation reason, permanently cancels
+- Cancellation validation contract:
+  - If reason is `EXTERNAL_DECISION` or `RESOLVED_OTHERWISE`, cancellation detail is mandatory and cannot be whitespace-only
+  - Other cancellation reasons can be submitted without detail
 - Priority can still be updated inline from the pencil icon in the row for non-terminal work orders
 - All actions refresh the list without a page reload
 - Terminal work orders (`CLOSED`, `CANCELLED`) show no action buttons in the detail dialog

@@ -89,6 +89,7 @@ Tech stack decisions: stack.pdf
 - [x] WorkOrdersModule — DueDateApproachingJob (`@Cron(EVERY_HOUR)`): queries WOs with `dueDate` in next 24h and active statuses; 23h dedup window prevents hourly re-notification for the same WO; notifies `principalTechnicianId` with `DUE_DATE_APPROACHING`; registered in `WorkOrdersModule`; 15 unit tests
 - [x] Notifications (web) — deep-linking: `notification-menu.tsx` resolves `entityType + roles[]` to a URL via `resolveNotificationRoute` (`lib/notification-routing.ts`); clicking a notification navigates and closes the dropdown; `work-orders-board.tsx` reads `?id=` via `useSearchParams` and auto-opens the detail dialog; `supervisor/work-orders/page.tsx` wraps the board in `<Suspense>` (required by Next.js 15)
 - [x] apps/web — Jest test infrastructure: `jest` + `ts-jest` + `@types/jest` devDependencies; `moduleNameMapper` for `@/` path alias and `@gmao/shared`; 17 unit tests for `notification-routing.ts`
+- [x] WorkOrdersModule — cancellation contract guard: cancelling with `EXTERNAL_DECISION` or `RESOLVED_OTHERWISE` now requires non-blank `detail` at DTO and service levels (`workOrders.cancellationDetailRequired`); cancellation detail is trimmed before persistence; backend unit + controller integration coverage added
 - [ ] apps/mobile — Expo (not started)
 
 ## Key file locations

@@ -181,6 +181,16 @@ export interface WorkOrderDetail {
   validationActions: WorkOrderValidationAction[];
   onHoldPeriods: WorkOrderOnHoldPeriod[];
   partRequests: WorkOrderPartRequest[];
+  sourceReport: WorkOrderSourceReport | null;
+}
+
+export interface WorkOrderSourceReport {
+  id: string;
+  referenceNumber: string;
+  description: string;
+  urgencyPerception: string;
+  reporter: { id: string; name: string };
+  createdAt: string;
 }
 
 // ── Payloads ──────────────────────────────────────────────────────────────────

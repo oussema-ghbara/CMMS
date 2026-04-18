@@ -88,6 +88,16 @@ export class WorkOrdersRepository {
         partRequests: {
           include: { part: { select: { id: true, name: true, referenceCode: true } } },
         },
+        sourceReport: {
+          select: {
+            id: true,
+            referenceNumber: true,
+            description: true,
+            urgencyPerception: true,
+            reporter: { select: { id: true, name: true } },
+            createdAt: true,
+          },
+        },
       },
     });
     if (!wo) throw new NotFoundException(`Work order ${id} not found`);

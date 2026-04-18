@@ -1073,6 +1073,39 @@ export function WorkOrderDetailDialog({
               )}
             </div>
 
+            {/* Source problem report */}
+            {detail.sourceReport && (
+              <div className="mt-4 rounded-md border border-muted bg-muted/30 p-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('supervisorWorkOrders.detail.sourceReport')}
+                </p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.sourceReportRef')}</p>
+                    <p className="font-medium">{detail.sourceReport.referenceNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.sourceReportReporter')}</p>
+                    <p className="font-medium">{detail.sourceReport.reporter.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.sourceReportUrgency')}</p>
+                    <p className="font-medium">
+                      {t(`supervisorReports.urgency.${detail.sourceReport.urgencyPerception}`)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.sourceReportDate')}</p>
+                    <p className="font-medium">{formatDateTime(detail.sourceReport.createdAt)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.sourceReportDescription')}</p>
+                    <p className="whitespace-pre-wrap text-muted-foreground">{detail.sourceReport.description}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ── Assignments ── */}
             <Separator />
             <div className="space-y-2">

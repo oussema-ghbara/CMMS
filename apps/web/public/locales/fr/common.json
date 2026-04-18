@@ -443,6 +443,7 @@
       "interventionDuration": "Durée active",
       "interventionDurationValue": "{{count}} min",
       "interventionInProgress": "En cours",
+      "overdue": "En retard",
       "holdReason": "Raison",
       "holdStarted": "Mise en attente",
       "holdResumed": "Reprise",
@@ -560,7 +561,13 @@
       "partRequestsDescription": "Pièces demandées pour cet ordre de travail.",
       "actions": "Actions disponibles",
       "actionsDescription": "Les actions dépendent du statut courant de l'ordre de travail.",
-      "noActions": "Aucune action disponible pour ce statut."
+      "noActions": "Aucune action disponible pour ce statut.",
+      "sourceReport": "Rapport d'incident à l'origine",
+      "sourceReportRef": "Référence",
+      "sourceReportReporter": "Déclarant",
+      "sourceReportUrgency": "Urgence perçue",
+      "sourceReportDate": "Date de déclaration",
+      "sourceReportDescription": "Description"
     },
     "form": {
       "createTitle": "Nouvel ordre de travail",

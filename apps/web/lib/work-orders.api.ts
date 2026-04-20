@@ -82,7 +82,8 @@ export interface WorkOrderChecklistItem {
   sortOrder: number;
   expectedCondition: string | null;
   completedAt: string | null;
-  completedNote: string | null;
+  anomalyDescription: string | null;
+  notApplicableReason: string | null;
 }
 
 export interface WorkOrderBlockFlag {
@@ -159,6 +160,13 @@ export interface WorkOrderDetailAsset {
   category: { id: string; name: string };
 }
 
+export interface WorkOrderCostSummaryDetail {
+  laborCost: number;
+  partsCost: number;
+  contractorCost: number;
+  totalCost: number;
+}
+
 export interface WorkOrderDetail {
   id: string;
   referenceNumber: string;
@@ -188,6 +196,7 @@ export interface WorkOrderDetail {
   onHoldPeriods: WorkOrderOnHoldPeriod[];
   partRequests: WorkOrderPartRequest[];
   sourceReport: WorkOrderSourceReport | null;
+  costSummary: WorkOrderCostSummaryDetail;
 }
 
 export interface WorkOrderSourceReport {
@@ -279,6 +288,7 @@ export interface WorkOrderAnalyticsResponse {
   byType: Partial<Record<WorkOrderType, number>>;
   byPriority: Partial<Record<WorkOrderPriority, number>>;
   avgResolutionDays: number | null;
+  costSummary: WorkOrderCostSummaryDetail;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────

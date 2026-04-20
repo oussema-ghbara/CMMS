@@ -72,6 +72,13 @@ function formatDate(value: string | null | undefined): string {
   }).format(new Date(value));
 }
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function getStatusBadgeVariant(
   status: WorkOrderStatus,
 ): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' {
@@ -1226,37 +1233,51 @@ export function WorkOrderDetailDialog({
                   <p className="text-xs text-muted-foreground">
                     {t('supervisorWorkOrders.detail.checklistDescription')}
                   </p>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {detail.checklistItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-start justify-between rounded-md border px-3 py-2 text-xs gap-3"
+                        className="rounded-md border px-3 py-2 text-xs space-y-1"
                       >
-                        <div className="space-y-0.5 flex-1">
-                          <p className="font-medium">{item.description}</p>
-                          {item.expectedCondition && (
-                            <p className="text-muted-foreground">{item.expectedCondition}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {item.isMandatory && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                              {t('supervisorWorkOrders.labels.mandatory')}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-0.5 flex-1">
+                            <p className="font-medium">{item.description}</p>
+                            {item.expectedCondition && (
+                              <p className="text-muted-foreground">{item.expectedCondition}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {item.isMandatory && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                {t('supervisorWorkOrders.labels.mandatory')}
+                              </Badge>
+                            )}
+                            <Badge
+                              variant={
+                                item.status === 'DONE'
+                                  ? 'success'
+                                  : item.status === 'ANOMALY_DETECTED'
+                                  ? 'destructive'
+                                  : item.status === 'NOT_APPLICABLE'
+                                  ? 'secondary'
+                                  : 'outline'
+                              }
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {t(`supervisorWorkOrders.labels.checklistStatus.${item.status}`, { defaultValue: item.status })}
                             </Badge>
-                          )}
-                          <Badge
-                            variant={
-                              item.status === 'COMPLETED'
-                                ? 'success'
-                                : item.status === 'SKIPPED'
-                                ? 'secondary'
-                                : 'outline'
-                            }
-                            className="text-[10px] px-1.5 py-0"
-                          >
-                            {t(`supervisorWorkOrders.labels.checklist${item.status.charAt(0).toUpperCase()}${item.status.slice(1).toLowerCase()}`)}
-                          </Badge>
+                          </div>
                         </div>
+                        {item.anomalyDescription && (
+                          <p className="text-destructive/80 pt-0.5">
+                            {t('supervisorWorkOrders.labels.checklistAnomalyDescription')}: {item.anomalyDescription}
+                          </p>
+                        )}
+                        {item.notApplicableReason && (
+                          <p className="text-muted-foreground pt-0.5">
+                            {t('supervisorWorkOrders.labels.checklistNotApplicableReason')}: {item.notApplicableReason}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1344,6 +1365,37 @@ export function WorkOrderDetailDialog({
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Cost Summary ── */}
+            {detail.costSummary && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('supervisorWorkOrders.detail.costSummary')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('supervisorWorkOrders.detail.costSummaryDescription')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.costLabor')}</p>
+                      <p className="font-medium">{formatCurrency(detail.costSummary.laborCost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.costParts')}</p>
+                      <p className="font-medium">{formatCurrency(detail.costSummary.partsCost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.costContractor')}</p>
+                      <p className="font-medium">{formatCurrency(detail.costSummary.contractorCost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('supervisorWorkOrders.detail.costTotal')}</p>
+                      <p className="font-semibold">{formatCurrency(detail.costSummary.totalCost)}</p>
+                    </div>
                   </div>
                 </div>
               </>

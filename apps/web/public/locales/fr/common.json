@@ -477,7 +477,15 @@
         "OUT_OF_SERVICE": "Hors service",
         "IN_MAINTENANCE": "En maintenance (nécessite un suivi)"
       },
-      "simultaneousAuthorized": "Maintenance simultanée autorisée"
+      "simultaneousAuthorized": "Maintenance simultanée autorisée",
+      "checklistStatus": {
+        "PENDING": "En attente",
+        "DONE": "Terminé",
+        "ANOMALY_DETECTED": "Anomalie détectée",
+        "NOT_APPLICABLE": "Non applicable"
+      },
+      "checklistAnomalyDescription": "Anomalie",
+      "checklistNotApplicableReason": "Motif"
     },
     "actions": {
       "changePriority": "Modifier la priorité",
@@ -583,7 +591,13 @@
       "sourceReportReporter": "Déclarant",
       "sourceReportUrgency": "Urgence perçue",
       "sourceReportDate": "Date de déclaration",
-      "sourceReportDescription": "Description"
+      "sourceReportDescription": "Description",
+      "costSummary": "Récapitulatif des coûts",
+      "costSummaryDescription": "Estimation basée sur les interventions et les pièces utilisées.",
+      "costLabor": "Main d'œuvre",
+      "costParts": "Pièces",
+      "costContractor": "Sous-traitance",
+      "costTotal": "Total"
     },
     "form": {
       "createTitle": "Nouvel ordre de travail",

@@ -89,11 +89,12 @@ export class ChecklistService {
             type: WorkOrderType.CORRECTIVE,
             status: WorkOrderStatus.OPEN,
             priority: wo.priority,
-            sourceType: WorkOrderSource.PREVENTIVE_PLAN,
+            sourceType: WorkOrderSource.CHECKLIST_ANOMALY,
             description: `Auto-created: anomaly on checklist item "${item.description}"`,
             capturedLocationPath: asset.location.fullPath,
             assetId: wo.assetId,
             triggeredByChecklistItemId: itemId,
+            sourcePlanId: wo.sourcePlanId ?? undefined,
             createdById: actorId,
           },
         });

@@ -10,9 +10,18 @@
  * - resume(): WO_RESUMED notification sent to active contributors only
  * - resume(): WO_RESUMED notification NOT sent when no contributors
  * - resume(): principal technician guard (non-principal cannot resume)
+ * - resume(): does NOT write supervisorResolutionNote (§6.1 actor fix)
+ * - updateHoldMetadata(): rejects when WO not ON_HOLD
+ * - updateHoldMetadata(): rejects when no active hold period
+ * - updateHoldMetadata(): updates expectedResolutionDate
+ * - updateHoldMetadata(): updates retryDate
+ * - updateHoldMetadata(): updates supervisorResolutionNote
+ * - updateHoldMetadata(): updates all fields at once
+ * - updateHoldMetadata(): no-op when empty DTO
+ * - updateHoldMetadata(): queries most-recent unresolved hold period
  */
 
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OnHoldService } from './on-hold.service';
 import { WorkOrderStatus, NotificationType, WorkOrderType } from '@gmao/db';
 import { OnHoldReasonType, AssetStatus, Role } from '@gmao/shared';
@@ -65,9 +74,16 @@ function buildMocks() {
 
   type TxShape = typeof tx;
 
+  const onHoldPeriodFindFirst = jest.fn().mockResolvedValue({ id: 'hold-1', workOrderId: 'wo-1', resumedAt: null });
+  const onHoldPeriodUpdate = jest.fn().mockResolvedValue({});
+
   const prisma = {
     asset: { findUniqueOrThrow: jest.fn().mockResolvedValue(buildAsset()) },
     user: { findUniqueOrThrow: jest.fn().mockResolvedValue(buildTechnician()) },
+    onHoldPeriod: {
+      findFirst: onHoldPeriodFindFirst,
+      update: onHoldPeriodUpdate,
+    },
     $transaction: jest.fn().mockImplementation((fn: (t: TxShape) => Promise<unknown>) => fn(tx)),
   };
 
@@ -83,7 +99,7 @@ function buildMocks() {
 
   const service = new OnHoldService(prisma as never, repo as never, notifications as never);
 
-  return { service, prisma, repo, notifications, tx: {
+  return { service, prisma, repo, notifications, onHoldPeriodFindFirst, onHoldPeriodUpdate, tx: {
     workOrderUpdate: txWorkOrderUpdate,
     onHoldCreate: txOnHoldCreate,
     onHoldUpdateMany: txOnHoldUpdateMany,
@@ -273,6 +289,138 @@ describe('OnHoldService', () => {
       repo.findById.mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.IN_PROGRESS }));
 
       await expect(service.resume('wo-1', {}, 'tech-principal')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('does NOT write supervisorResolutionNote — actor fix §6.1', async () => {
+      const { service, repo, tx } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.IN_PROGRESS }));
+
+      await service.resume('wo-1', {}, 'tech-principal');
+
+      expect(tx.onHoldUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ supervisorResolutionNote: expect.anything() }),
+        }),
+      );
+    });
+  });
+
+  // ── updateHoldMetadata() ────────────────────────────────────────────────────
+
+  describe('updateHoldMetadata()', () => {
+    it('throws BadRequestException when WO is not ON_HOLD', async () => {
+      const { service, repo } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.IN_PROGRESS }));
+
+      await expect(service.updateHoldMetadata('wo-1', {}, 'sup-1'))
+        .rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws NotFoundException when no active (unresolved) hold period exists', async () => {
+      const { service, repo, onHoldPeriodFindFirst } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+      onHoldPeriodFindFirst.mockResolvedValueOnce(null);
+
+      await expect(service.updateHoldMetadata('wo-1', {}, 'sup-1'))
+        .rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('updates expectedResolutionDate on the active hold period', async () => {
+      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      const isoDate = '2026-05-01T10:00:00.000Z';
+      await service.updateHoldMetadata('wo-1', { expectedResolutionDate: isoDate }, 'sup-1');
+
+      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+        where: { id: 'hold-1' },
+        data: { expectedResolutionDate: new Date(isoDate) },
+      });
+    });
+
+    it('updates retryDate on the active hold period', async () => {
+      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      const isoDate = '2026-05-02T08:00:00.000Z';
+      await service.updateHoldMetadata('wo-1', { retryDate: isoDate }, 'sup-1');
+
+      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+        where: { id: 'hold-1' },
+        data: { retryDate: new Date(isoDate) },
+      });
+    });
+
+    it('updates supervisorResolutionNote on the active hold period', async () => {
+      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      await service.updateHoldMetadata('wo-1', { resolutionNote: 'Plan to reroute cable access.' }, 'sup-1');
+
+      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+        where: { id: 'hold-1' },
+        data: { supervisorResolutionNote: 'Plan to reroute cable access.' },
+      });
+    });
+
+    it('updates all three fields when all are provided', async () => {
+      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      const dto = {
+        expectedResolutionDate: '2026-05-01T10:00:00.000Z',
+        retryDate: '2026-05-02T08:00:00.000Z',
+        resolutionNote: 'Note from supervisor',
+      };
+      await service.updateHoldMetadata('wo-1', dto, 'sup-1');
+
+      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+        where: { id: 'hold-1' },
+        data: {
+          expectedResolutionDate: new Date(dto.expectedResolutionDate),
+          retryDate: new Date(dto.retryDate),
+          supervisorResolutionNote: dto.resolutionNote,
+        },
+      });
+    });
+
+    it('skips DB write and returns WO when DTO is empty', async () => {
+      const { service, repo, onHoldPeriodFindFirst, onHoldPeriodUpdate } = buildMocks();
+      const wo = buildWO({ status: WorkOrderStatus.ON_HOLD });
+      repo.findById.mockResolvedValueOnce(wo);
+      onHoldPeriodFindFirst.mockResolvedValueOnce({ id: 'hold-1' });
+
+      const result = await service.updateHoldMetadata('wo-1', {}, 'sup-1');
+
+      expect(onHoldPeriodUpdate).not.toHaveBeenCalled();
+      expect(result).toBe(wo);
+    });
+
+    it('queries the most recent unresolved hold period (resumedAt: null, orderBy startedAt desc)', async () => {
+      const { service, repo, onHoldPeriodFindFirst, onHoldPeriodUpdate } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      await service.updateHoldMetadata('wo-1', { resolutionNote: 'test' }, 'sup-1');
+
+      const query = onHoldPeriodFindFirst.mock.calls[0][0] as {
+        where: { workOrderId: string; resumedAt: null };
+        orderBy: { startedAt: string };
+      };
+      expect(query.where.workOrderId).toBe('wo-1');
+      expect(query.where.resumedAt).toBeNull();
+      expect(query.orderBy).toEqual({ startedAt: 'desc' });
     });
   });
 });

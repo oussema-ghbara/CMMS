@@ -4,6 +4,27 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed + Added — Checklist source attribution, WO detail cost summary, and checklist display (April 20, 2026)
+
+#### `fix(work-orders): fix checklist anomaly-WO source attribution (§1.14)`
+- Auto-corrective WOs created from checklist anomalies were tagged `sourceType: PREVENTIVE_PLAN`, making them indistinguishable from plan-generated WOs in analytics. Added `WorkOrderSource.CHECKLIST_ANOMALY` to the Prisma schema, `@gmao/shared` enum, and migration `20260420143130_add_checklist_anomaly_source`.
+- `ChecklistService.completeItem()` now uses `WorkOrderSource.CHECKLIST_ANOMALY` and propagates `sourcePlanId` from the parent WO, so the link to the originating preventive plan is preserved.
+- `@gmao/db` rebuilt to distribute the updated enum to consumers.
+- 12 new unit tests in `checklist.service.spec.ts` covering: wrong WO status, unassigned actor, missing item, wrong WO binding, already-completed guard, missing `anomalyDescription`, mandatory item NOT_APPLICABLE guard, missing `notApplicableReason`, DONE without auto-create, ANOMALY + auto-create with/without `sourcePlanId`, and ANOMALY without auto-create.
+
+#### `feat(work-orders): expose computed cost summary on WO detail endpoint (§1.2)`
+- `GET /work-orders/:id` now computes `costSummary` (laborCost, partsCost, contractorCost, totalCost) via `calculateWorkOrderCostSummary` and returns it merged into the WO detail response. No new DB query — the data was already included (intervention logs with `hourlyRateAtTime`/`activeDurationMinutes`, stock movements with `unitCostAtTime`/`quantity`).
+- 2 new integration tests: zero-cost WO returns all-zero summary; WO with 120min @ 30/h + 2 parts @ 15 + 100 contractor = 190 total.
+
+#### `fix(web): fix checklist status display and expose cost summary in WO detail dialog (§6.3 + §1.2)`
+- **Ghost field removed (§6.3):** `completedNote: string | null` did not exist in the Prisma schema and was always `undefined` at runtime. Replaced with `anomalyDescription: string | null` and `notApplicableReason: string | null` (the actual DB fields).
+- **Status badge fix:** The checklist item badge in the supervisor WO detail dialog was checking for `COMPLETED` and `SKIPPED` — values that do not exist in `ChecklistItemStatus`. Now correctly switches on `DONE`, `ANOMALY_DETECTED`, `NOT_APPLICABLE`, and `PENDING` with appropriate badge variants (`success`, `destructive`, `secondary`, `outline`).
+- **i18n key pattern fixed:** The badge label was built from a broken string concatenation (`checklist${status.charAt(0).toUpperCase()}${status.slice(1).toLowerCase()}`) which produced wrong keys for multi-word statuses. Replaced with `checklistStatus.<STATUS>` nested object keys in `common.json`.
+- **Anomaly/notApplicable sub-text:** Checklist items now show `anomalyDescription` in destructive color and `notApplicableReason` in muted color when set.
+- **Cost summary section:** WO detail dialog renders a four-cell grid (labor / parts / contractor / total) when `costSummary` is present, using `Intl.NumberFormat('fr-FR')` formatting.
+- **Type updates:** `WorkOrderDetail` gains `costSummary: WorkOrderCostSummaryDetail`; `WorkOrderAnalyticsResponse` also typed; `WorkOrderCostSummaryDetail` interface extracted.
+- **i18n additions:** `checklistStatus.{PENDING,DONE,ANOMALY_DETECTED,NOT_APPLICABLE}`, `checklistAnomalyDescription`, `checklistNotApplicableReason`, `costSummary`, `costSummaryDescription`, `costLabor`, `costParts`, `costContractor`, `costTotal` keys added to `common.json`.
+
 ### Fixed + Added — On-hold supervisor management, hold-metadata endpoint, and hold scheduler jobs (April 20, 2026)
 
 #### `fix(work-orders): separate hold management actor responsibilities (§6.1 + §1.5)`

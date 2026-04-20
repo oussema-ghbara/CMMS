@@ -1,13 +1,12 @@
-import { IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsNumber, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ResolveHoldDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  resolutionNote?: string;
-
-  @ApiPropertyOptional({ description: 'Contractor cost — capture at resolution for EXTERNAL_CONTRACTOR holds' })
+  @ApiPropertyOptional({
+    description:
+      'Contractor cost — capture at resolution for EXTERNAL_CONTRACTOR holds. ' +
+      'The supervisor resolution plan note is set separately via PATCH /hold-metadata.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

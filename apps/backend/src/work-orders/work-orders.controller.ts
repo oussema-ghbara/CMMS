@@ -20,6 +20,7 @@ import { PromoteTechnicianDto } from './dto/promote-technician.dto';
 import { ContributorBlockDto } from './dto/contributor-block.dto';
 import { PutOnHoldDto } from './dto/put-on-hold.dto';
 import { ResolveHoldDto } from './dto/resolve-hold.dto';
+import { UpdateHoldMetadataDto } from './dto/update-hold-metadata.dto';
 import { SubmitClosureDto } from './dto/submit-closure.dto';
 import { RejectValidationDto } from './dto/reject-validation.dto';
 import { ValidateWorkOrderDto } from './dto/validate-work-order.dto';
@@ -191,6 +192,24 @@ export class WorkOrdersController {
   @HttpCode(HttpStatus.OK)
   resume(@Param('id') id: string, @Body() dto: ResolveHoldDto, @Request() req: AuthRequest): Promise<WorkOrder> {
     return this.onHold.resume(id, dto, req.user.sub);
+  }
+
+  @Patch(':id/hold-metadata')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({
+    summary: 'Update hold metadata (Supervisor)',
+    description:
+      'Set expectedResolutionDate, retryDate, or resolution plan note on an ON_HOLD work order ' +
+      'without changing its state. The resolution note must be authored by the supervisor — not ' +
+      'the technician on resume (§9.4 + §6.1 fix).',
+  })
+  @HttpCode(HttpStatus.OK)
+  updateHoldMetadata(
+    @Param('id') id: string,
+    @Body() dto: UpdateHoldMetadataDto,
+    @Request() req: AuthRequest,
+  ): Promise<WorkOrder> {
+    return this.onHold.updateHoldMetadata(id, dto, req.user.sub);
   }
 
   // ── Validation ───────────────────────────────────────────────────

@@ -449,6 +449,9 @@
       "holdStarted": "Mise en attente",
       "holdResumed": "Reprise",
       "holdOngoing": "En cours",
+      "holdExpectedResolution": "Date de résolution attendue",
+      "holdRetryDate": "Date de nouvelle tentative",
+      "holdSupervisorNote": "Note de résolution superviseur",
       "partRequestStatus": {
         "PENDING": "En attente",
         "FULFILLED": "Fourni",
@@ -513,7 +516,19 @@
       "authorizeSim": "Autoriser la maintenance simultanée",
       "authorizeSimWarningTitle": "⚠ Maintenance simultanée",
       "authorizeSimWarningBody": "Un autre ordre de travail est déjà en cours sur cet équipement. En autorisant la maintenance simultanée, vous permettez à ce technicien de démarrer malgré ce conflit. Cette action est irréversible et sera consignée dans l'historique.",
-      "authorizeSimConfirm": "Autoriser et notifier le technicien"
+      "authorizeSimConfirm": "Autoriser et notifier le technicien",
+      "editHoldMetadata": "Mettre à jour les informations de mise en attente",
+      "editHoldMetadataTitle": "Informations de mise en attente (superviseur)",
+      "holdExpectedResolution": "Date de résolution attendue (prestataire)",
+      "holdRetryDate": "Date de nouvelle tentative d'accès",
+      "holdResolutionNote": "Note de plan de résolution",
+      "holdResolutionNotePlaceholder": "Décrivez le plan de résolution prévu…"
+    },
+    "holdReasonType": {
+      "MISSING_PART": "Pièce manquante",
+      "EXTERNAL_CONTRACTOR": "Prestataire externe",
+      "ACCESS_DENIED": "Accès refusé",
+      "OTHER": "Autre"
     },
     "states": {
       "empty": "Aucun ordre de travail trouvé",
@@ -640,7 +655,9 @@
       "resolveBlockSuccess": "Blocage résolu avec succès",
       "resolveBlockError": "Impossible de résoudre le blocage",
       "authorizeSimSuccess": "Maintenance simultanée autorisée. Le technicien a été notifié.",
-      "authorizeSimError": "Impossible d'autoriser la maintenance simultanée."
+      "authorizeSimError": "Impossible d'autoriser la maintenance simultanée.",
+      "holdMetaSuccess": "Informations de mise en attente mises à jour.",
+      "holdMetaError": "Impossible de mettre à jour les informations de mise en attente."
     }
   },
   "supervisorPreventivePlans": {

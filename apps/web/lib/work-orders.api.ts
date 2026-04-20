@@ -130,8 +130,14 @@ export interface WorkOrderValidationAction {
 
 export interface WorkOrderOnHoldPeriod {
   id: string;
-  reason: string;
-  note: string | null;
+  /** Actual DB field — use this for display */
+  reasonType: string;
+  /** Actual DB field — technician's detail note */
+  detail: string | null;
+  expectedResolutionDate: string | null;
+  retryDate: string | null;
+  supervisorAssetStatusChoice: string | null;
+  supervisorResolutionNote: string | null;
   startedAt: string;
   resumedAt: string | null;
 }
@@ -249,6 +255,12 @@ export interface ValidateWorkOrderPayload {
   assetStatusOverride?: AssetStatus;
 }
 
+export interface UpdateHoldMetadataPayload {
+  expectedResolutionDate?: string;
+  retryDate?: string;
+  resolutionNote?: string;
+}
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
 export interface WorkOrderAnalyticsSummary {
@@ -310,6 +322,9 @@ export const workOrdersApi = {
 
   authorizeSimultaneous: (id: string) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/authorize-simultaneous`).then((r) => r.data),
+
+  updateHoldMetadata: (id: string, payload: UpdateHoldMetadataPayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/hold-metadata`, payload).then((r) => r.data),
 
   getAnalytics: (params?: { periodDays?: number }) =>
     api.get<WorkOrderAnalyticsResponse>('/work-orders/analytics', { params }).then((r) => r.data),

@@ -25,6 +25,7 @@ import {
   type CancelWorkOrderPayload,
   type RejectValidationPayload,
   type ValidateWorkOrderPayload,
+  type UpdateHoldMetadataPayload,
 } from '@/lib/work-orders.api';
 import { InterventionResult } from '@gmao/shared';
 import { usersApi } from '@/lib/users.api';
@@ -186,6 +187,16 @@ export function WorkOrderDetailDialog({
     },
   });
 
+  // Hold metadata form state (supervisor)
+  const [showHoldMetadataForm, setShowHoldMetadataForm] = useState(false);
+  const {
+    register: registerHoldMeta,
+    handleSubmit: handleHoldMetaSubmit,
+    reset: resetHoldMeta,
+  } = useForm<{ expectedResolutionDate: string; retryDate: string; resolutionNote: string }>({
+    defaultValues: { expectedResolutionDate: '', retryDate: '', resolutionNote: '' },
+  });
+
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const { data: detail, isLoading, isError } = useQuery({
@@ -329,6 +340,19 @@ export function WorkOrderDetailDialog({
       toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.authorizeSimError'))),
   });
 
+  const updateHoldMetaMutation = useMutation({
+    mutationFn: (payload: UpdateHoldMetadataPayload) =>
+      workOrdersApi.updateHoldMetadata(workOrder!.id, payload),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success(t('supervisorWorkOrders.toasts.holdMetaSuccess'));
+      setShowHoldMetadataForm(false);
+      resetHoldMeta();
+    },
+    onError: (err) =>
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.holdMetaError'))),
+  });
+
   const isMutating =
     publishMutation.isPending ||
     assignMutation.isPending ||
@@ -338,7 +362,8 @@ export function WorkOrderDetailDialog({
     reassignMutation.isPending ||
     promoteMutation.isPending ||
     resolveBlockMutation.isPending ||
-    authorizeSimMutation.isPending;
+    authorizeSimMutation.isPending ||
+    updateHoldMetaMutation.isPending;
 
   // ── Action submit handlers ─────────────────────────────────────────────────
 
@@ -383,6 +408,18 @@ export function WorkOrderDetailDialog({
       reason: values.reason,
       reasonDetail: values.reasonDetail || undefined,
     });
+  };
+
+  const handleHoldMetaFormSubmit = (values: {
+    expectedResolutionDate: string;
+    retryDate: string;
+    resolutionNote: string;
+  }) => {
+    const payload: UpdateHoldMetadataPayload = {};
+    if (values.expectedResolutionDate) payload.expectedResolutionDate = values.expectedResolutionDate;
+    if (values.retryDate) payload.retryDate = values.retryDate;
+    if (values.resolutionNote.trim()) payload.resolutionNote = values.resolutionNote.trim();
+    updateHoldMetaMutation.mutate(payload);
   };
 
   // Toggle contributor selection
@@ -1321,14 +1358,16 @@ export function WorkOrderDetailDialog({
                   <p className="text-xs text-muted-foreground">
                     {t('supervisorWorkOrders.detail.holdPeriodsDescription')}
                   </p>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {detail.onHoldPeriods.map((hold) => (
                       <div
                         key={hold.id}
                         className="rounded-md border px-3 py-2 text-xs space-y-1"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="font-medium">{hold.reason}</p>
+                          <p className="font-medium">
+                            {t(`supervisorWorkOrders.holdReasonType.${hold.reasonType}`, { defaultValue: hold.reasonType })}
+                          </p>
                           <Badge
                             variant={hold.resumedAt ? 'secondary' : 'warning'}
                             className="text-[10px] px-1.5 py-0 shrink-0"
@@ -1338,15 +1377,111 @@ export function WorkOrderDetailDialog({
                               : t('supervisorWorkOrders.labels.holdOngoing')}
                           </Badge>
                         </div>
-                        {hold.note && (
-                          <p className="text-muted-foreground">{hold.note}</p>
+                        {hold.detail && (
+                          <p className="text-muted-foreground">{hold.detail}</p>
                         )}
                         <p className="text-muted-foreground">
                           {t('supervisorWorkOrders.labels.holdStarted')}: {formatDateTime(hold.startedAt)}
                         </p>
+                        {hold.expectedResolutionDate && (
+                          <p className="text-muted-foreground">
+                            {t('supervisorWorkOrders.labels.holdExpectedResolution')}: {formatDate(hold.expectedResolutionDate)}
+                          </p>
+                        )}
+                        {hold.retryDate && (
+                          <p className="text-muted-foreground">
+                            {t('supervisorWorkOrders.labels.holdRetryDate')}: {formatDateTime(hold.retryDate)}
+                          </p>
+                        )}
+                        {hold.supervisorResolutionNote && (
+                          <p className="text-muted-foreground">
+                            <span className="font-medium">{t('supervisorWorkOrders.labels.holdSupervisorNote')}: </span>
+                            {hold.supervisorResolutionNote}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
+
+                  {/* Supervisor hold management form — only shown when WO is ON_HOLD */}
+                  {detail.status === WorkOrderStatus.ON_HOLD && (
+                    <div className="pt-1">
+                      {!showHoldMetadataForm ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowHoldMetadataForm(true)}
+                          disabled={isMutating}
+                        >
+                          {t('supervisorWorkOrders.actions.editHoldMetadata')}
+                        </Button>
+                      ) : (
+                        <form
+                          onSubmit={handleHoldMetaSubmit(handleHoldMetaFormSubmit)}
+                          className="rounded-md border p-3 space-y-3 bg-muted/30"
+                        >
+                          <p className="text-xs font-medium">
+                            {t('supervisorWorkOrders.actions.editHoldMetadataTitle')}
+                          </p>
+                          <div className="space-y-1">
+                            <Label className="text-xs">
+                              {t('supervisorWorkOrders.actions.holdExpectedResolution')}
+                            </Label>
+                            <Input
+                              type="datetime-local"
+                              className="h-8 text-xs"
+                              {...registerHoldMeta('expectedResolutionDate')}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">
+                              {t('supervisorWorkOrders.actions.holdRetryDate')}
+                            </Label>
+                            <Input
+                              type="datetime-local"
+                              className="h-8 text-xs"
+                              {...registerHoldMeta('retryDate')}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">
+                              {t('supervisorWorkOrders.actions.holdResolutionNote')}
+                            </Label>
+                            <Input
+                              type="text"
+                              className="h-8 text-xs"
+                              placeholder={t('supervisorWorkOrders.actions.holdResolutionNotePlaceholder')}
+                              {...registerHoldMeta('resolutionNote')}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="submit"
+                              size="sm"
+                              disabled={updateHoldMetaMutation.isPending}
+                            >
+                              {updateHoldMetaMutation.isPending && (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              )}
+                              {t('common.save')}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setShowHoldMetadataForm(false);
+                                resetHoldMeta();
+                              }}
+                            >
+                              {t('common.cancel')}
+                            </Button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             )}

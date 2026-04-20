@@ -4,6 +4,27 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed + Added — On-hold supervisor management, hold-metadata endpoint, and hold scheduler jobs (April 20, 2026)
+
+#### `fix(work-orders): separate hold management actor responsibilities (§6.1 + §1.5)`
+- **Actor fix (§6.1):** `ResolveHoldDto` no longer accepts `resolutionNote` — the supervisor's resolution plan note is not the technician's responsibility. `OnHoldService.resume()` removes the `supervisorResolutionNote` write from the resume transaction; the field must be set exclusively via the new supervisor endpoint before the technician resumes.
+- **New endpoint (§1.5):** `PATCH /work-orders/:id/hold-metadata` (Supervisor only) — `UpdateHoldMetadataDto` accepts `expectedResolutionDate?: string`, `retryDate?: string`, `resolutionNote?: string`; all fields are optional and only provided fields are written. Returns the updated `WorkOrder`.
+- `OnHoldService.updateHoldMetadata()` validates that the WO is `ON_HOLD`, finds the most-recent unresolved `OnHoldPeriod` (`resumedAt: null`), and applies a partial update. Empty DTO is a safe no-op (no DB write).
+- Guards: `BadRequestException` when WO is not `ON_HOLD`; `NotFoundException` when no active hold period exists.
+
+#### `feat(work-orders): add ContractorDateOverdueJob and AccessRetryApproachingJob schedulers (§1.6)`
+- **`ContractorDateOverdueJob`** (`@Cron(EVERY_HOUR)`): queries `OnHoldPeriod` rows where `reasonType = EXTERNAL_CONTRACTOR`, `resumedAt = null`, and `expectedResolutionDate < now`; emits `CONTRACTOR_DATE_OVERDUE` to all supervisors for each matching WO; 23-hour deduplication window prevents hourly re-notification.
+- **`AccessRetryApproachingJob`** (`@Cron(EVERY_HOUR)`): queries `OnHoldPeriod` rows where `reasonType = ACCESS_DENIED`, `resumedAt = null`, and `retryDate ∈ [now, now+24h]`; emits `ACCESS_RETRY_APPROACHING` to all supervisors; formatted retry date included in the notification summary; 23-hour deduplication window.
+- Both jobs registered in `WorkOrdersModule` alongside the existing hold-related jobs.
+- 8 unit tests each: cron metadata, no-op, send, dedup skip, mixed send/skip, hold query predicate, dedup query window, error propagation.
+
+#### `feat(web): supervisor hold management UI with hold-metadata endpoint wiring (§2.6 + §6.2)`
+- **Frontend type fix (§6.2):** `WorkOrderOnHoldPeriod` interface corrected — removed the wrong `reason`/`note` fields (which were always `undefined` at runtime; the DB columns are `reasonType` and `detail`); added all missing fields: `reasonType`, `detail`, `expectedResolutionDate`, `retryDate`, `supervisorAssetStatusChoice`, `supervisorResolutionNote`.
+- **API client:** `workOrdersApi.updateHoldMetadata(id, payload)` wraps `PATCH /work-orders/:id/hold-metadata`.
+- **Hold period display:** On-hold period cards in the supervisor WO detail dialog now render `reasonType` (translated via `supervisorWorkOrders.holdReasonType.*`), `detail`, `expectedResolutionDate`, `retryDate`, and `supervisorResolutionNote`.
+- **Supervisor management form:** When the WO is `ON_HOLD`, a collapsible inline form ("Mettre à jour les informations de mise en attente") allows the supervisor to set any combination of `expectedResolutionDate`, `retryDate`, and `resolutionNote` and save via `PATCH /hold-metadata`.
+- **i18n:** All new UI strings added to `apps/web/public/locales/fr/common.json` under `supervisorWorkOrders.holdReasonType.*`, `supervisorWorkOrders.labels.*`, `supervisorWorkOrders.actions.*`, and `supervisorWorkOrders.toasts.*`.
+
 ### Added — Work-order cost summary in analytics and PDF reports (April 18, 2026)
 
 #### `feat(work-orders): compute labor, parts, and contractor cost for closed work orders`

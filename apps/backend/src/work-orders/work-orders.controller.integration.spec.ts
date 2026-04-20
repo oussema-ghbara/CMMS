@@ -273,6 +273,57 @@ describe('WorkOrdersController integration', () => {
     );
   });
 
+  it('GET /work-orders/:id attaches a computed costSummary to the WO detail', async () => {
+    workOrders.findById.mockResolvedValue({
+      id: 'wo-1',
+      referenceNumber: 'WO-2026-001',
+      status: 'CLOSED',
+      contractorCost: '100.00',
+      interventionLogs: [
+        { activeDurationMinutes: 120, hourlyRateAtTime: '30.00' },
+      ],
+      stockMovements: [
+        { type: 'OUTGOING', quantity: 2, unitCostAtTime: '15.00' },
+      ],
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/wo-1')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(workOrders.findById).toHaveBeenCalledWith('wo-1');
+    expect(response.body.costSummary).toEqual({
+      laborCost: 60,
+      partsCost: 30,
+      contractorCost: 100,
+      totalCost: 190,
+    });
+  });
+
+  it('GET /work-orders/:id returns zero costSummary for a WO without any cost data', async () => {
+    workOrders.findById.mockResolvedValue({
+      id: 'wo-1',
+      referenceNumber: 'WO-2026-001',
+      status: 'OPEN',
+      contractorCost: null,
+      interventionLogs: [],
+      stockMovements: [],
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/wo-1')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(response.body.costSummary).toEqual({
+      laborCost: 0,
+      partsCost: 0,
+      contractorCost: 0,
+      totalCost: 0,
+    });
+  });
+
   it('GET /work-orders/analytics returns the analytics payload including cost summary', async () => {
     workOrders.getAnalytics.mockResolvedValue({
       periodDays: 45,

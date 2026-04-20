@@ -1,6 +1,7 @@
 import {
   Controller, Get, Post, Patch, Param, Body, Query, Request, HttpCode, HttpStatus,
 } from '@nestjs/common';
+import { calculateWorkOrderCostSummary, WorkOrderCostSource } from './work-order-costs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
@@ -63,8 +64,10 @@ export class WorkOrdersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get full work order detail (all roles)' })
-  findById(@Param('id') id: string): Promise<WorkOrder> {
-    return this.workOrders.findById(id);
+  async findById(@Param('id') id: string) {
+    const wo = await this.workOrders.findById(id);
+    const costSummary = calculateWorkOrderCostSummary(wo as unknown as WorkOrderCostSource);
+    return { ...wo, costSummary };
   }
 
   @Post()

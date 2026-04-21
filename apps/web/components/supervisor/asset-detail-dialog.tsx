@@ -6,7 +6,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, AlertTriangle, Download, Plus, Pencil, Trash2, Upload } from 'lucide-react';
+import { Loader2, AlertTriangle, Download, Plus, Pencil, Trash2, Upload, Printer } from 'lucide-react';
+import QRCode from 'react-qr-code';
+import { openQrPrintWindow } from '@/lib/qr-print';
 import { AssetStatus } from '@gmao/shared';
 import {
   assetsApi,
@@ -270,9 +272,41 @@ export function AssetDetailDialog({ open, onOpenChange, asset, onEdit }: AssetDe
                   <p className="text-xs text-muted-foreground">{t('supervisorAssets.detail.location')}</p>
                   <p className="font-medium">{detail.location.fullPath}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{t('supervisorAssets.detail.qrCode')}</p>
-                  <p className="font-mono text-xs">{detail.qrCodeIdentifier}</p>
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground mb-2">{t('supervisorAssets.detail.qrCode')}</p>
+                  <div className="flex items-start gap-4">
+                    <div
+                      id={`qr-svg-${detail.id}`}
+                      className="rounded border p-2 bg-white"
+                      aria-label={t('supervisorAssets.detail.qrCodeAriaLabel', { identifier: detail.qrCodeIdentifier })}
+                    >
+                      <QRCode
+                        value={detail.qrCodeIdentifier}
+                        size={120}
+                        level="M"
+                        style={{ display: 'block' }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <p className="font-mono text-xs text-muted-foreground">{detail.qrCodeIdentifier}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => {
+                          const svgEl = document.querySelector(`#qr-svg-${detail.id} svg`);
+                          const svgMarkup = svgEl ? svgEl.outerHTML : '';
+                          openQrPrintWindow(
+                            { identifier: detail.qrCodeIdentifier, assetName: detail.name },
+                            svgMarkup,
+                          );
+                        }}
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        {t('supervisorAssets.detail.printQrCode')}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t('supervisorAssets.detail.serialNumber')}</p>

@@ -3,9 +3,12 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationType, WorkOrderStatus } from '@gmao/db';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JobLoggerService } from '../../job-logger/job-logger.service';
 
 // Avoid re-notifying within the same 23-hour window (job runs hourly).
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
+
+const JOB_NAME = 'validation-reminder';
 
 @Injectable()
 export class ValidationReminderJob {
@@ -14,10 +17,22 @@ export class ValidationReminderJob {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly jobLogger: JobLoggerService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async run(): Promise<void> {
+    await this.jobLogger.recordStart(JOB_NAME);
+    try {
+      await this.doRun();
+      await this.jobLogger.recordSuccess(JOB_NAME);
+    } catch (err) {
+      await this.jobLogger.recordFailure(JOB_NAME, err as Error);
+      throw err;
+    }
+  }
+
+  private async doRun(): Promise<void> {
     const now = new Date();
     const pendingSince = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 

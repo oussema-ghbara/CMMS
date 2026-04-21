@@ -893,6 +893,8 @@
       "title": "Détail de l'équipement",
       "info": "Informations",
       "qrCode": "Code QR",
+      "printQrCode": "Imprimer le QR Code",
+      "qrCodeAriaLabel": "QR Code pour l'équipement {{identifier}}",
       "serialNumber": "Numéro de série",
       "manufacturer": "Fabricant",
       "model": "Modèle",
@@ -1515,7 +1517,9 @@
       "userActivity": "Activité utilisateurs",
       "userActivityDescription": "Statut des comptes, fréquence de connexion et répartition par rôle.",
       "systemHealth": "Santé du système",
-      "systemHealthDescription": "État des files d'attente BullMQ et statistiques de livraison des notifications."
+      "systemHealthDescription": "État des files d'attente BullMQ et statistiques de livraison des notifications.",
+      "scheduledJobs": "Tâches planifiées (cron)",
+      "scheduledJobsDescription": "Historique des dernières exécutions des tâches cron. Mis à jour à chaque déclenchement."
     },
     "userStats": {
       "totalUsers": "Utilisateurs (total)",
@@ -1545,6 +1549,27 @@
       "emailFailed": "Envois d'email échoués",
       "emailPending": "Notifications en attente d'envoi",
       "emailSentLast24h": "Emails envoyés (24 h)"
+    },
+    "scheduledJobs": {
+      "title": "Tâches planifiées",
+      "description": "Dernière exécution, dernier succès et dernier échec pour chaque tâche cron.",
+      "jobName": "Tâche",
+      "status": "État",
+      "lastRun": "Dernière exécution",
+      "lastSuccess": "Dernier succès",
+      "lastFailure": "Dernier échec",
+      "noData": "Aucune exécution enregistrée pour l'instant.",
+      "statusHealthy": "OK",
+      "statusFailed": "Échec",
+      "statusUnknown": "Jamais exécutée",
+      "jobs": {
+        "accessRetryApproaching": "Retry d'accès (approche)",
+        "contractorDateOverdue": "Prestataire dépassé",
+        "dailySummary": "Résumé quotidien",
+        "dueDateApproaching": "Échéance proche",
+        "priorityEscalation": "Escalade priorité",
+        "validationReminder": "Rappel validation"
+      }
     },
     "states": {
       "loading": "Chargement des analytiques…",

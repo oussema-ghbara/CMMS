@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@gmao/db';
+import { JobLoggerService, type ScheduledJobStatus } from '../job-logger/job-logger.service';
 import { MAIL_QUEUE } from '../mail/mail.constants';
 import { REPORT_GENERATION_QUEUE } from '../work-orders/jobs/report-generation.constants';
 import { PREVENTIVE_PLAN_QUEUE } from '../preventive-plans/preventive-plans.constants';
@@ -49,6 +50,7 @@ export interface NotificationStats {
 export interface SystemHealthStats {
   queues: QueueStats[];
   notifications: NotificationStats;
+  scheduledJobs: ScheduledJobStatus[];
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -57,6 +59,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export class AdminAnalyticsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly jobLogger: JobLoggerService,
     @InjectQueue(MAIL_QUEUE) private readonly mailQueue: Queue,
     @InjectQueue(REPORT_GENERATION_QUEUE) private readonly reportQueue: Queue,
     @InjectQueue(PREVENTIVE_PLAN_QUEUE) private readonly planQueue: Queue,
@@ -130,13 +133,16 @@ export class AdminAnalyticsService {
       this.planQueue.getJobCounts('waiting', 'active', 'failed', 'completed', 'delayed'),
     ]);
 
-    const [emailFailed, emailPendingDelivery, totalSentLast24h] =
-      await this.prisma.$transaction([
-        this.prisma.notification.count({ where: { emailFailed: true } }),
-        this.prisma.notification.count({ where: { emailSent: false, emailFailed: false } }),
-        this.prisma.notification.count({
-          where: { emailSent: true, emailSentAt: { gte: ago24h } },
-        }),
+    const [[emailFailed, emailPendingDelivery, totalSentLast24h], scheduledJobs] =
+      await Promise.all([
+        this.prisma.$transaction([
+          this.prisma.notification.count({ where: { emailFailed: true } }),
+          this.prisma.notification.count({ where: { emailSent: false, emailFailed: false } }),
+          this.prisma.notification.count({
+            where: { emailSent: true, emailSentAt: { gte: ago24h } },
+          }),
+        ]),
+        this.jobLogger.getAll(),
       ]);
 
     return {
@@ -167,6 +173,7 @@ export class AdminAnalyticsService {
         },
       ],
       notifications: { emailFailed, emailPendingDelivery, totalSentLast24h },
+      scheduledJobs,
     };
   }
 }

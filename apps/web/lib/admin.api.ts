@@ -66,9 +66,18 @@ export interface NotificationStats {
   totalSentLast24h: number;
 }
 
+export interface ScheduledJobStat {
+  jobName: string;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastErrorMessage: string | null;
+}
+
 export interface SystemHealthStats {
   queues: QueueStats[];
   notifications: NotificationStats;
+  scheduledJobs: ScheduledJobStat[];
 }
 
 export const adminApi = {

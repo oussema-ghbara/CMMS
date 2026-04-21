@@ -22,6 +22,7 @@ import { AssetsModule } from '../assets/assets.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { StorageModule } from '../storage/storage.module';
 import { MailModule } from '../mail/mail.module';
+import { JobLoggerModule } from '../job-logger/job-logger.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MailModule } from '../mail/mail.module';
     InventoryModule,
     StorageModule,
     MailModule,
+    JobLoggerModule,
     BullModule.registerQueue({ name: REPORT_GENERATION_QUEUE }),
   ],
   controllers: [WorkOrdersController],

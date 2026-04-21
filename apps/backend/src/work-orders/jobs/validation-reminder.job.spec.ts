@@ -1,5 +1,5 @@
 /**
- * Unit tests for ValidationReminderJob (§1.6)
+ * Unit tests for ValidationReminderJob (§1.6 + §4.1)
  *
  * Covers:
  * - Schedule decorator registers run() with EVERY_HOUR cron expression
@@ -9,6 +9,9 @@
  * - Mixed (some already notified, some new): only new ones notified
  * - Dedup check uses correct 23h lookback window
  * - Work-order query targets PENDING_VALIDATION and 24h staleness threshold
+ * - jobLogger.recordStart called before logic
+ * - jobLogger.recordSuccess called on success
+ * - jobLogger.recordFailure called and error re-thrown on failure
  */
 
 import { CronExpression } from '@nestjs/schedule';
@@ -39,9 +42,15 @@ function buildMocks() {
     notifySupervisors: jest.fn().mockResolvedValue(undefined),
   };
 
-  const job = new ValidationReminderJob(prisma as never, notifications as never);
+  const jobLogger = {
+    recordStart: jest.fn().mockResolvedValue(undefined),
+    recordSuccess: jest.fn().mockResolvedValue(undefined),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+  };
 
-  return { job, notifications, workOrderFindMany, notificationFindMany };
+  const job = new ValidationReminderJob(prisma as never, notifications as never, jobLogger as never);
+
+  return { job, notifications, workOrderFindMany, notificationFindMany, jobLogger };
 }
 
 describe('ValidationReminderJob', () => {
@@ -175,6 +184,33 @@ describe('ValidationReminderJob', () => {
 
       await expect(job.run()).rejects.toThrow('mail transport down');
       expect(notifications.notifySupervisors).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('job lifecycle logging (§4.1)', () => {
+    it('calls recordStart at the beginning of run()', async () => {
+      const { job, jobLogger } = buildMocks();
+      await job.run();
+      expect(jobLogger.recordStart).toHaveBeenCalledWith('validation-reminder');
+    });
+
+    it('calls recordSuccess after successful execution', async () => {
+      const { job, jobLogger } = buildMocks();
+      await job.run();
+      expect(jobLogger.recordSuccess).toHaveBeenCalledWith('validation-reminder');
+      expect(jobLogger.recordFailure).not.toHaveBeenCalled();
+    });
+
+    it('calls recordFailure and re-throws on error', async () => {
+      const { job, notifications, workOrderFindMany, notificationFindMany, jobLogger } = buildMocks();
+      workOrderFindMany.mockResolvedValue([buildPendingValidationWO()]);
+      notificationFindMany.mockResolvedValue([]);
+      const err = new Error('dispatch error');
+      (notifications.notifySupervisors as jest.Mock).mockRejectedValueOnce(err);
+
+      await expect(job.run()).rejects.toThrow('dispatch error');
+      expect(jobLogger.recordFailure).toHaveBeenCalledWith('validation-reminder', err);
+      expect(jobLogger.recordSuccess).not.toHaveBeenCalled();
     });
   });
 });

@@ -74,14 +74,19 @@ function buildMocks(
   const reportQueue = makeQueue(queueOverrides.report ?? { waiting: 0, active: 0, failed: 1, completed: 50, delayed: 2 });
   const planQueue = makeQueue(queueOverrides.plan ?? { waiting: 5, active: 2, failed: 0, completed: 200, delayed: 1 });
 
+  const jobLogger = {
+    getAll: jest.fn().mockResolvedValue([]),
+  };
+
   const service = new AdminAnalyticsService(
     prisma as never,
+    jobLogger as never,
     mailQueue as never,
     reportQueue as never,
     planQueue as never,
   );
 
-  return { service, prisma, userCountMock, notifCountMock, mailQueue, reportQueue, planQueue };
+  return { service, prisma, userCountMock, notifCountMock, mailQueue, reportQueue, planQueue, jobLogger };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -297,8 +302,10 @@ describe('AdminAnalyticsService', () => {
           .mockImplementation((qs: Promise<number>[]) => Promise.all(qs)),
       };
       const emptyQueue = { getJobCounts: jest.fn().mockResolvedValue({}) };
+      const emptyJobLogger = { getAll: jest.fn().mockResolvedValue([]) };
       const service = new AdminAnalyticsService(
         prisma as never,
+        emptyJobLogger as never,
         emptyQueue as never,
         emptyQueue as never,
         emptyQueue as never,
@@ -369,6 +376,27 @@ describe('AdminAnalyticsService', () => {
       const txCalls: Array<{ where: Record<string, unknown> }> =
         notifCountMock.mock.calls.slice(0, 3).map(([a]) => a);
       expect(txCalls[2].where).toMatchObject({ emailSent: true });
+    });
+
+    it('includes scheduledJobs from JobLoggerService.getAll() in the result (§4.1)', async () => {
+      const { service, jobLogger } = buildMocks();
+      const mockJobs = [
+        { jobName: 'daily-summary', lastRunAt: new Date(), lastSuccessAt: new Date(), lastFailureAt: null, lastErrorMessage: null },
+      ];
+      jobLogger.getAll.mockResolvedValueOnce(mockJobs);
+
+      const stats = await service.getSystemHealthStats();
+
+      expect(stats.scheduledJobs).toEqual(mockJobs);
+      expect(jobLogger.getAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns empty scheduledJobs array when no job logs exist', async () => {
+      const { service } = buildMocks();
+
+      const stats = await service.getSystemHealthStats();
+
+      expect(stats.scheduledJobs).toEqual([]);
     });
   });
 });

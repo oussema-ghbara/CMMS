@@ -931,3 +931,15 @@ model Notification {
   @@index([type])
   @@index([emailFailed])
 }
+
+model ScheduledJobLog {
+  id               String    @id @default(cuid())
+  jobName          String    @unique
+  lastRunAt        DateTime?
+  lastSuccessAt    DateTime?
+  lastFailureAt    DateTime?
+  lastErrorMessage String?
+  updatedAt        DateTime  @updatedAt
+
+  @@index([jobName])
+}

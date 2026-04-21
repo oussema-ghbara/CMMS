@@ -50,9 +50,15 @@ function buildMocks() {
     notify: jest.fn().mockResolvedValue(undefined),
   };
 
-  const job = new DueDateApproachingJob(prisma as never, notifications as never);
+  const jobLogger = {
+    recordStart: jest.fn().mockResolvedValue(undefined),
+    recordSuccess: jest.fn().mockResolvedValue(undefined),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+  };
 
-  return { job, prisma, notifications, workOrderFindMany, notificationFindMany };
+  const job = new DueDateApproachingJob(prisma as never, notifications as never, jobLogger as never);
+
+  return { job, prisma, notifications, workOrderFindMany, notificationFindMany, jobLogger };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -208,6 +214,33 @@ describe('DueDateApproachingJob', () => {
       expect(dueDateLte - dueDateGte).toBeGreaterThan(23 * 60 * 60 * 1000);
       // principalTechnicianId must not be null
       expect(woQuery.where.principalTechnicianId).toEqual({ not: null });
+    });
+  });
+
+  describe('job lifecycle logging (§4.1)', () => {
+    it('calls recordStart with "due-date-approaching"', async () => {
+      const { job, jobLogger } = buildMocks();
+      await job.run();
+      expect(jobLogger.recordStart).toHaveBeenCalledWith('due-date-approaching');
+    });
+
+    it('calls recordSuccess on successful execution', async () => {
+      const { job, jobLogger } = buildMocks();
+      await job.run();
+      expect(jobLogger.recordSuccess).toHaveBeenCalledWith('due-date-approaching');
+      expect(jobLogger.recordFailure).not.toHaveBeenCalled();
+    });
+
+    it('calls recordFailure and re-throws on error', async () => {
+      const { job, notifications, workOrderFindMany, notificationFindMany, jobLogger } = buildMocks();
+      workOrderFindMany.mockResolvedValue([buildApproachingWO()]);
+      notificationFindMany.mockResolvedValue([]);
+      const err = new Error('dispatch failure');
+      (notifications.notify as jest.Mock).mockRejectedValueOnce(err);
+
+      await expect(job.run()).rejects.toThrow('dispatch failure');
+      expect(jobLogger.recordFailure).toHaveBeenCalledWith('due-date-approaching', err);
+      expect(jobLogger.recordSuccess).not.toHaveBeenCalled();
     });
   });
 });

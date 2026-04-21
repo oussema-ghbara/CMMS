@@ -39,9 +39,15 @@ function buildMocks() {
     notifySupervisors: jest.fn().mockResolvedValue(undefined),
   };
 
-  const job = new AccessRetryApproachingJob(prisma as never, notifications as never);
+  const jobLogger = {
+    recordStart: jest.fn().mockResolvedValue(undefined),
+    recordSuccess: jest.fn().mockResolvedValue(undefined),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+  };
 
-  return { job, notifications, onHoldFindMany, notificationFindMany };
+  const job = new AccessRetryApproachingJob(prisma as never, notifications as never, jobLogger as never);
+
+  return { job, notifications, onHoldFindMany, notificationFindMany, jobLogger };
 }
 
 describe('AccessRetryApproachingJob', () => {
@@ -181,6 +187,33 @@ describe('AccessRetryApproachingJob', () => {
       (notifications.notifySupervisors as jest.Mock).mockRejectedValueOnce(new Error('transport down'));
 
       await expect(job.run()).rejects.toThrow('transport down');
+    });
+  });
+
+  describe('job lifecycle logging (§4.1)', () => {
+    it('calls recordStart with "access-retry-approaching"', async () => {
+      const { job, jobLogger } = buildMocks();
+      await job.run();
+      expect(jobLogger.recordStart).toHaveBeenCalledWith('access-retry-approaching');
+    });
+
+    it('calls recordSuccess on successful execution', async () => {
+      const { job, jobLogger } = buildMocks();
+      await job.run();
+      expect(jobLogger.recordSuccess).toHaveBeenCalledWith('access-retry-approaching');
+      expect(jobLogger.recordFailure).not.toHaveBeenCalled();
+    });
+
+    it('calls recordFailure and re-throws on error', async () => {
+      const { job, notifications, onHoldFindMany, notificationFindMany, jobLogger } = buildMocks();
+      onHoldFindMany.mockResolvedValue([buildApproachingHold()]);
+      notificationFindMany.mockResolvedValue([]);
+      const err = new Error('dispatch failure');
+      (notifications.notifySupervisors as jest.Mock).mockRejectedValueOnce(err);
+
+      await expect(job.run()).rejects.toThrow('dispatch failure');
+      expect(jobLogger.recordFailure).toHaveBeenCalledWith('access-retry-approaching', err);
+      expect(jobLogger.recordSuccess).not.toHaveBeenCalled();
     });
   });
 });

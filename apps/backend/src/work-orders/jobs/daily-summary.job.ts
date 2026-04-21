@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { SystemConfigService } from '../../system-config/system-config.service';
 import { WorkOrderStatus, WorkOrderPriority } from '@gmao/db';
+import { JobLoggerService } from '../../job-logger/job-logger.service';
 
 const ACTIVE_STATUSES = [
   WorkOrderStatus.OPEN,
@@ -12,6 +13,8 @@ const ACTIVE_STATUSES = [
   WorkOrderStatus.ON_HOLD,
   WorkOrderStatus.PENDING_VALIDATION,
 ] as const;
+
+const JOB_NAME = 'daily-summary';
 
 export interface DailySummaryMetrics {
   openCount: number;
@@ -32,10 +35,22 @@ export class DailySummaryJob {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly systemConfig: SystemConfigService,
+    private readonly jobLogger: JobLoggerService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async run(): Promise<void> {
+    await this.jobLogger.recordStart(JOB_NAME);
+    try {
+      await this.doRun();
+      await this.jobLogger.recordSuccess(JOB_NAME);
+    } catch (err) {
+      await this.jobLogger.recordFailure(JOB_NAME, err as Error);
+      throw err;
+    }
+  }
+
+  private async doRun(): Promise<void> {
     const configuredHour = await this.getConfiguredHour();
     const currentHour = new Date().getHours();
 

@@ -10,8 +10,9 @@ import {
   Loader2,
   Users,
   XCircle,
+  CalendarClock,
 } from 'lucide-react';
-import { adminApi, type QueueStats, type UserActivityStats, type SystemHealthStats } from '@/lib/admin.api';
+import { adminApi, type QueueStats, type UserActivityStats, type SystemHealthStats, type ScheduledJobStat } from '@/lib/admin.api';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -304,10 +305,133 @@ function SystemHealthSection({
   );
 }
 
+const JOB_DISPLAY_NAMES: Record<string, string> = {
+  'access-retry-approaching': 'adminAnalytics.scheduledJobs.jobs.accessRetryApproaching',
+  'contractor-date-overdue': 'adminAnalytics.scheduledJobs.jobs.contractorDateOverdue',
+  'daily-summary': 'adminAnalytics.scheduledJobs.jobs.dailySummary',
+  'due-date-approaching': 'adminAnalytics.scheduledJobs.jobs.dueDateApproaching',
+  'priority-escalation': 'adminAnalytics.scheduledJobs.jobs.priorityEscalation',
+  'validation-reminder': 'adminAnalytics.scheduledJobs.jobs.validationReminder',
+};
+
+function jobStatus(job: ScheduledJobStat): 'healthy' | 'failed' | 'unknown' {
+  if (!job.lastRunAt) return 'unknown';
+  if (job.lastFailureAt && (!job.lastSuccessAt || job.lastFailureAt > job.lastSuccessAt)) {
+    return 'failed';
+  }
+  return 'healthy';
+}
+
+function formatRelative(isoDate: string | null, language: string): string {
+  if (!isoDate) return '—';
+  return new Intl.DateTimeFormat(language, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(isoDate));
+}
+
+function ScheduledJobsSection({
+  jobs,
+  t,
+  language,
+}: {
+  jobs: ScheduledJobStat[];
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  language: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-base">{t('adminAnalytics.scheduledJobs.title')}</CardTitle>
+        </div>
+        <CardDescription>{t('adminAnalytics.scheduledJobs.description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {jobs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('adminAnalytics.scheduledJobs.noData')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.jobName')}</th>
+                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.status')}</th>
+                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.lastRun')}</th>
+                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.lastSuccess')}</th>
+                  <th className="py-2 text-left font-medium">{t('adminAnalytics.scheduledJobs.lastFailure')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => {
+                  const status = jobStatus(job);
+                  const nameKey = JOB_DISPLAY_NAMES[job.jobName];
+                  const displayName = nameKey ? t(nameKey) : job.jobName;
+                  return (
+                    <tr key={job.jobName} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-medium">{displayName}</td>
+                      <td className="py-2 pr-4">
+                        {status === 'healthy' && (
+                          <Badge variant="success" className="text-xs">
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            {t('adminAnalytics.scheduledJobs.statusHealthy')}
+                          </Badge>
+                        )}
+                        {status === 'failed' && (
+                          <Badge variant="destructive" className="text-xs">
+                            <XCircle className="mr-1 h-3 w-3" />
+                            {t('adminAnalytics.scheduledJobs.statusFailed')}
+                          </Badge>
+                        )}
+                        {status === 'unknown' && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Clock className="mr-1 h-3 w-3" />
+                            {t('adminAnalytics.scheduledJobs.statusUnknown')}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {formatRelative(job.lastRunAt, language)}
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {formatRelative(job.lastSuccessAt, language)}
+                      </td>
+                      <td className="py-2">
+                        <span
+                          className={
+                            job.lastFailureAt
+                              ? 'text-destructive'
+                              : 'text-muted-foreground'
+                          }
+                        >
+                          {formatRelative(job.lastFailureAt, language)}
+                        </span>
+                        {job.lastErrorMessage && (
+                          <p className="mt-0.5 max-w-xs truncate text-[11px] text-destructive/80">
+                            {job.lastErrorMessage}
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main board ────────────────────────────────────────────────────────────────
 
 export function AdminAnalyticsBoard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const userQuery = useQuery({
     queryKey: ['admin', 'analytics', 'users'],
@@ -366,6 +490,23 @@ export function AdminAnalyticsBoard() {
           </p>
         </div>
         <SystemHealthSection data={systemQuery.data} t={t} />
+      </section>
+
+      {/* Scheduled Jobs section */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">
+            {t('adminAnalytics.sections.scheduledJobs')}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t('adminAnalytics.sections.scheduledJobsDescription')}
+          </p>
+        </div>
+        <ScheduledJobsSection
+          jobs={systemQuery.data.scheduledJobs}
+          t={t}
+          language={i18n.language || 'fr'}
+        />
       </section>
     </div>
   );

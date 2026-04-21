@@ -66,13 +66,20 @@ function buildMocks() {
     get: jest.fn(),
   };
 
+  const jobLogger = {
+    recordStart: jest.fn().mockResolvedValue(undefined),
+    recordSuccess: jest.fn().mockResolvedValue(undefined),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+  };
+
   const job = new DailySummaryJob(
     prisma as never,
     mail as never,
     systemConfig as never,
+    jobLogger as never,
   );
 
-  return { job, prisma, mail, systemConfig, prismaCountMock };
+  return { job, prisma, mail, systemConfig, prismaCountMock, jobLogger };
 }
 
 // Returns a mock implementation for prisma.workOrder.count that emits values
@@ -543,6 +550,33 @@ describe('DailySummaryJob', () => {
 
       // Only the first call should have enqueued mail
       expect(mail.enqueue).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('job lifecycle logging (§4.1)', () => {
+    it('calls recordStart with "daily-summary"', async () => {
+      const { job, systemConfig, jobLogger } = buildMocks();
+      systemConfig.get.mockResolvedValue(String(new Date().getHours() + 1)); // non-matching hour → early return
+      await job.run();
+      expect(jobLogger.recordStart).toHaveBeenCalledWith('daily-summary');
+    });
+
+    it('calls recordSuccess after successful execution (even when skipped by hour gate)', async () => {
+      const { job, systemConfig, jobLogger } = buildMocks();
+      systemConfig.get.mockResolvedValue(String(new Date().getHours() + 1));
+      await job.run();
+      expect(jobLogger.recordSuccess).toHaveBeenCalledWith('daily-summary');
+      expect(jobLogger.recordFailure).not.toHaveBeenCalled();
+    });
+
+    it('calls recordFailure and re-throws when systemConfig.get() throws', async () => {
+      const { job, systemConfig, jobLogger } = buildMocks();
+      const err = new Error('config service unavailable');
+      systemConfig.get.mockRejectedValueOnce(err);
+
+      await expect(job.run()).rejects.toThrow('config service unavailable');
+      expect(jobLogger.recordFailure).toHaveBeenCalledWith('daily-summary', err);
+      expect(jobLogger.recordSuccess).not.toHaveBeenCalled();
     });
   });
 });

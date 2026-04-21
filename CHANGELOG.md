@@ -4,6 +4,24 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Scheduled job health monitoring and QR code print (April 21, 2026)
+
+#### `feat(admin): track scheduled job execution health with per-job cron log (§4.1)`
+- New `ScheduledJobLog` Prisma model (`jobName UNIQUE`, `lastRunAt`, `lastSuccessAt`, `lastFailureAt`, `lastErrorMessage`, `updatedAt`) with migration `20260421000000_scheduled_job_log`.
+- New `JobLoggerService` in `apps/backend/src/job-logger/` (dedicated module): `recordStart()`, `recordSuccess()`, `recordFailure()` (message truncated to 500 chars), `getAll()`. All log methods swallow DB errors so a failing log write never interrupts a cron job.
+- All 6 existing cron jobs (`ValidationReminderJob`, `DueDateApproachingJob`, `ContractorDateOverdueJob`, `AccessRetryApproachingJob`, `DailySummaryJob`, `PriorityEscalationJob`) now wrap their execution in a try/catch that calls `recordStart` / `recordSuccess` / `recordFailure`. Logic extracted to a private `doRun()` to keep the `run()` shell clean.
+- `JobLoggerModule` imported in both `WorkOrdersModule` (for the cron jobs) and `AdminModule` (for analytics read-path) — no circular dependency.
+- `AdminAnalyticsService.getSystemHealthStats()` fetches job logs in parallel via `Promise.all` and merges them as `scheduledJobs: ScheduledJobStatus[]` in the response.
+- Admin analytics board now shows a "Tâches planifiées" section: per-job table with status badge (healthy / failed / unknown), last run, last success, last failure timestamp, and last error message.
+- **Tests:** 9 `job-logger.service.spec.ts` tests; 2 new `admin-analytics.service.spec.ts` tests; 3 lifecycle-logging tests added to each of the 6 existing job spec files; new `priority-escalation.job.spec.ts` with 6 tests. 328 backend tests total (0 regressions).
+
+#### `feat(web): render QR code image with print action in asset detail dialog (§2.8)`
+- Added `react-qr-code ^2.0.15` dependency to `apps/web`.
+- New pure-function library `apps/web/lib/qr-print.ts`: `buildQrPrintHtml(options, svgMarkup)` generates an XSS-safe standalone print HTML document (escapes `<`/`>` in `assetName` and `identifier`, embeds SVG verbatim, includes `window.print()` auto-trigger); `openQrPrintWindow()` opens a `_blank` popup and writes the HTML.
+- `asset-detail-dialog.tsx` now renders a `<QRCode>` SVG component (size 120, level M) beside the QR identifier and exposes a "Imprimer le QR" print button that extracts the SVG from the DOM and calls `openQrPrintWindow()`.
+- i18n: `supervisorAssets.detail.printQrCode` and `supervisorAssets.detail.qrCodeAriaLabel` added to `common.json`.
+- **Tests:** 10 `qr-print.spec.ts` tests covering asset name/identifier inclusion, SVG injection, XSS escaping, auto-print script, HTML document structure, print media query, SVG dimensions, and `lang="fr"` attribute. 27 frontend tests total (0 regressions).
+
 ### Fixed + Added — Checklist source attribution, WO detail cost summary, and checklist display (April 20, 2026)
 
 #### `fix(work-orders): fix checklist anomaly-WO source attribution (§1.14)`

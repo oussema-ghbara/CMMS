@@ -443,3 +443,286 @@ describe('WorkOrdersService.getAnalytics', () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.createFollowUp
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('WorkOrdersService.createFollowUp', () => {
+  let service: WorkOrdersService;
+  let prisma: jest.Mocked<PrismaService>;
+  let repo: jest.Mocked<WorkOrdersRepository>;
+
+  const ORIGINAL_WO_ID = 'wo-closed-1';
+  const ACTOR_ID = 'supervisor-1';
+
+  const closedWo = {
+    id: ORIGINAL_WO_ID,
+    referenceNumber: 'WO-2026-100',
+    status: WorkOrderStatus.CLOSED,
+    assetId: 'asset-99',
+    type: WorkOrderType.CORRECTIVE,
+    priority: WorkOrderPriority.HIGH,
+    description: 'Pump failure',
+  };
+
+  const followUpDto = {
+    type: WorkOrderType.CORRECTIVE,
+    priority: WorkOrderPriority.HIGH,
+    description: 'Suite à WO-2026-100 : Pump failure',
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn().mockResolvedValue({
+              id: 'wo-follow-1',
+              referenceNumber: 'WO-2026-101',
+              status: WorkOrderStatus.DRAFT,
+            }),
+            findById: jest.fn().mockResolvedValue(closedWo),
+            findAll: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            asset: {
+              findUnique: jest.fn(),
+              findUniqueOrThrow: jest.fn().mockResolvedValue({
+                id: 'asset-99',
+                location: { fullPath: 'Site A > Hall 2' },
+              }),
+            },
+            workOrder: { findFirst: jest.fn() },
+            workOrderAssignment: { findMany: jest.fn().mockResolvedValue([]) },
+            $transaction: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get(WorkOrdersService);
+    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+    repo = module.get(WorkOrdersRepository) as jest.Mocked<WorkOrdersRepository>;
+  });
+
+  it('creates a follow-up WO in DRAFT with FOLLOW_UP source and followUpFromId', async () => {
+    const result = await service.createFollowUp(ORIGINAL_WO_ID, followUpDto as any, ACTOR_ID);
+
+    expect(result.referenceNumber).toBe('WO-2026-101');
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: WorkOrderType.CORRECTIVE,
+        description: followUpDto.description,
+        assetId: 'asset-99',
+      }),
+      ACTOR_ID,
+      WorkOrderSource.FOLLOW_UP,
+      'Site A > Hall 2',
+      undefined,
+      undefined,
+      ORIGINAL_WO_ID,
+    );
+  });
+
+  it('throws BadRequestException when original WO is not CLOSED', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      ...closedWo,
+      status: WorkOrderStatus.IN_PROGRESS,
+    });
+
+    await expect(
+      service.createFollowUp(ORIGINAL_WO_ID, followUpDto as any, ACTOR_ID),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('uses the original WO assetId (not caller-supplied)', async () => {
+    await service.createFollowUp(ORIGINAL_WO_ID, followUpDto as any, ACTOR_ID);
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: 'asset-99' }),
+      expect.anything(),
+      WorkOrderSource.FOLLOW_UP,
+      expect.anything(),
+      undefined,
+      undefined,
+      ORIGINAL_WO_ID,
+    );
+  });
+
+  it('throws when findUniqueOrThrow rejects (asset deleted)', async () => {
+    (prisma.asset.findUniqueOrThrow as jest.Mock).mockRejectedValue(new Error('Not found'));
+
+    await expect(
+      service.createFollowUp(ORIGINAL_WO_ID, followUpDto as any, ACTOR_ID),
+    ).rejects.toThrow('Not found');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.getTechnicianLoad
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('WorkOrdersService.getTechnicianLoad', () => {
+  let service: WorkOrdersService;
+  let prisma: jest.Mocked<PrismaService>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            asset: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
+            workOrder: { findFirst: jest.fn() },
+            workOrderAssignment: { findMany: jest.fn() },
+            $transaction: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get(WorkOrdersService);
+    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+  });
+
+  it('returns empty array when no active assignments exist', async () => {
+    (prisma.workOrderAssignment.findMany as jest.Mock).mockResolvedValue([]);
+
+    const result = await service.getTechnicianLoad();
+
+    expect(result).toEqual([]);
+  });
+
+  it('aggregates open WO count per technician and detects CRITICAL', async () => {
+    (prisma.workOrderAssignment.findMany as jest.Mock).mockResolvedValue([
+      {
+        technicianId: 'tech-1',
+        technician: { id: 'tech-1', name: 'Alice' },
+        workOrder: { priority: WorkOrderPriority.CRITICAL },
+      },
+      {
+        technicianId: 'tech-1',
+        technician: { id: 'tech-1', name: 'Alice' },
+        workOrder: { priority: WorkOrderPriority.MEDIUM },
+      },
+      {
+        technicianId: 'tech-2',
+        technician: { id: 'tech-2', name: 'Bob' },
+        workOrder: { priority: WorkOrderPriority.LOW },
+      },
+    ]);
+
+    const result = await service.getTechnicianLoad();
+
+    expect(result).toHaveLength(2);
+    const alice = result.find((r) => r.technicianId === 'tech-1')!;
+    expect(alice.openWoCount).toBe(2);
+    expect(alice.hasCritical).toBe(true);
+
+    const bob = result.find((r) => r.technicianId === 'tech-2')!;
+    expect(bob.openWoCount).toBe(1);
+    expect(bob.hasCritical).toBe(false);
+  });
+
+  it('returns results sorted by openWoCount descending', async () => {
+    (prisma.workOrderAssignment.findMany as jest.Mock).mockResolvedValue([
+      {
+        technicianId: 'tech-a',
+        technician: { id: 'tech-a', name: 'Charlie' },
+        workOrder: { priority: WorkOrderPriority.LOW },
+      },
+      {
+        technicianId: 'tech-b',
+        technician: { id: 'tech-b', name: 'Dave' },
+        workOrder: { priority: WorkOrderPriority.LOW },
+      },
+      {
+        technicianId: 'tech-b',
+        technician: { id: 'tech-b', name: 'Dave' },
+        workOrder: { priority: WorkOrderPriority.HIGH },
+      },
+    ]);
+
+    const result = await service.getTechnicianLoad();
+
+    expect(result[0].technicianId).toBe('tech-b');
+    expect(result[0].openWoCount).toBe(2);
+    expect(result[1].technicianId).toBe('tech-a');
+    expect(result[1].openWoCount).toBe(1);
+  });
+
+  it('hasCritical is false when no WO has CRITICAL priority', async () => {
+    (prisma.workOrderAssignment.findMany as jest.Mock).mockResolvedValue([
+      {
+        technicianId: 'tech-1',
+        technician: { id: 'tech-1', name: 'Eve' },
+        workOrder: { priority: WorkOrderPriority.HIGH },
+      },
+    ]);
+
+    const result = await service.getTechnicianLoad();
+
+    expect(result[0].hasCritical).toBe(false);
+  });
+
+  it('queries only non-terminal work orders', async () => {
+    (prisma.workOrderAssignment.findMany as jest.Mock).mockResolvedValue([]);
+
+    await service.getTechnicianLoad();
+
+    expect(prisma.workOrderAssignment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isActive: true,
+          workOrder: expect.objectContaining({
+            status: expect.objectContaining({
+              notIn: expect.arrayContaining([
+                WorkOrderStatus.CLOSED,
+                WorkOrderStatus.CANCELLED,
+              ]),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+});

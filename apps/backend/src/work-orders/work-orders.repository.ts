@@ -116,6 +116,8 @@ export class WorkOrdersRepository {
             createdAt: true,
           },
         },
+        followUpFrom: { select: { id: true, referenceNumber: true } },
+        followUps: { select: { id: true, referenceNumber: true } },
       },
     });
     if (!wo) throw new NotFoundException(`Work order ${id} not found`);
@@ -129,6 +131,7 @@ export class WorkOrdersRepository {
     capturedLocationPath: string,
     sourceReportId?: string,
     sourcePlanId?: string,
+    followUpFromId?: string,
   ): Promise<WorkOrder> {
     return this.prisma.$transaction(async (tx) => {
       const referenceNumber = await nextWorkOrderReference(tx);
@@ -150,6 +153,7 @@ export class WorkOrdersRepository {
           assetId: dto.assetId,
           sourceReportId,
           sourcePlanId,
+          followUpFromId,
           createdById: actorId,
         },
       });

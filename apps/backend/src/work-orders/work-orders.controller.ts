@@ -14,6 +14,7 @@ import { OnHoldService } from './on-hold.service';
 import { ValidationService } from './validation.service';
 import { ChecklistService } from './checklist.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
+import { CreateFollowUpDto } from './dto/create-follow-up.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
 import { AssignTechnicianDto } from './dto/assign-technician.dto';
 import { ReassignTechnicianDto } from './dto/reassign-technician.dto';
@@ -62,6 +63,13 @@ export class WorkOrdersController {
     return this.workOrders.getAnalytics(period);
   }
 
+  @Get('technician-load')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'Per-technician open WO count + CRITICAL flag (Supervisor) — spec §9.3' })
+  getTechnicianLoad() {
+    return this.workOrders.getTechnicianLoad();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get full work order detail (all roles)' })
   async findById(@Param('id') id: string) {
@@ -75,6 +83,19 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'Create work order (Supervisor)' })
   create(@Body() dto: CreateWorkOrderDto, @Request() req: AuthRequest): Promise<WorkOrder> {
     return this.workOrders.create(dto, req.user.sub);
+  }
+
+  @Post(':id/follow-up')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({
+    summary: 'Create follow-up WO from a CLOSED COULD_NOT_INTERVENE WO (Supervisor) — spec §1.4 / §9.5',
+  })
+  createFollowUp(
+    @Param('id') id: string,
+    @Body() dto: CreateFollowUpDto,
+    @Request() req: AuthRequest,
+  ): Promise<WorkOrder> {
+    return this.workOrders.createFollowUp(id, dto, req.user.sub);
   }
 
   @Patch(':id/publish')

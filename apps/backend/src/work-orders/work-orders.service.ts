@@ -5,16 +5,25 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PartRequestsService } from '../inventory/part-requests.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
+import { CreateFollowUpDto } from './dto/create-follow-up.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
 import { CancelWorkOrderDto } from './dto/cancel-work-order.dto';
 import { ChangePriorityDto } from './dto/change-priority.dto';
 import {
   WorkOrderSource, WorkOrderStatus, AssetStatus, NotificationType, Role,
+  WorkOrderPriority,
 } from '@gmao/db';
 import { StockMovementType } from '@gmao/db';
 import { WOCancellationReason } from '@gmao/shared';
 import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine';
 import { calculateWorkOrderCostSummary } from './work-order-costs';
+
+export interface TechnicianLoadItem {
+  technicianId: string;
+  name: string;
+  openWoCount: number;
+  hasCritical: boolean;
+}
 
 const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
   WorkOrderStatus.DRAFT,
@@ -410,6 +419,101 @@ export class WorkOrdersService {
     if (!user.roles.includes(Role.TECHNICIAN)) {
       throw new BadRequestException(`User ${technicianId} does not have the TECHNICIAN role`);
     }
+  }
+
+  /**
+   * Creates a follow-up corrective WO linked to a CLOSED WO whose last intervention
+   * result was COULD_NOT_INTERVENE (spec §8.8 + §9.5).
+   *
+   * The new WO is created in DRAFT status, inherits the original WO's asset,
+   * and carries `followUpFromId` for the cross-reference chain.
+   */
+  async createFollowUp(
+    originalWoId: string,
+    dto: CreateFollowUpDto,
+    actorId: string,
+  ): Promise<WorkOrder> {
+    const originalWo = await this.repo.findById(originalWoId);
+
+    if (originalWo.status !== WorkOrderStatus.CLOSED) {
+      throw new BadRequestException(
+        'workOrders.followUp.originalMustBeClosed',
+      );
+    }
+
+    const asset = await this.prisma.asset.findUniqueOrThrow({
+      where: { id: originalWo.assetId },
+      include: { location: true },
+    });
+
+    // Re-use the same asset — the assetId is inherited from the original WO, not
+    // taken from the DTO, to ensure the cross-reference chain is unambiguous.
+    const followUpDto: CreateWorkOrderDto = {
+      type: dto.type,
+      priority: dto.priority,
+      description: dto.description,
+      assetId: originalWo.assetId,
+      internalNotes: dto.internalNotes,
+      estimatedDurationMinutes: dto.estimatedDurationMinutes,
+      dueDate: dto.dueDate,
+    } as unknown as CreateWorkOrderDto;
+
+    return this.repo.create(
+      followUpDto,
+      actorId,
+      WorkOrderSource.FOLLOW_UP,
+      asset.location.fullPath,
+      undefined,
+      undefined,
+      originalWoId,
+    );
+  }
+
+  /**
+   * Returns per-technician WO load for active (non-terminal) work orders
+   * (spec §9.3 — technician load panel).
+   *
+   * Each entry reports the open WO count and whether any WO is CRITICAL so the
+   * supervisor can see at a glance who is overloaded.
+   */
+  async getTechnicianLoad(): Promise<TechnicianLoadItem[]> {
+    const terminalStatuses: WorkOrderStatus[] = [
+      WorkOrderStatus.CLOSED,
+      WorkOrderStatus.CANCELLED,
+    ];
+
+    const assignments = await this.prisma.workOrderAssignment.findMany({
+      where: {
+        isActive: true,
+        workOrder: { status: { notIn: terminalStatuses } },
+      },
+      select: {
+        technicianId: true,
+        technician: { select: { id: true, name: true } },
+        workOrder: { select: { priority: true } },
+      },
+    });
+
+    const map = new Map<string, TechnicianLoadItem>();
+
+    for (const a of assignments) {
+      const existing = map.get(a.technicianId);
+      if (existing) {
+        existing.openWoCount += 1;
+        if (a.workOrder.priority === WorkOrderPriority.CRITICAL) {
+          existing.hasCritical = true;
+        }
+      } else {
+        map.set(a.technicianId, {
+          technicianId: a.technicianId,
+          name: a.technician.name,
+          openWoCount: 1,
+          hasCritical: a.workOrder.priority === WorkOrderPriority.CRITICAL,
+        });
+      }
+    }
+
+    return [...map.values()].sort((a, b) => b.openWoCount - a.openWoCount);
   }
 
   private getEscalatedPriority(priority: WorkOrder['priority']): WorkOrder['priority'] | null {

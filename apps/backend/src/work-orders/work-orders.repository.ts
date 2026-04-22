@@ -17,7 +17,7 @@ export class WorkOrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: WorkOrderQueryDto): Promise<{ data: WorkOrder[]; total: number }> {
-    const { search, status, type, priority, assetId, technicianId, page = 1, limit = 20 } = query;
+    const { search, status, type, priority, assetId, technicianId, page = 1, limit = 20, closedAfter, closedBefore } = query;
 
     const where: Prisma.WorkOrderWhereInput = {
       ...(search && {
@@ -31,6 +31,12 @@ export class WorkOrdersRepository {
       ...(priority && { priority }),
       ...(assetId && { assetId }),
       ...(technicianId && { assignments: { some: { technicianId, isActive: true } } }),
+      ...((closedAfter || closedBefore) && {
+        closedAt: {
+          ...(closedAfter && { gte: new Date(closedAfter) }),
+          ...(closedBefore && { lte: new Date(closedBefore) }),
+        },
+      }),
     };
 
     const [data, total] = await this.prisma.$transaction([

@@ -10,10 +10,11 @@ import {
   ClipboardList,
   Loader2,
   ShieldAlert,
+  User,
   Wrench,
   X,
 } from 'lucide-react';
-import { workOrdersApi } from '@/lib/work-orders.api';
+import { workOrdersApi, type TechnicianLoadItem } from '@/lib/work-orders.api';
 import { reportsApi } from '@/lib/reports.api';
 import { assetsApi, type CertificateAlertItem } from '@/lib/assets.api';
 import { partRequestsApi } from '@/lib/part-requests.api';
@@ -101,6 +102,28 @@ function CertAlertRow({ item }: { item: CertificateAlertItem }) {
   );
 }
 
+function TechnicianLoadRow({ item }: { item: TechnicianLoadItem }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5 text-sm">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <span className="truncate font-medium">{item.name}</span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          {t('supervisorDashboard.technicianLoad.woCount', { count: item.openWoCount })}
+        </span>
+        {item.hasCritical && (
+          <Badge variant="destructive" className="text-[10px] py-0 px-1.5">
+            {t('supervisorDashboard.technicianLoad.criticalLabel')}
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SupervisorDashboardPage() {
   const { t } = useTranslation();
   const isInitialized = useAuthStore((state) => state.isInitialized);
@@ -167,6 +190,11 @@ export default function SupervisorDashboardPage() {
         queryFn: () => partRequestsApi.getQueue({ status: 'PENDING' as any, limit: 100 }),
         enabled: isInitialized,
       },
+      {
+        queryKey: ['supervisor', 'dashboard', 'technician-load'],
+        queryFn: () => workOrdersApi.getTechnicianLoad(),
+        enabled: isInitialized,
+      },
     ],
   });
 
@@ -181,6 +209,7 @@ export default function SupervisorDashboardPage() {
     certAlerts,
     closedToday,
     pendingPartRequests,
+    technicianLoad,
   ] = results;
 
   const hasError = results.some((result) => result.isError);
@@ -256,6 +285,30 @@ export default function SupervisorDashboardPage() {
           href="/supervisor/reports"
           cta={t('supervisorDashboard.cards.pendingReports.cta')}
         />
+      </div>
+
+      {/* Technician load panel (§9.3) */}
+      <div>
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">
+          {t('supervisorDashboard.technicianLoad.title')}
+        </h2>
+        <Card>
+          <CardContent className="pt-4">
+            {technicianLoad.isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : !technicianLoad.data || technicianLoad.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t('supervisorDashboard.technicianLoad.none')}
+              </p>
+            ) : (
+              <div className="divide-y">
+                {technicianLoad.data.map((item) => (
+                  <TechnicianLoadRow key={item.technicianId} item={item} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Operational alert panels */}

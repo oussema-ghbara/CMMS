@@ -214,6 +214,12 @@
       "none": "Aucun certificat à risque",
       "more": "+ {{count}} autre(s)",
       "cta": "Voir les équipements"
+    },
+    "technicianLoad": {
+      "title": "Charge des techniciens",
+      "woCount": "{{count}} OT",
+      "criticalLabel": "CRITIQUE",
+      "none": "Aucun technicien avec des OT ouverts"
     }
   },
   "supervisorAnalytics": {
@@ -620,7 +626,10 @@
       "costLabor": "Main d'œuvre",
       "costParts": "Pièces",
       "costContractor": "Sous-traitance",
-      "costTotal": "Total"
+      "costTotal": "Total",
+      "followUpChain": "Chaîne de suivi",
+      "followUpFrom": "Suite à :",
+      "followUps": "OT de suivi :"
     },
     "form": {
       "createTitle": "Nouvel ordre de travail",
@@ -694,7 +703,16 @@
       "authorizeSimSuccess": "Maintenance simultanée autorisée. Le technicien a été notifié.",
       "authorizeSimError": "Impossible d'autoriser la maintenance simultanée.",
       "holdMetaSuccess": "Informations de mise en attente mises à jour.",
-      "holdMetaError": "Impossible de mettre à jour les informations de mise en attente."
+      "holdMetaError": "Impossible de mettre à jour les informations de mise en attente.",
+      "followUpCreated": "OT de suivi {{ref}} créé avec succès",
+      "followUpError": "Impossible de créer l'OT de suivi"
+    },
+    "followUp": {
+      "promptTitle": "Créer un OT de suivi ?",
+      "promptBody": "L'OT {{ref}} a été clôturé avec une intervention non réalisée. Un OT de suivi est recommandé pour traiter l'équipement.",
+      "dismiss": "Ignorer",
+      "create": "Créer un OT de suivi",
+      "descriptionPrefix": "Suite à {{ref}} : {{original}}"
     }
   },
   "validationQueue": {

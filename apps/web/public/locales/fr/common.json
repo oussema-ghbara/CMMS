@@ -51,6 +51,7 @@
     "systemConfig": "Configuration",
     "auditLog": "Journal d'audit",
     "analytics": "Analytiques",
+    "validationQueue": "File de validation",
     "actions": {
       "collapseSidebar": "Réduire la barre latérale",
       "expandSidebar": "Développer la barre latérale"
@@ -184,13 +185,35 @@
       "pendingValidation": {
         "title": "À valider",
         "description": "Clôtures soumises en attente de validation",
-        "cta": "Réviser les validations"
+        "cta": "File de validation"
       },
       "pendingReports": {
         "title": "Signalements ouverts",
         "description": "Signalements en attente ou différés",
         "cta": "Traiter les signalements"
       }
+    },
+    "operational": {
+      "title": "Alertes opérationnelles",
+      "closedToday": {
+        "title": "Clôturés aujourd'hui",
+        "description": "OT fermés depuis minuit",
+        "cta": "Voir les OT clôturés"
+      },
+      "blockedPartRequests": {
+        "title": "Demandes bloquées",
+        "description": "Demandes de pièces en attente sur un OT en hold",
+        "cta": "Voir les ordres en attente"
+      }
+    },
+    "certAlerts": {
+      "title": "Certificats à risque",
+      "description": "Certificats expirés ou expirant dans les 60 jours",
+      "expired": "Expiré",
+      "expiringSoon": "Expire bientôt",
+      "none": "Aucun certificat à risque",
+      "more": "+ {{count}} autre(s)",
+      "cta": "Voir les équipements"
     }
   },
   "supervisorAnalytics": {
@@ -672,6 +695,24 @@
       "authorizeSimError": "Impossible d'autoriser la maintenance simultanée.",
       "holdMetaSuccess": "Informations de mise en attente mises à jour.",
       "holdMetaError": "Impossible de mettre à jour les informations de mise en attente."
+    }
+  },
+  "validationQueue": {
+    "title": "File de validation",
+    "subtitle": "Examinez les ordres de travail soumis à validation et approuvez ou rejetez leur clôture.",
+    "total": "{{count}} ordre(s) à valider",
+    "columns": {
+      "reference": "Référence",
+      "asset": "Équipement",
+      "technician": "Technicien",
+      "type": "Type",
+      "priority": "Priorité",
+      "inQueueSince": "En attente depuis",
+      "actions": "Actions"
+    },
+    "states": {
+      "empty": "Aucun ordre de travail en attente de validation.",
+      "error": "Impossible de charger la file de validation."
     }
   },
   "supervisorPreventivePlans": {

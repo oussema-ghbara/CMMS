@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks, Activity } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks, Activity, ShieldCheck } from 'lucide-react';
 import { Role } from '@gmao/shared';
 import type { LucideIcon } from 'lucide-react';
 
@@ -32,6 +32,11 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         labelKey: 'nav.workOrders',
         href: '/supervisor/work-orders',
         icon: ClipboardList,
+      },
+      {
+        labelKey: 'nav.validationQueue',
+        href: '/supervisor/validation-queue',
+        icon: ShieldCheck,
       },
       {
         labelKey: 'nav.assets',

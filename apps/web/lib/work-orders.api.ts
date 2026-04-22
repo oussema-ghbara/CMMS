@@ -171,6 +171,11 @@ export interface WorkOrderCostSummaryDetail {
   totalCost: number;
 }
 
+export interface WorkOrderCrossRef {
+  id: string;
+  referenceNumber: string;
+}
+
 export interface WorkOrderDetail {
   id: string;
   referenceNumber: string;
@@ -201,6 +206,10 @@ export interface WorkOrderDetail {
   partRequests: WorkOrderPartRequest[];
   sourceReport: WorkOrderSourceReport | null;
   costSummary: WorkOrderCostSummaryDetail;
+  /** Set when this WO was created as a follow-up to another (source = FOLLOW_UP). */
+  followUpFrom: WorkOrderCrossRef | null;
+  /** Follow-up WOs created from this WO after a COULD_NOT_INTERVENE validation. */
+  followUps: WorkOrderCrossRef[];
 }
 
 export interface WorkOrderSourceReport {
@@ -274,6 +283,24 @@ export interface UpdateHoldMetadataPayload {
   resolutionNote?: string;
 }
 
+export interface CreateFollowUpPayload {
+  type: WorkOrderType;
+  priority: WorkOrderPriority;
+  description: string;
+  internalNotes?: string;
+  estimatedDurationMinutes?: number;
+  dueDate?: string;
+}
+
+// ── Technician load ───────────────────────────────────────────────────────────
+
+export interface TechnicianLoadItem {
+  technicianId: string;
+  name: string;
+  openWoCount: number;
+  hasCritical: boolean;
+}
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
 export interface WorkOrderAnalyticsSummary {
@@ -342,4 +369,10 @@ export const workOrdersApi = {
 
   getAnalytics: (params?: { periodDays?: number }) =>
     api.get<WorkOrderAnalyticsResponse>('/work-orders/analytics', { params }).then((r) => r.data),
+
+  createFollowUp: (originalWoId: string, payload: CreateFollowUpPayload) =>
+    api.post<WorkOrderDetail>(`/work-orders/${originalWoId}/follow-up`, payload).then((r) => r.data),
+
+  getTechnicianLoad: () =>
+    api.get<TechnicianLoadItem[]>('/work-orders/technician-load').then((r) => r.data),
 };

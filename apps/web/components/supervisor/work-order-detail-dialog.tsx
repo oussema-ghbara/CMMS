@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +26,7 @@ import {
   type RejectValidationPayload,
   type ValidateWorkOrderPayload,
   type UpdateHoldMetadataPayload,
+  type CreateFollowUpPayload,
 } from '@/lib/work-orders.api';
 import { InterventionResult } from '@gmao/shared';
 import { usersApi } from '@/lib/users.api';
@@ -156,6 +157,18 @@ export function WorkOrderDetailDialog({
   const [validateAssetStatusOverride, setValidateAssetStatusOverride] =
     useState<AssetStatus | ''>('');
 
+  // Follow-up WO prompt state — populated after a COULD_NOT_INTERVENE validation succeeds
+  const [followUpPrompt, setFollowUpPrompt] = useState<{
+    originalWoId: string;
+    assetId: string;
+    description: string;
+    referenceNumber: string;
+    priority: WorkOrderPriority;
+  } | null>(null);
+
+  // Captured just before validateMutation fires to survive the detail re-fetch
+  const pendingFollowUpCtxRef = useRef<typeof followUpPrompt>(null);
+
   // Promote form state
   const [promoteNewPrincipalId, setPromoteNewPrincipalId] = useState('');
 
@@ -235,6 +248,7 @@ export function WorkOrderDetailDialog({
     setContributorIds([]);
     setPromoteNewPrincipalId('');
     setValidateAssetStatusOverride('');
+    setFollowUpPrompt(null);
     resetCancel();
     resetReject();
     resetReassign();
@@ -271,10 +285,34 @@ export function WorkOrderDetailDialog({
     onSuccess: () => {
       invalidateAll();
       toast.success(t('supervisorWorkOrders.toasts.validateSuccess'));
-      resetPanels();
+      setActivePanel(null);
+      setValidateAssetStatusOverride('');
+      // If this was a COULD_NOT_INTERVENE validation, show the follow-up prompt
+      if (pendingFollowUpCtxRef.current) {
+        setFollowUpPrompt(pendingFollowUpCtxRef.current);
+        pendingFollowUpCtxRef.current = null;
+      }
+    },
+    onError: (err) => {
+      pendingFollowUpCtxRef.current = null;
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.validateError')));
+    },
+  });
+
+  const createFollowUpMutation = useMutation({
+    mutationFn: (payload: CreateFollowUpPayload) =>
+      workOrdersApi.createFollowUp(followUpPrompt!.originalWoId, payload),
+    onSuccess: (newWo) => {
+      invalidateAll();
+      setFollowUpPrompt(null);
+      toast.success(
+        t('supervisorWorkOrders.toasts.followUpCreated', {
+          ref: newWo.referenceNumber,
+        }),
+      );
     },
     onError: (err) =>
-      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.validateError'))),
+      toast.error(getErrorMessage(err, t('supervisorWorkOrders.toasts.followUpError'))),
   });
 
   const rejectMutation = useMutation({
@@ -719,11 +757,21 @@ export function WorkOrderDetailDialog({
                       type="button"
                       size="sm"
                       disabled={validateMutation.isPending || !validateAssetStatusOverride}
-                      onClick={() =>
+                      onClick={() => {
+                        // Capture context before the WO detail is re-fetched post-mutation
+                        if (detail) {
+                          pendingFollowUpCtxRef.current = {
+                            originalWoId: detail.id,
+                            assetId: detail.asset.id,
+                            description: detail.description,
+                            referenceNumber: detail.referenceNumber,
+                            priority: detail.priority,
+                          };
+                        }
                         validateMutation.mutate({
                           assetStatusOverride: validateAssetStatusOverride as AssetStatus,
-                        })
-                      }
+                        });
+                      }}
                     >
                       {validateMutation.isPending && (
                         <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -761,6 +809,53 @@ export function WorkOrderDetailDialog({
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {/* ── Follow-up WO prompt — appears after a COULD_NOT_INTERVENE validation (§9.5) ── */}
+          {followUpPrompt && (
+            <div className="space-y-3 rounded-md border border-yellow-400/60 bg-yellow-50/40 p-3 dark:bg-yellow-900/10">
+              <div>
+                <p className="text-sm font-semibold">
+                  {t('supervisorWorkOrders.followUp.promptTitle')}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t('supervisorWorkOrders.followUp.promptBody', {
+                    ref: followUpPrompt.referenceNumber,
+                  })}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={createFollowUpMutation.isPending}
+                  onClick={() => setFollowUpPrompt(null)}
+                >
+                  {t('supervisorWorkOrders.followUp.dismiss')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={createFollowUpMutation.isPending}
+                  onClick={() =>
+                    createFollowUpMutation.mutate({
+                      type: 'CORRECTIVE' as const,
+                      priority: followUpPrompt.priority,
+                      description: t('supervisorWorkOrders.followUp.descriptionPrefix', {
+                        ref: followUpPrompt.referenceNumber,
+                        original: followUpPrompt.description,
+                      }),
+                    } as CreateFollowUpPayload)
+                  }
+                >
+                  {createFollowUpMutation.isPending && (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  {t('supervisorWorkOrders.followUp.create')}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1155,6 +1250,33 @@ export function WorkOrderDetailDialog({
                     <p className="whitespace-pre-wrap text-muted-foreground">{detail.sourceReport.description}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── Follow-up cross-references (§8.8) ── */}
+            {(detail.followUpFrom || (detail.followUps && detail.followUps.length > 0)) && (
+              <div className="mt-4 rounded-md border border-muted bg-muted/30 p-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('supervisorWorkOrders.detail.followUpChain')}
+                </p>
+                {detail.followUpFrom && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">
+                      {t('supervisorWorkOrders.detail.followUpFrom')}
+                    </span>{' '}
+                    <span className="font-medium">{detail.followUpFrom.referenceNumber}</span>
+                  </p>
+                )}
+                {detail.followUps && detail.followUps.length > 0 && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">
+                      {t('supervisorWorkOrders.detail.followUps')}
+                    </span>{' '}
+                    <span className="font-medium">
+                      {detail.followUps.map((f) => f.referenceNumber).join(', ')}
+                    </span>
+                  </p>
+                )}
               </div>
             )}
 

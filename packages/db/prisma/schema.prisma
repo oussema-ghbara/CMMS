@@ -58,6 +58,7 @@ enum WorkOrderSource {
   DIRECT_CREATION
   PREVENTIVE_PLAN
   CHECKLIST_ANOMALY
+  FOLLOW_UP
 }
 
 enum AssignmentRole {

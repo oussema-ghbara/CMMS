@@ -26,6 +26,7 @@ export enum WorkOrderSource {
   DIRECT_CREATION = 'DIRECT_CREATION',
   PREVENTIVE_PLAN = 'PREVENTIVE_PLAN',
   CHECKLIST_ANOMALY = 'CHECKLIST_ANOMALY',
+  FOLLOW_UP = 'FOLLOW_UP',
 }
 
 export enum AssignmentRole {

@@ -34,6 +34,33 @@ All notable changes to the GMAO project are documented here.
 - Supervisor sidebar gains a "File de validation" nav item (ShieldCheck icon) pointing to `/supervisor/validation-queue`.
 - **i18n:** `nav.validationQueue`, `validationQueue.{title,subtitle,total,columns.*,states.*}` keys added to `common.json`.
 
+### Added — COULD_NOT_INTERVENE follow-up WO flow and technician load panel (April 22, 2026)
+
+#### `feat(db): add FOLLOW_UP to WorkOrderSource enum with migration (§1.4)`
+- `WorkOrderSource.FOLLOW_UP` added to `packages/db/prisma/schema.prisma` and to the `@gmao/shared` `WorkOrderSource` enum in `packages/shared/src/enums/work-order.enum.ts`.
+- Migration `20260422000001_add_follow_up_source`: `ALTER TYPE "WorkOrderSource" ADD VALUE 'FOLLOW_UP';` — additive, safe to apply with zero downtime.
+
+#### `feat(work-orders): add follow-up WO creation from COULD_NOT_INTERVENE closures (§1.4)`
+- New `CreateFollowUpDto` (`apps/backend/src/work-orders/dto/create-follow-up.dto.ts`): `type`, `priority`, `description` (required) + `internalNotes`, `estimatedDurationMinutes`, `dueDate` (optional). `assetId` is intentionally excluded — inherited from the original WO to enforce unambiguous cross-reference.
+- `WorkOrdersRepository.create()` gains an optional 7th parameter `followUpFromId?: string` passed to `tx.workOrder.create`. `findById` include now fetches `followUpFrom: { id, referenceNumber }` and `followUps: [{ id, referenceNumber }]` self-relations.
+- `WorkOrdersService.createFollowUp(originalWoId, dto, actorId)`: validates original WO status is `CLOSED` (throws `BadRequestException('workOrders.followUp.originalMustBeClosed')` otherwise); inherits `assetId`; calls `repo.create` with `sourceType=FOLLOW_UP` and `followUpFromId=originalWoId`.
+- New `GET /work-orders/technician-load` endpoint declared before `GET /:id` to avoid route shadowing. `TechnicianLoadItem` interface exported from the service.
+- New `POST /work-orders/:id/follow-up` controller action (Supervisor only).
+- **Tests (9):** happy path verifies `repo.create` receives `FOLLOW_UP` source + `followUpFromId`; non-CLOSED guard throws `BadRequestException`; `assetId` inherited (not from DTO); asset not-found propagates; 5 `getTechnicianLoad` tests (empty, aggregation, CRITICAL detection, sort order, hasCritical=false). (350 backend tests total, 0 regressions.)
+
+#### `feat(web): add follow-up WO prompt and cross-reference display in validation dialog (§2.4)`
+- `WorkOrderCrossRef`, `CreateFollowUpPayload`, and `TechnicianLoadItem` interfaces added to `lib/work-orders.api.ts`; `WorkOrderDetail` extended with `followUpFrom: WorkOrderCrossRef | null` and `followUps: WorkOrderCrossRef[]`; `createFollowUp()` and `getTechnicianLoad()` API methods added.
+- `work-order-detail-dialog.tsx` uses a `useRef` (`pendingFollowUpCtxRef`) to capture the pre-mutation context (originalWoId, referenceNumber, assetId, description, priority) immediately before `validateMutation.mutate()` fires. In `onSuccess`, if the ref is set, a yellow-bordered prompt panel replaces the validation panel, offering "Ignorer" and "Créer un OT de suivi" buttons.
+- Cross-reference section in the detail card shows `followUpFrom.referenceNumber` and a list of `followUps` references when present.
+- **i18n:** `supervisorWorkOrders.followUp.{promptTitle,promptBody,dismiss,create,descriptionPrefix}`, `supervisorWorkOrders.toasts.{followUpCreated,followUpError}`, `supervisorWorkOrders.detail.{followUpChain,followUpFrom,followUps}` keys added to `fr/common.json`.
+- **Tests (10):** `follow-up-utils.spec.ts` — `buildFollowUpDescription` prefix formatting (3 tests); `resolveNotificationRoute` for `FOLLOW_UP_PROMPT` notifications (3 tests); `TechnicianLoadItem` sort/hasCritical display logic (4 tests). (47 frontend tests total, 0 regressions.)
+
+#### `feat(web): add technician load panel to supervisor dashboard (§2.2 remaining)`
+- `TechnicianLoadItem` type imported from `lib/work-orders.api.ts`.
+- New `TechnicianLoadRow` sub-component renders technician name, open WO count, and a destructive "CRITIQUE" badge when `hasCritical=true`.
+- `supervisor/page.tsx` adds an 11th `useQueries` entry calling `getTechnicianLoad()`; the result is rendered as a card panel sorted descending by `openWoCount`; empty state shows a checkmark message.
+- **i18n:** `supervisorDashboard.technicianLoad.{title,woCount,criticalLabel,none}` keys added to `fr/common.json`.
+
 ### Added — Scheduled job health monitoring and QR code print (April 21, 2026)
 
 #### `feat(admin): track scheduled job execution health with per-job cron log (§4.1)`

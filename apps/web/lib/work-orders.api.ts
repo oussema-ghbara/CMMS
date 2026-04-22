@@ -55,6 +55,10 @@ export interface WorkOrderListQuery {
   priority?: WorkOrderPriority;
   page?: number;
   limit?: number;
+  /** ISO-8601 — return only WOs closed at or after this date */
+  closedAfter?: string;
+  /** ISO-8601 — return only WOs closed at or before this date */
+  closedBefore?: string;
 }
 
 export interface WorkOrderListResponse {

@@ -137,6 +137,17 @@ export interface CreateCertificatePayload {
 
 export type UpdateCertificatePayload = Partial<CreateCertificatePayload>;
 
+// ── Certificate Alerts ────────────────────────────────────────────────────────
+
+export interface CertificateAlertItem {
+  assetId: string;
+  assetName: string;
+  certificateType: string;
+  otherType: string | null;
+  expirationDate: string;
+  status: 'EXPIRING_SOON' | 'EXPIRED';
+}
+
 // ── QR Lookup ─────────────────────────────────────────────────────────────────
 
 /** Minimal shape returned by GET /assets/qr/:qrCode (no documents, no status-history) */
@@ -230,4 +241,7 @@ export const assetsApi = {
 
   getDocumentDownloadUrl: (id: string, docId: string) =>
     api.get<string>(`/assets/${id}/documents/${docId}/download`).then((r) => r.data),
+
+  getCertificateAlerts: () =>
+    api.get<CertificateAlertItem[]>('/assets/certificates/alerts').then((r) => r.data),
 };

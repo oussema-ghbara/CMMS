@@ -135,6 +135,81 @@ describe('CertificatesService', () => {
     });
   });
 
+  // ─── findAlerts ───────────────────────────────────────────────────────────
+
+  describe('findAlerts', () => {
+    function makeAlertRow(overrides: Record<string, unknown> = {}) {
+      return {
+        assetId: ASSET_ID,
+        certificateType: 'ELECTRICAL',
+        otherType: null,
+        expirationDate: new Date('2026-01-01'),
+        status: CertificateStatus.EXPIRING_SOON,
+        asset: { id: ASSET_ID, name: 'Pump A' },
+        ...overrides,
+      };
+    }
+
+    it('queries only EXPIRING_SOON and EXPIRED non-archived certificates', async () => {
+      (prisma.complianceCertificate.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.findAlerts();
+
+      expect(prisma.complianceCertificate.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isArchived: false,
+            status: { in: [CertificateStatus.EXPIRING_SOON, CertificateStatus.EXPIRED] },
+          }),
+        }),
+      );
+    });
+
+    it('maps Prisma rows to CertificateAlertItem shape', async () => {
+      const row = makeAlertRow();
+      (prisma.complianceCertificate.findMany as jest.Mock).mockResolvedValue([row]);
+
+      const result = await service.findAlerts();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        assetId: ASSET_ID,
+        assetName: 'Pump A',
+        certificateType: 'ELECTRICAL',
+        otherType: null,
+        status: CertificateStatus.EXPIRING_SOON,
+      });
+      expect(result[0].expirationDate).toBeInstanceOf(Date);
+    });
+
+    it('returns results for EXPIRED certificates too', async () => {
+      const row = makeAlertRow({ status: CertificateStatus.EXPIRED });
+      (prisma.complianceCertificate.findMany as jest.Mock).mockResolvedValue([row]);
+
+      const result = await service.findAlerts();
+
+      expect(result[0].status).toBe(CertificateStatus.EXPIRED);
+    });
+
+    it('returns empty array when no alerts exist', async () => {
+      (prisma.complianceCertificate.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.findAlerts();
+
+      expect(result).toEqual([]);
+    });
+
+    it('orders results by expirationDate ascending', async () => {
+      (prisma.complianceCertificate.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.findAlerts();
+
+      expect(prisma.complianceCertificate.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { expirationDate: 'asc' } }),
+      );
+    });
+  });
+
   // ─── refreshStatuses ──────────────────────────────────────────────────────
 
   describe('refreshStatuses', () => {

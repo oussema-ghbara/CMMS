@@ -43,6 +43,13 @@ export class AssetsController {
     return this.assets.findByQrCode(qrCode);
   }
 
+  @Get('certificates/alerts')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'List certificate alerts (EXPIRING_SOON/EXPIRED) for supervisor dashboard (Supervisor)' })
+  getCertificateAlerts() {
+    return this.certificates.findAlerts();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get full asset detail (all roles)' })
   findById(@Param('id') id: string) {

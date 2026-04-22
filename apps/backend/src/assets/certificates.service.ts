@@ -206,8 +206,52 @@ export class CertificatesService {
     );
   }
 
+  /**
+   * Returns all non-archived certificates in EXPIRING_SOON or EXPIRED state,
+   * ordered by expiration date ascending, with their parent asset name/id.
+   * Used by the supervisor dashboard certificate-alerts panel.
+   */
+  async findAlerts(): Promise<CertificateAlertItem[]> {
+    const where = {
+      isArchived: false,
+      status: { in: [CertificateStatus.EXPIRING_SOON, CertificateStatus.EXPIRED] },
+    } as Prisma.ComplianceCertificateWhereInput;
+
+    const certs = await this.prisma.complianceCertificate.findMany({
+      where,
+      orderBy: { expirationDate: 'asc' },
+      select: {
+        assetId: true,
+        certificateType: true,
+        otherType: true,
+        expirationDate: true,
+        status: true,
+        asset: { select: { id: true, name: true } },
+      },
+    });
+
+    return certs.map((c) => ({
+      assetId: c.asset.id,
+      assetName: c.asset.name,
+      certificateType: c.certificateType as string,
+      otherType: c.otherType,
+      expirationDate: c.expirationDate,
+      status: c.status as 'EXPIRING_SOON' | 'EXPIRED',
+    }));
+  }
+
   private async assertAssetExists(assetId: string): Promise<void> {
     const asset = await this.prisma.asset.findUnique({ where: { id: assetId } });
     if (!asset) throw new NotFoundException(`Asset ${assetId} not found`);
   }
 }
+
+export interface CertificateAlertItem {
+  assetId: string;
+  assetName: string;
+  certificateType: string;
+  otherType: string | null;
+  expirationDate: Date;
+  status: 'EXPIRING_SOON' | 'EXPIRED';
+}
+

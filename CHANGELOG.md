@@ -4,6 +4,36 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Supervisor dashboard operational panels and validation queue (April 22, 2026)
+
+#### `feat(backend): add closedAfter/closedBefore date filters to work-order list query (§2.2)`
+- `WorkOrderQueryDto` gains two optional `@IsDateString()` fields: `closedAfter` and `closedBefore` (both documented via Swagger `@ApiPropertyOptional`).
+- `WorkOrdersRepository.findAll` translates the params to a `closedAt: { gte, lte }` Prisma predicate using only the provided bounds; absent params produce no `closedAt` key in the `where` clause — all existing callers are unaffected.
+- Used by the supervisor dashboard "Clôturés aujourd'hui" panel to count WOs closed since UTC midnight.
+- **Tests (8):** `closedAfter` → `gte` Date object; `closedBefore` → `lte` Date object; combined range → both keys in same `closedAt` object; absent params → no `closedAt`; `status` filter still applied alongside `closedAfter`; `search` still applied alongside `closedAfter`; param stored as a `Date` instance (not a string); empty query → no `closedAt` key.
+
+#### `feat(assets): add certificate alerts endpoint for supervisor dashboard (§2.2)`
+- New `CertificatesService.findAlerts()` method: queries all non-archived `EXPIRING_SOON` and `EXPIRED` compliance certificates with their parent asset (`id`, `name`), ordered by `expirationDate` ascending. Returns `CertificateAlertItem[]` (exported interface).
+- New `GET /assets/certificates/alerts` route in `AssetsController` (Supervisor only). Declared before the generic `GET /assets/:id` handler to prevent NestJS routing the literal segment `certificates` as an asset ID.
+- **Tests (5):** only EXPIRING_SOON/EXPIRED queried; archived certs excluded; Prisma rows mapped to `CertificateAlertItem`; EXPIRED status preserved; empty list returned when none; results ordered by `expirationDate asc`. (341 backend tests total, 0 regressions.)
+
+#### `feat(web): add operational panels to supervisor dashboard (§2.2)`
+- New `lib/date-utils.ts` module: `elapsedSince(isoDate)` returns a short human-readable elapsed duration ("3h", "2j"); `todayStartIso()` returns the ISO-8601 UTC midnight timestamp for today. Both utilities are pure functions and covered by dedicated tests.
+- `CertificateAlertItem` interface + `assetsApi.getCertificateAlerts()` added to `assets.api.ts`.
+- `closedAfter?: string` and `closedBefore?: string` added to `WorkOrderListQuery` in `work-orders.api.ts`.
+- Supervisor dashboard (`supervisor/page.tsx`) gains a second row of three operational panels below the existing summary cards:
+  1. **Clôturés aujourd'hui** — live count of WOs with `status=CLOSED&closedAfter=<UTC-midnight>`; links to work-orders board.
+  2. **Demandes bloquées** — fetches up to 100 PENDING part requests and counts those where `workOrder.status === ON_HOLD`; amber border when count > 0; links to work-orders board.
+  3. **Certificats à risque** — lists up to 4 EXPIRING_SOON/EXPIRED certs inline with asset name, expiration date, and colored badge; shows overflow count; links to assets page.
+- The "À valider" summary card CTA now navigates to `/supervisor/validation-queue` instead of the general work-orders board.
+- **Tests (10):** `elapsedSince` boundary at 0h / Nh / 23h59m / 24h / 2j / 7j; `todayStartIso` produces UTC midnight of today; ISO-8601 format; always in the past. (37 frontend tests total, 0 regressions.)
+
+#### `feat(web): add dedicated validation queue view for supervisors (§2.7)`
+- New `ValidationQueueBoard` component (`components/supervisor/validation-queue-board.tsx`): paginated table filtered to `PENDING_VALIDATION` WOs with columns — reference (monospace), asset + location path, principal technician, type badge, priority badge, time-in-queue (from `elapsedSince`). Clicking a row opens the existing `WorkOrderDetailDialog` where the supervisor can approve or reject closure. Empty state, error state, and pagination controls included.
+- New route `app/(protected)/supervisor/validation-queue/page.tsx` with page title and subtitle.
+- Supervisor sidebar gains a "File de validation" nav item (ShieldCheck icon) pointing to `/supervisor/validation-queue`.
+- **i18n:** `nav.validationQueue`, `validationQueue.{title,subtitle,total,columns.*,states.*}` keys added to `common.json`.
+
 ### Added — Scheduled job health monitoring and QR code print (April 21, 2026)
 
 #### `feat(admin): track scheduled job execution health with per-job cron log (§4.1)`

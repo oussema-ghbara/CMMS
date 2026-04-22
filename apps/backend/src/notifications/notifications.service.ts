@@ -185,4 +185,27 @@ export class NotificationsService {
       })),
     );
   }
+
+  async notifyAdmins(
+    type: NotificationType,
+    title: string,
+    summary: string,
+    entityType?: string,
+    entityId?: string,
+  ): Promise<void> {
+    const admins = await this.prisma.user.findMany({
+      where: { roles: { has: 'ADMIN' }, isActive: true },
+      select: { id: true },
+    });
+    await this.notifyMany(
+      admins.map((a) => ({
+        recipientId: a.id,
+        type,
+        title,
+        summary,
+        entityType,
+        entityId,
+      })),
+    );
+  }
 }

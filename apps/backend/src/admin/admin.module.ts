@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AdminController } from './admin.controller';
 import { AdminAnalyticsService } from './admin-analytics.service';
+import { FailedNotificationDetectorJob } from './failed-notification-detector.job';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { JobLoggerModule } from '../job-logger/job-logger.module';
@@ -21,6 +22,6 @@ import { PREVENTIVE_PLAN_QUEUE } from '../preventive-plans/preventive-plans.cons
     ),
   ],
   controllers: [AdminController],
-  providers: [AdminAnalyticsService],
+  providers: [AdminAnalyticsService, FailedNotificationDetectorJob],
 })
 export class AdminModule {}

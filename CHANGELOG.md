@@ -4,6 +4,27 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Admin notifications for job failures and email delivery errors (April 22, 2026)
+
+#### `feat(notifications): add notifyAdmins() to NotificationsService (§1.16)`
+- `NotificationsService.notifyAdmins(type, title, summary, entityType?, entityId?)` added — symmetric to `notifySupervisors()`: queries all active `ADMIN` users and calls `notifyMany()` with the full fan-out; `entityType` and `entityId` are optional to accommodate system-level notifications that have no specific entity.
+- **Tests (3):** active ADMIN users queried; `notifyMany` called with correct `recipientId`/type/title/summary/entityType/entityId per admin; no-op (empty `notifyMany` call) when no active admins exist; `entityType`/`entityId` passed through as `undefined` when omitted.
+
+#### `feat(job-logger): emit SCHEDULED_JOB_FAILED to admins on cron job failure (§1.16)`
+- `JobLoggerService` now injects `@Optional() NotificationsService | null` as a second constructor argument. The `@Optional()` decorator preserves backward compatibility: all existing unit tests that instantiate the service with only `PrismaService` continue to pass without modification.
+- `recordFailure()` calls the private `notifyAdminsJobFailed(jobName, message)` after persisting the failure log. That helper checks the `Notification` table for a recent `SCHEDULED_JOB_FAILED` entry within the last 23 hours (`entityType='ScheduledJob'`, `entityId=jobName`) and skips if one exists — preventing hourly spam when a job fails persistently.
+- Notification summary includes the job name and the (possibly truncated) error message.
+- No modification to any of the 6 existing cron job files — the notification is fired transparently from the shared logger.
+- **Tests (8 new, 2 updated existing):** dedup skip when recent notification found; sends when no dedup entry; dedup query uses correct `type`/`entityType`/`entityId`/23h window; notification summary contains job name; notification summary contains error message; error message truncated to 500 chars before inclusion; `@Optional()` null-safety — no crash, no notification when `notifications=null`; DB errors in `recordFailure` still swallowed.
+
+#### `feat(admin): add FailedNotificationDetectorJob for email delivery failure alerting (§1.16)`
+- New `@Cron(EVERY_HOUR)` job at `apps/backend/src/admin/failed-notification-detector.job.ts`, registered in `AdminModule`.
+- `doRun()` counts `Notification` rows with `emailFailed: true` created within the last 23 hours. If count > 0, checks a dedup entry (`NOTIFICATION_DELIVERY_FAILED`, `entityType='system'`, `entityId='email-delivery'`) within the same 23h window; if not found, emits `NOTIFICATION_DELIVERY_FAILED` to all active admins via `notifyAdmins()` with the failure count in the summary.
+- Job execution wrapped with `jobLogger.recordStart`/`recordSuccess`/`recordFailure`, making it visible in the admin scheduled-job health panel.
+- Does NOT query dedup when `failedCount === 0` (short-circuits early to avoid an unnecessary `findFirst`).
+- **Tests (15):** `run()` calls `recordStart`/`recordSuccess` on success; `run()` calls `recordFailure` and re-throws on error; `doRun()` skips `notifyAdmins` when `failedCount=0`; count query uses `emailFailed=true` with 23h `gte` window; notifies when count > 0 and no dedup entry; summary contains the failure count; dedup skip when recent `NOTIFICATION_DELIVERY_FAILED` exists; dedup query uses correct type/entityType/entityId/window; `findFirst` not called when count is 0.
+- **367 backend tests total — 0 regressions.**
+
 ### Added — Supervisor dashboard operational panels and validation queue (April 22, 2026)
 
 #### `feat(backend): add closedAfter/closedBefore date filters to work-order list query (§2.2)`

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Clock, Loader2, TrendingUp } from 'lucide-react';
 import { inventoryApi } from '@/lib/inventory.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,18 +29,21 @@ function formatCurrency(value: number): string {
 
 const DEFAULT_PERIOD_DAYS = 30;
 const DEFAULT_DEAD_STOCK_DAYS = 90;
+const DEFAULT_LONG_WAITING_HOURS = 24;
 
 export function StockAnalyticsBoard() {
   const { t } = useTranslation();
 
   const [periodInput, setPeriodInput] = useState(String(DEFAULT_PERIOD_DAYS));
   const [deadStockInput, setDeadStockInput] = useState(String(DEFAULT_DEAD_STOCK_DAYS));
+  const [longWaitingInput, setLongWaitingInput] = useState(String(DEFAULT_LONG_WAITING_HOURS));
   const [periodDays, setPeriodDays] = useState(DEFAULT_PERIOD_DAYS);
   const [deadStockDays, setDeadStockDays] = useState(DEFAULT_DEAD_STOCK_DAYS);
+  const [longWaitingThresholdHours, setLongWaitingThresholdHours] = useState(DEFAULT_LONG_WAITING_HOURS);
 
   const queryParams = useMemo(
-    () => ({ periodDays, deadStockDays }),
-    [periodDays, deadStockDays],
+    () => ({ periodDays, deadStockDays, longWaitingThresholdHours }),
+    [periodDays, deadStockDays, longWaitingThresholdHours],
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -51,24 +54,31 @@ export function StockAnalyticsBoard() {
   const handleApply = () => {
     const parsedPeriod = Math.max(1, Number.parseInt(periodInput, 10) || DEFAULT_PERIOD_DAYS);
     const parsedDeadStock = Math.max(1, Number.parseInt(deadStockInput, 10) || DEFAULT_DEAD_STOCK_DAYS);
+    const parsedLongWaiting = Math.max(1, Number.parseInt(longWaitingInput, 10) || DEFAULT_LONG_WAITING_HOURS);
 
     setPeriodInput(String(parsedPeriod));
     setDeadStockInput(String(parsedDeadStock));
+    setLongWaitingInput(String(parsedLongWaiting));
     setPeriodDays(parsedPeriod);
     setDeadStockDays(parsedDeadStock);
+    setLongWaitingThresholdHours(parsedLongWaiting);
   };
 
   const handleReset = () => {
     setPeriodInput(String(DEFAULT_PERIOD_DAYS));
     setDeadStockInput(String(DEFAULT_DEAD_STOCK_DAYS));
+    setLongWaitingInput(String(DEFAULT_LONG_WAITING_HOURS));
     setPeriodDays(DEFAULT_PERIOD_DAYS);
     setDeadStockDays(DEFAULT_DEAD_STOCK_DAYS);
+    setLongWaitingThresholdHours(DEFAULT_LONG_WAITING_HOURS);
   };
 
   const topByQuantity = data?.consumption.topByQuantity ?? [];
   const topByCost = data?.consumption.topByCost ?? [];
   const replenishment = data?.replenishment ?? [];
   const deadStock = data?.deadStock ?? [];
+  const costTrend = data?.costTrend ?? [];
+  const longWaitingRequests = data?.longWaitingRequests ?? [];
 
   return (
     <div className="space-y-4">
@@ -98,6 +108,20 @@ export function StockAnalyticsBoard() {
               min={1}
               value={deadStockInput}
               onChange={(event) => setDeadStockInput(event.target.value)}
+              className="w-24"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="analytics-long-waiting-hours">
+              {t('storekeeperAnalytics.filters.longWaitingHours')}
+            </label>
+            <Input
+              id="analytics-long-waiting-hours"
+              type="number"
+              min={1}
+              value={longWaitingInput}
+              onChange={(event) => setLongWaitingInput(event.target.value)}
               className="w-24"
             />
           </div>
@@ -329,6 +353,105 @@ export function StockAnalyticsBoard() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!isLoading && (
+        <div className="space-y-4">
+          {/* §3.1 — Cost trend */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                {t('storekeeperAnalytics.sections.costTrend')}
+              </CardTitle>
+              <CardDescription>{t('storekeeperAnalytics.sections.costTrendDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {costTrend.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('storekeeperAnalytics.states.empty')}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('storekeeperAnalytics.columns.month')}</TableHead>
+                      <TableHead className="text-right">{t('storekeeperAnalytics.columns.totalSpending')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {costTrend.map((row) => (
+                      <TableRow key={row.month}>
+                        <TableCell className="font-mono">{row.month}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(row.totalCost)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §3.2 — Long-waiting requests on ON_HOLD WOs */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                {t('storekeeperAnalytics.sections.longWaitingRequests')}
+                {longWaitingRequests.length > 0 && (
+                  <Badge variant="destructive" className="ml-1">
+                    {longWaitingRequests.length}
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {t('storekeeperAnalytics.sections.longWaitingRequestsDescription', {
+                  hours: data?.longWaitingThresholdHours ?? longWaitingThresholdHours,
+                })}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {longWaitingRequests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('storekeeperAnalytics.states.noLongWaiting')}</p>
+              ) : (
+                <>
+                  <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {t('storekeeperAnalytics.labels.longWaitingWarning', {
+                      count: longWaitingRequests.length,
+                      hours: data?.longWaitingThresholdHours ?? longWaitingThresholdHours,
+                    })}
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('storekeeperAnalytics.columns.workOrder')}</TableHead>
+                        <TableHead>{t('storekeeperAnalytics.columns.part')}</TableHead>
+                        <TableHead className="text-right">{t('storekeeperAnalytics.columns.quantity')}</TableHead>
+                        <TableHead className="text-right">{t('storekeeperAnalytics.columns.waitingHours')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {longWaitingRequests.map((req) => (
+                        <TableRow key={req.id}>
+                          <TableCell className="font-mono text-xs">{req.woReference}</TableCell>
+                          <TableCell>
+                            {req.partName ?? req.offCatalogDescription ?? t('storekeeperAnalytics.labels.offCatalog')}
+                            {req.partReference && (
+                              <span className="ml-1 text-xs text-muted-foreground">({req.partReference})</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">{formatNumber(req.quantityRequested)}</TableCell>
+                          <TableCell className="text-right font-semibold text-destructive">
+                            {formatNumber(req.waitingHours)} h
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
               )}
             </CardContent>
           </Card>

@@ -3,6 +3,8 @@ import { Prisma } from '@gmao/db';
 import { PartUnit } from '@gmao/shared';
 import { InventoryRepository } from './inventory.repository';
 
+const makeDate = (iso: string) => new Date(iso);
+
 describe('InventoryRepository', () => {
   const createRepository = () => {
     const prisma = {
@@ -85,5 +87,178 @@ describe('InventoryRepository', () => {
         statusCode: 409,
       },
     });
+  });
+});
+
+// ── getCostTrend ───────────────────────────────────────────────────────────────
+
+describe('InventoryRepository.getCostTrend', () => {
+  const createRepository = () => {
+    const prisma = { $queryRaw: jest.fn() };
+    return { prisma, repository: new InventoryRepository(prisma as never) };
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns mapped monthly cost rows', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      { month: makeDate('2026-02-01T00:00:00.000Z'), total_cost: '1500.00' },
+      { month: makeDate('2026-03-01T00:00:00.000Z'), total_cost: '2250.50' },
+    ]);
+
+    const result = await repository.getCostTrend(60);
+
+    expect(result).toEqual([
+      { month: '2026-02', totalCost: 1500 },
+      { month: '2026-03', totalCost: 2250.5 },
+    ]);
+  });
+
+  it('returns an empty array when no OUTGOING movements exist in the period', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const result = await repository.getCostTrend(30);
+
+    expect(result).toEqual([]);
+  });
+
+  it('defaults missing total_cost to 0', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      { month: makeDate('2026-01-01T00:00:00.000Z'), total_cost: null },
+    ]);
+
+    const result = await repository.getCostTrend(30);
+
+    expect(result[0].totalCost).toBe(0);
+  });
+
+  it('passes a date >= boundary derived from periodDays to the query', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const before = Date.now();
+    await repository.getCostTrend(30);
+    const after = Date.now();
+
+    const [, sinceArg] = prisma.$queryRaw.mock.calls[0];
+    expect(sinceArg.getTime()).toBeGreaterThanOrEqual(before - 30 * 24 * 60 * 60 * 1000);
+    expect(sinceArg.getTime()).toBeLessThanOrEqual(after - 30 * 24 * 60 * 60 * 1000 + 100);
+  });
+});
+
+// ── getLongWaitingOnHoldRequests ───────────────────────────────────────────────
+
+describe('InventoryRepository.getLongWaitingOnHoldRequests', () => {
+  const createRepository = () => {
+    const prisma = { $queryRaw: jest.fn() };
+    return { prisma, repository: new InventoryRepository(prisma as never) };
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('maps raw query rows to LongWaitingPartRequest objects', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        id: 'req-1',
+        work_order_id: 'wo-1',
+        wo_reference: 'WO-2026-001',
+        part_id: 'part-1',
+        part_name: 'Hydraulic seal',
+        part_reference: 'SEAL-001',
+        off_catalog_description: null,
+        quantity_requested: 2,
+        created_at: makeDate('2026-04-20T10:00:00.000Z'),
+        waiting_hours: '36.5',
+      },
+    ]);
+
+    const result = await repository.getLongWaitingOnHoldRequests(24);
+
+    expect(result).toEqual([
+      {
+        id: 'req-1',
+        workOrderId: 'wo-1',
+        woReference: 'WO-2026-001',
+        partId: 'part-1',
+        partName: 'Hydraulic seal',
+        partReference: 'SEAL-001',
+        offCatalogDescription: null,
+        quantityRequested: 2,
+        createdAt: makeDate('2026-04-20T10:00:00.000Z').toISOString(),
+        waitingHours: 37,
+      },
+    ]);
+  });
+
+  it('handles off-catalog requests (no partId/partName)', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        id: 'req-2',
+        work_order_id: 'wo-2',
+        wo_reference: 'WO-2026-002',
+        part_id: null,
+        part_name: null,
+        part_reference: null,
+        off_catalog_description: 'Special gasket 80mm',
+        quantity_requested: 1,
+        created_at: makeDate('2026-04-21T08:00:00.000Z'),
+        waiting_hours: '26',
+      },
+    ]);
+
+    const [result] = await repository.getLongWaitingOnHoldRequests(24);
+
+    expect(result.partId).toBeNull();
+    expect(result.partName).toBeNull();
+    expect(result.offCatalogDescription).toBe('Special gasket 80mm');
+  });
+
+  it('returns empty array when no requests exceed the threshold', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const result = await repository.getLongWaitingOnHoldRequests(24);
+
+    expect(result).toEqual([]);
+  });
+
+  it('passes a cutoff date derived from thresholdHours to the query', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const before = Date.now();
+    await repository.getLongWaitingOnHoldRequests(48);
+    const after = Date.now();
+
+    const [, cutoffArg] = prisma.$queryRaw.mock.calls[0];
+    expect(cutoffArg.getTime()).toBeGreaterThanOrEqual(before - 48 * 60 * 60 * 1000);
+    expect(cutoffArg.getTime()).toBeLessThanOrEqual(after - 48 * 60 * 60 * 1000 + 100);
+  });
+
+  it('rounds waiting_hours to nearest integer', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        id: 'req-3',
+        work_order_id: 'wo-3',
+        wo_reference: 'WO-2026-003',
+        part_id: 'p1',
+        part_name: 'Filter',
+        part_reference: 'FLT-001',
+        off_catalog_description: null,
+        quantity_requested: 3,
+        created_at: makeDate('2026-04-22T00:00:00.000Z'),
+        waiting_hours: '25.7',
+      },
+    ]);
+
+    const [result] = await repository.getLongWaitingOnHoldRequests(24);
+
+    expect(result.waitingHours).toBe(26);
   });
 });

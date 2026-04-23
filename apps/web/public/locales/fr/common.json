@@ -1516,6 +1516,7 @@
     "filters": {
       "periodDays": "Fenêtre (jours)",
       "deadStockDays": "Stock mort (jours)",
+      "longWaitingHours": "Attente max (h)",
       "apply": "Appliquer",
       "reset": "Réinitialiser"
     },
@@ -1535,7 +1536,11 @@
       "replenishment": "Signaux de réapprovisionnement",
       "replenishmentDescription": "Fréquence des franchissements sous seuil minimum.",
       "deadStock": "Stock mort",
-      "deadStockDescription": "Pièces actives sans mouvement sortant sur la fenêtre définie."
+      "deadStockDescription": "Pièces actives sans mouvement sortant sur la fenêtre définie.",
+      "costTrend": "Évolution des dépenses en pièces",
+      "costTrendDescription": "Dépenses totales mensuelles issues des mouvements sortants sur la période sélectionnée.",
+      "longWaitingRequests": "Demandes en attente sur OT bloqués",
+      "longWaitingRequestsDescription": "Demandes de pièces en attente depuis plus de {{hours}} h sur des OT en pause."
     },
     "requests": {
       "fulfilled": "Traitées",
@@ -1552,17 +1557,24 @@
       "timesTriggered": "Occurrences",
       "stock": "Stock",
       "minimum": "Seuil min.",
-      "unitCost": "Coût unitaire"
+      "unitCost": "Coût unitaire",
+      "month": "Mois",
+      "totalSpending": "Dépenses totales",
+      "workOrder": "OT",
+      "waitingHours": "Attente (h)"
     },
     "labels": {
       "windowSummary": "Période: {{periodDays}} j | Stock mort: {{deadStockDays}} j",
       "unknownPart": "Pièce inconnue",
       "notAvailable": "Non disponible",
-      "endpointNote": "Source: /stock/analytics (backend)"
+      "endpointNote": "Source: /stock/analytics (backend)",
+      "offCatalog": "Hors catalogue",
+      "longWaitingWarning": "{{count}} demande(s) en attente depuis plus de {{hours}} h sur des OT en pause."
     },
     "states": {
       "error": "Impossible de charger les analytiques d'inventaire",
-      "empty": "Aucune donnée disponible pour cette période"
+      "empty": "Aucune donnée disponible pour cette période",
+      "noLongWaiting": "Aucune demande en attente critique sur des OT en pause."
     }
   },
   "supervisorCategories": {

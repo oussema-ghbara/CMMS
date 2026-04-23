@@ -51,14 +51,17 @@ export class StockController {
   @Roles(Role.STOREKEEPER, Role.SUPERVISOR)
   @ApiQuery({ name: 'periodDays', required: false, type: Number, description: 'Analytics window in days (default 30)' })
   @ApiQuery({ name: 'deadStockDays', required: false, type: Number, description: 'Dead stock threshold in days (default 90)' })
-  @ApiOperation({ summary: 'Inventory analytics: consumption, replenishment, dead stock, request processing' })
+  @ApiQuery({ name: 'longWaitingThresholdHours', required: false, type: Number, description: 'Hours threshold for long-waiting requests on ON_HOLD WOs (default 24)' })
+  @ApiOperation({ summary: 'Inventory analytics: consumption, replenishment, dead stock, request processing, cost trend, long-waiting requests' })
   getAnalytics(
     @Query('periodDays') periodDays?: string,
     @Query('deadStockDays') deadStockDays?: string,
+    @Query('longWaitingThresholdHours') longWaitingThresholdHours?: string,
   ): Promise<Record<string, unknown>> {
     const period = Math.max(1, parseInt(periodDays ?? '30', 10) || 30);
     const deadStock = Math.max(1, parseInt(deadStockDays ?? '90', 10) || 90);
-    return this.inventory.getAnalytics(period, deadStock);
+    const longWaiting = Math.max(1, parseInt(longWaitingThresholdHours ?? '24', 10) || 24);
+    return this.inventory.getAnalytics(period, deadStock, longWaiting);
   }
   @Post('stock/returns')
   @Roles(Role.STOREKEEPER)

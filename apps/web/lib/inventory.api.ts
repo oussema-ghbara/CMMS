@@ -72,6 +72,24 @@ export interface InventoryAnalyticsRequestMetrics {
   avgProcessingMinutes: number | null;
 }
 
+export interface InventoryCostTrendItem {
+  month: string;
+  totalCost: number;
+}
+
+export interface LongWaitingPartRequest {
+  id: string;
+  workOrderId: string;
+  woReference: string;
+  partId: string | null;
+  partName: string | null;
+  partReference: string | null;
+  offCatalogDescription: string | null;
+  quantityRequested: number;
+  createdAt: string;
+  waitingHours: number;
+}
+
 export interface InventoryAnalyticsResponse {
   periodDays: number;
   consumption: {
@@ -86,6 +104,9 @@ export interface InventoryAnalyticsResponse {
   }>;
   deadStock: PartCatalogItem[];
   requests: InventoryAnalyticsRequestMetrics;
+  costTrend: InventoryCostTrendItem[];
+  longWaitingRequests: LongWaitingPartRequest[];
+  longWaitingThresholdHours: number;
 }
 
 export interface StockMovement {
@@ -149,7 +170,7 @@ export const inventoryApi = {
 
   getLowStock: () => api.get<PartCatalogItem[]>('/stock/low').then((r) => r.data),
 
-  getAnalytics: (params?: { periodDays?: number; deadStockDays?: number }) =>
+  getAnalytics: (params?: { periodDays?: number; deadStockDays?: number; longWaitingThresholdHours?: number }) =>
     api.get<InventoryAnalyticsResponse>('/stock/analytics', { params }).then((r) => r.data),
 
   recordReturn: (payload: RecordPartReturnPayload) =>

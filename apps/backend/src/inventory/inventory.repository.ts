@@ -512,4 +512,78 @@ export class InventoryRepository {
         : null,
     };
   }
+
+  async getCostTrend(periodDays: number) {
+    const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ month: Date; total_cost: string }>
+    >`
+      SELECT
+        DATE_TRUNC('month', sm."createdAt") AS month,
+        SUM(sm.quantity::numeric * COALESCE(sm."unitCostAtTime", p."unitCost", 0)) AS total_cost
+      FROM "StockMovement" sm
+      JOIN "Part" p ON p.id = sm."partId"
+      WHERE sm.type = 'OUTGOING'
+        AND sm."createdAt" >= ${since}
+      GROUP BY DATE_TRUNC('month', sm."createdAt")
+      ORDER BY month ASC
+    `;
+
+    return rows.map((r) => ({
+      month: r.month.toISOString().slice(0, 7),
+      totalCost: Number(r.total_cost ?? 0),
+    }));
+  }
+
+  async getLongWaitingOnHoldRequests(thresholdHours: number) {
+    const cutoff = new Date(Date.now() - thresholdHours * 60 * 60 * 1000);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        work_order_id: string;
+        wo_reference: string;
+        part_id: string | null;
+        part_name: string | null;
+        part_reference: string | null;
+        off_catalog_description: string | null;
+        quantity_requested: number;
+        created_at: Date;
+        waiting_hours: string;
+      }>
+    >`
+      SELECT
+        pr.id,
+        pr."workOrderId"            AS work_order_id,
+        wo."referenceNumber"        AS wo_reference,
+        pr."partId"                 AS part_id,
+        p.name                      AS part_name,
+        p."referenceCode"           AS part_reference,
+        pr."offCatalogDescription"  AS off_catalog_description,
+        pr."quantityRequested"      AS quantity_requested,
+        pr."createdAt"              AS created_at,
+        EXTRACT(EPOCH FROM (NOW() - pr."createdAt")) / 3600 AS waiting_hours
+      FROM "PartRequest" pr
+      JOIN "WorkOrder" wo ON wo.id = pr."workOrderId"
+      LEFT JOIN "Part" p ON p.id = pr."partId"
+      WHERE pr.status = 'PENDING'
+        AND wo.status = 'ON_HOLD'
+        AND pr."createdAt" <= ${cutoff}
+      ORDER BY pr."createdAt" ASC
+    `;
+
+    return rows.map((r) => ({
+      id: r.id,
+      workOrderId: r.work_order_id,
+      woReference: r.wo_reference,
+      partId: r.part_id ?? null,
+      partName: r.part_name ?? null,
+      partReference: r.part_reference ?? null,
+      offCatalogDescription: r.off_catalog_description ?? null,
+      quantityRequested: Number(r.quantity_requested),
+      createdAt: r.created_at.toISOString(),
+      waitingHours: Math.round(Number(r.waiting_hours)),
+    }));
+  }
 }

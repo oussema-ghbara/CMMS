@@ -5,6 +5,7 @@ import { useQueries } from '@tanstack/react-query';
 import { ProblemReportStatus, WorkOrderStatus } from '@gmao/shared';
 import { useTranslation } from 'react-i18next';
 import {
+  Activity,
   AlertTriangle,
   ClipboardCheck,
   ClipboardList,
@@ -14,7 +15,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { workOrdersApi, type TechnicianLoadItem } from '@/lib/work-orders.api';
+import { workOrdersApi, type TechnicianLoadItem, type AssetHealthItem } from '@/lib/work-orders.api';
 import { reportsApi } from '@/lib/reports.api';
 import { assetsApi, type CertificateAlertItem } from '@/lib/assets.api';
 import { partRequestsApi } from '@/lib/part-requests.api';
@@ -195,6 +196,11 @@ export default function SupervisorDashboardPage() {
         queryFn: () => workOrdersApi.getTechnicianLoad(),
         enabled: isInitialized,
       },
+      {
+        queryKey: ['supervisor', 'dashboard', 'asset-health'],
+        queryFn: () => workOrdersApi.getAssetHealth({ thresholdCount: 3, periodDays: 90 }),
+        enabled: isInitialized,
+      },
     ],
   });
 
@@ -210,6 +216,7 @@ export default function SupervisorDashboardPage() {
     closedToday,
     pendingPartRequests,
     technicianLoad,
+    assetHealth,
   ] = results;
 
   const hasError = results.some((result) => result.isError);
@@ -225,6 +232,7 @@ export default function SupervisorDashboardPage() {
 
   const certAlertItems = certAlerts.data ?? [];
   const expiredCount = certAlertItems.filter((c) => c.status === 'EXPIRED').length;
+  const assetHealthItems = (assetHealth.data ?? []) as AssetHealthItem[];
   const expiringSoonCount = certAlertItems.filter((c) => c.status === 'EXPIRING_SOON').length;
 
   return (
@@ -305,6 +313,50 @@ export default function SupervisorDashboardPage() {
                 {technicianLoad.data.map((item) => (
                   <TechnicianLoadRow key={item.technicianId} item={item} />
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Asset health panel (§9.3) */}
+      <div>
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">
+          {t('supervisorDashboard.assetHealth.title')}
+        </h2>
+        <Card className={assetHealthItems.length > 0 ? 'border-destructive/40' : ''}>
+          <CardContent className="pt-4">
+            {assetHealth.isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : assetHealthItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t('supervisorDashboard.assetHealth.none')}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground mb-2">
+                  {t('supervisorDashboard.assetHealth.description', { count: assetHealthItems.length })}
+                </p>
+                <div className="divide-y">
+                  {assetHealthItems.map((item) => (
+                    <div key={item.assetId} className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-destructive shrink-0" />
+                        <span className="text-sm font-medium">{item.assetName}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {t('supervisorDashboard.assetHealth.lastFailure', {
+                            date: new Date(item.lastFailureDate).toLocaleDateString('fr-FR'),
+                          })}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                          {item.failureCount}×
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

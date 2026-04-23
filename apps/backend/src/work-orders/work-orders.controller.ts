@@ -58,11 +58,26 @@ export class WorkOrdersController {
 
   @Get('analytics')
   @Roles(Role.SUPERVISOR)
-  @ApiOperation({ summary: 'Work order analytics: summary, by-status, by-type, by-priority (Supervisor)' })
+  @ApiOperation({ summary: 'Full work order analytics across 5 KPI categories (Supervisor) — spec §9.8' })
   @ApiQuery({ name: 'periodDays', required: false, type: Number, description: 'Analytics window in days (default 30)' })
-  getAnalytics(@Query('periodDays') periodDays?: string) {
+  @ApiQuery({ name: 'categoryId', required: false, type: String, description: 'Filter by asset category ID' })
+  getAnalytics(@Query('periodDays') periodDays?: string, @Query('categoryId') categoryId?: string) {
     const period = Math.max(1, parseInt(periodDays ?? '30', 10) || 30);
-    return this.workOrders.getAnalytics(period);
+    return this.workOrders.getAnalytics(period, categoryId || undefined);
+  }
+
+  @Get('asset-health')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'Assets breaching recurring-failure threshold (Supervisor) — spec §9.3' })
+  @ApiQuery({ name: 'thresholdCount', required: false, type: Number, description: 'Min corrective WOs to flag (default 3)' })
+  @ApiQuery({ name: 'periodDays', required: false, type: Number, description: 'Lookback window in days (default 90)' })
+  getAssetHealth(
+    @Query('thresholdCount') thresholdCount?: string,
+    @Query('periodDays') periodDays?: string,
+  ) {
+    const threshold = Math.max(1, parseInt(thresholdCount ?? '3', 10) || 3);
+    const period = Math.max(1, parseInt(periodDays ?? '90', 10) || 90);
+    return this.workOrders.getRecurringFailureAssets(threshold, period);
   }
 
   @Get('technician-load')

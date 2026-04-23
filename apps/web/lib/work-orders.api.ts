@@ -325,14 +325,73 @@ export interface WorkOrderAnalyticsSummary {
   resolutionRate: number | null;
 }
 
+export interface AssetFailureKpiItem {
+  assetId: string;
+  assetName: string;
+  failureCount: number;
+  lastFailureDate: string;
+}
+
+export interface AssetCostKpiItem {
+  assetId: string;
+  assetName: string;
+  totalCost: number;
+}
+
+export interface TechnicianKpiItem {
+  technicianId: string;
+  name: string;
+  closedCount: number;
+  avgActiveDurationMinutes: number | null;
+  firstPassRate: number | null;
+  avgHoldPerWo: number | null;
+  avgResponseTimeHours: number | null;
+}
+
+export interface AssetHealthItem {
+  assetId: string;
+  assetName: string;
+  qrCode: string;
+  failureCount: number;
+  lastFailureDate: string;
+}
+
 export interface WorkOrderAnalyticsResponse {
   periodDays: number;
+  categoryId: string | null;
   summary: WorkOrderAnalyticsSummary;
   byStatus: Partial<Record<WorkOrderStatus, number>>;
   byType: Partial<Record<WorkOrderType, number>>;
   byPriority: Partial<Record<WorkOrderPriority, number>>;
   avgResolutionDays: number | null;
   costSummary: WorkOrderCostSummaryDetail;
+  assetKpis: {
+    globalMtbfDays: number | null;
+    globalMttrHours: number | null;
+    topByFailureFrequency: AssetFailureKpiItem[];
+    topByCost: AssetCostKpiItem[];
+    preventiveComplianceRate: number | null;
+    totalMaintenanceCost: number;
+  };
+  technicianKpis: TechnicianKpiItem[];
+  requesterAnalytics: {
+    totalReportsSubmitted: number;
+    totalConverted: number;
+    conversionRate: number | null;
+    reportToActionAvgDays: number | null;
+  };
+  preventivePlanEfficiency: {
+    complianceRate: number | null;
+    anomalyRate: number | null;
+    totalPreventiveWOs: number;
+    closedPreventiveWOs: number;
+  };
+  operationalOverview: {
+    sourceDistribution: Partial<Record<string, number>>;
+    rejectionReasonDistribution: Partial<Record<string, number>>;
+    reassignmentCount: number;
+    avgHoldPeriodsPerWo: number | null;
+  };
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -380,8 +439,11 @@ export const workOrdersApi = {
   updateHoldMetadata: (id: string, payload: UpdateHoldMetadataPayload) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/hold-metadata`, payload).then((r) => r.data),
 
-  getAnalytics: (params?: { periodDays?: number }) =>
+  getAnalytics: (params?: { periodDays?: number; categoryId?: string }) =>
     api.get<WorkOrderAnalyticsResponse>('/work-orders/analytics', { params }).then((r) => r.data),
+
+  getAssetHealth: (params?: { thresholdCount?: number; periodDays?: number }) =>
+    api.get<AssetHealthItem[]>('/work-orders/asset-health', { params }).then((r) => r.data),
 
   createFollowUp: (originalWoId: string, payload: CreateFollowUpPayload) =>
     api.post<WorkOrderDetail>(`/work-orders/${originalWoId}/follow-up`, payload).then((r) => r.data),

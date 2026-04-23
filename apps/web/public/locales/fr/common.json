@@ -230,6 +230,12 @@
       "woCount": "{{count}} OT",
       "criticalLabel": "CRITIQUE",
       "none": "Aucun technicien avec des OT ouverts"
+    },
+    "assetHealth": {
+      "title": "Santé des équipements",
+      "description": "{{count}} équipement(s) dépasse(nt) le seuil de pannes répétées (3 pannes en 90 jours)",
+      "none": "Aucun équipement ne dépasse le seuil de pannes répétées",
+      "lastFailure": "Dernière panne le {{date}}"
     }
   },
   "supervisorAnalytics": {
@@ -240,6 +246,14 @@
       "apply": "Appliquer",
       "reset": "Réinitialiser"
     },
+    "tabs": {
+      "overview": "Vue d'ensemble",
+      "assets": "Équipements",
+      "technicians": "Techniciens",
+      "preventive": "Plans préventifs",
+      "requester": "Demandeurs",
+      "operational": "Opérationnel"
+    },
     "kpi": {
       "totalWorkOrders": "Ordres de travail (total)",
       "openWorkOrders": "{{count}} actif(s)",
@@ -248,8 +262,32 @@
       "closedThisPeriod": "Clôturés sur la période",
       "periodDaysLabel": "Sur les {{days}} derniers jours",
       "resolutionRate": "Taux de clôture",
-      "avgResolutionDays": "Durée moyenne de résolution : {{days}} j",
-      "noClosedYet": "Aucun OT clôturé"
+      "avgResolutionDays": "Durée moy. de résolution",
+      "avgResolutionDescription": "Tous OT clôturés confondus",
+      "noClosedYet": "Aucun OT clôturé",
+      "globalMtbf": "MTBF moyen",
+      "globalMtbfDesc": "Temps moyen entre pannes correctives",
+      "globalMttr": "MTTR moyen",
+      "globalMttrDesc": "Temps moyen de rétablissement (OT correctifs clôturés)",
+      "preventiveCompliance": "Conformité préventive",
+      "preventiveComplianceDesc": "{{closed}} / {{total}} OT préventifs clôturés",
+      "totalMaintenanceCost": "Coût total de maintenance",
+      "totalMaintenanceCostDesc": "Sur la période sélectionnée",
+      "planComplianceRate": "Taux de conformité des plans",
+      "preventiveClosedDesc": "OT préventifs clôturés",
+      "anomalyRate": "Taux d'anomalies",
+      "anomalyRateDesc": "Articles de checklist avec anomalie détectée",
+      "totalPreventiveWOs": "OT préventifs",
+      "totalPreventiveWOsDesc": "Créés sur la période",
+      "totalReportsSubmitted": "Signalements soumis",
+      "reportConversionRate": "Taux de conversion",
+      "reportsConverted": "converti(s) en OT",
+      "reportToActionDelay": "Délai moyen de traitement",
+      "reportToActionDelayDesc": "De la soumission à la décision",
+      "reassignmentCount": "Réaffectations",
+      "reassignmentCountDesc": "Changements de technicien sur la période",
+      "avgHoldPeriodsPerWo": "Blocages moyens par OT",
+      "avgHoldPeriodsDesc": "Périodes de blocage (ON_HOLD) par OT clôturé"
     },
     "sections": {
       "byStatus": "Répartition par statut",
@@ -259,7 +297,27 @@
       "byPriority": "Répartition par priorité",
       "byPriorityDescription": "Ordres de travail actifs (non terminaux) regroupés par priorité.",
       "periodSummary": "Résumé de la période",
-      "periodSummaryDescription": "Activité de clôture et d'annulation sur les {{days}} derniers jours."
+      "periodSummaryDescription": "Activité de clôture et d'annulation sur les {{days}} derniers jours.",
+      "topFailingAssets": "Équipements les plus défaillants",
+      "topFailingAssetsDesc": "Top 10 par nombre de pannes correctives sur la période",
+      "topCostAssets": "Équipements les plus coûteux",
+      "topCostAssetsDesc": "Top 10 par coût total (main-d'œuvre + pièces + sous-traitance)",
+      "technicianPerformance": "Performance par technicien",
+      "technicianPerformanceDesc": "OT clôturés sur la période avec technicien principal désigné",
+      "sourceDistribution": "Distribution par source",
+      "rejectionReasons": "Motifs de rejet de validation"
+    },
+    "columns": {
+      "asset": "Équipement",
+      "failureCount": "Pannes",
+      "lastFailure": "Dernière panne",
+      "totalCost": "Coût total",
+      "technician": "Technicien",
+      "closedWOs": "OT clôturés",
+      "firstPassRate": "1er passage",
+      "avgActiveDuration": "Durée active moy.",
+      "avgResponseTime": "Délai intervention",
+      "avgHolds": "Blocages / OT"
     },
     "type": {
       "CORRECTIVE": "Correctif",
@@ -273,7 +331,8 @@
     "states": {
       "error": "Impossible de charger les analytiques. Veuillez réessayer.",
       "empty": "Aucune donnée disponible.",
-      "noActiveWorkOrders": "Aucun OT actif en ce moment."
+      "noActiveWorkOrders": "Aucun OT actif en ce moment.",
+      "noData": "Aucune donnée sur la période sélectionnée."
     }
   },
   "supervisorReports": {

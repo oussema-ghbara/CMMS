@@ -14,7 +14,7 @@ import {
   WorkOrderPriority, WorkOrderType,
 } from '@gmao/db';
 import { StockMovementType } from '@gmao/db';
-import { WOCancellationReason } from '@gmao/shared';
+import { WOCancellationReason, ChecklistItemStatus } from '@gmao/shared';
 import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine';
 import { calculateWorkOrderCostSummary } from './work-order-costs';
 
@@ -263,11 +263,12 @@ export class WorkOrdersService {
     });
   }
 
-  async getAnalytics(periodDays: number) {
+  async getAnalytics(periodDays: number, categoryId?: string) {
     const terminalStatuses = [WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED];
     const since = new Date();
     since.setDate(since.getDate() - periodDays);
     const now = new Date();
+    const catFilter = categoryId ? { asset: { categoryId } } : {};
 
     const [
       byStatusRaw,
@@ -279,6 +280,14 @@ export class WorkOrdersService {
       cancelledThisPeriod,
       closedWOs,
       costWOs,
+      correctiveWOs,
+      techKpiWOs,
+      reportsInPeriod,
+      preventiveWOsInPeriod,
+      checklistItemsDone,
+      sourceDistRaw,
+      rejectionRaw,
+      reassignmentCount,
     ] = await Promise.all([
       this.prisma.workOrder.groupBy({ by: ['status'], _count: { id: true } }),
       this.prisma.workOrder.groupBy({ by: ['type'], _count: { id: true } }),
@@ -295,13 +304,13 @@ export class WorkOrdersService {
         },
       }),
       this.prisma.workOrder.count({
-        where: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since } },
+        where: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since }, ...catFilter },
       }),
       this.prisma.workOrder.count({
-        where: { status: WorkOrderStatus.CANCELLED, cancelledAt: { gte: since } },
+        where: { status: WorkOrderStatus.CANCELLED, cancelledAt: { gte: since }, ...catFilter },
       }),
       this.prisma.workOrder.findMany({
-        where: { status: WorkOrderStatus.CLOSED, closedAt: { not: null } },
+        where: { status: WorkOrderStatus.CLOSED, closedAt: { not: null }, ...catFilter },
         select: { createdAt: true, closedAt: true },
       }),
       this.prisma.workOrder.findMany({
@@ -310,27 +319,82 @@ export class WorkOrdersService {
             { status: WorkOrderStatus.CLOSED, closedAt: { gte: since } },
             { status: WorkOrderStatus.CANCELLED, cancelledAt: { gte: since } },
           ],
+          ...catFilter,
         },
         select: {
+          assetId: true,
+          asset: { select: { name: true } },
           contractorCost: true,
           interventionLogs: {
-            select: {
-              activeDurationMinutes: true,
-              hourlyRateAtTime: true,
-            },
+            select: { activeDurationMinutes: true, hourlyRateAtTime: true },
           },
           stockMovements: {
             where: { type: StockMovementType.OUTGOING },
-            select: {
-              type: true,
-              quantity: true,
-              unitCostAtTime: true,
-            },
+            select: { quantity: true, unitCostAtTime: true },
           },
         },
       }),
+      // All closed corrective WOs (all-time) for MTBF/MTTR/recurring-failure
+      this.prisma.workOrder.findMany({
+        where: { type: WorkOrderType.CORRECTIVE, status: WorkOrderStatus.CLOSED, closedAt: { not: null }, ...catFilter },
+        select: { assetId: true, asset: { select: { name: true } }, createdAt: true, closedAt: true },
+        orderBy: [{ assetId: 'asc' }, { createdAt: 'asc' }],
+      }),
+      // Closed WOs in period with principal technician
+      this.prisma.workOrder.findMany({
+        where: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since }, principalTechnicianId: { not: null }, ...catFilter },
+        select: {
+          principalTechnicianId: true,
+          principalTechnician: { select: { id: true, name: true } },
+          createdAt: true,
+          validationActions: { select: { action: true } },
+          onHoldPeriods: { select: { id: true } },
+          interventionLogs: {
+            select: { technicianId: true, activeDurationMinutes: true, startedAt: true },
+            orderBy: { startedAt: 'asc' },
+          },
+        },
+      }),
+      // Problem reports in period
+      this.prisma.problemReport.findMany({
+        where: { createdAt: { gte: since } },
+        select: {
+          status: true,
+          processedAt: true,
+          createdAt: true,
+          derivedWorkOrders: { select: { id: true } },
+        },
+      }),
+      // Preventive WOs in period
+      this.prisma.workOrder.findMany({
+        where: { type: WorkOrderType.PREVENTIVE, createdAt: { gte: since }, ...catFilter },
+        select: { status: true, assetId: true, closedAt: true },
+      }),
+      // Checklist items completed in period
+      this.prisma.workOrderChecklistItem.findMany({
+        where: {
+          status: { in: [ChecklistItemStatus.DONE, ChecklistItemStatus.ANOMALY_DETECTED, ChecklistItemStatus.NOT_APPLICABLE] },
+          workOrder: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since }, ...catFilter },
+        },
+        select: { status: true },
+      }),
+      // Source distribution in period
+      this.prisma.workOrder.groupBy({
+        by: ['sourceType'],
+        where: { createdAt: { gte: since }, ...catFilter },
+        _count: { id: true },
+      }),
+      // Rejection reason distribution in period
+      this.prisma.workOrderValidation.groupBy({
+        by: ['rejectionReason'],
+        where: { action: 'REJECTED', createdAt: { gte: since }, rejectionReason: { not: null } },
+        _count: { id: true },
+      }),
+      // Reassignment count in period
+      this.prisma.workOrderReassignment.count({ where: { createdAt: { gte: since } } }),
     ]);
 
+    // ── Existing KPIs ─────────────────────────────────────────────────────────
     const byStatus = Object.fromEntries(byStatusRaw.map((r) => [r.status, r._count.id]));
     const byType = Object.fromEntries(byTypeRaw.map((r) => [r.type, r._count.id]));
     const byPriority = Object.fromEntries(byPriorityRaw.map((r) => [r.priority, r._count.id]));
@@ -354,37 +418,243 @@ export class WorkOrdersService {
         Math.round((totalMs / closedWOs.length / (1000 * 60 * 60 * 24)) * 10) / 10;
     }
 
-    const costSummary = costWOs.reduce(
-      (summary, wo) => {
-        const cost = calculateWorkOrderCostSummary(wo as never);
-        summary.contractorCost += cost.contractorCost;
-        summary.laborCost += cost.laborCost;
-        summary.partsCost += cost.partsCost;
-        return summary;
-      },
-      { contractorCost: 0, laborCost: 0, partsCost: 0 },
+    const costByAsset = new Map<string, { assetName: string; laborCost: number; partsCost: number; contractorCost: number }>();
+    const costSummaryTotals = { contractorCost: 0, laborCost: 0, partsCost: 0 };
+
+    for (const wo of costWOs) {
+      const cost = calculateWorkOrderCostSummary(wo as never);
+      costSummaryTotals.contractorCost += cost.contractorCost;
+      costSummaryTotals.laborCost += cost.laborCost;
+      costSummaryTotals.partsCost += cost.partsCost;
+
+      const existing = costByAsset.get(wo.assetId) ?? { assetName: wo.asset.name, laborCost: 0, partsCost: 0, contractorCost: 0 };
+      existing.laborCost += cost.laborCost;
+      existing.partsCost += cost.partsCost;
+      existing.contractorCost += cost.contractorCost;
+      costByAsset.set(wo.assetId, existing);
+    }
+
+    const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+    costSummaryTotals.contractorCost = round2(costSummaryTotals.contractorCost);
+    costSummaryTotals.laborCost = round2(costSummaryTotals.laborCost);
+    costSummaryTotals.partsCost = round2(costSummaryTotals.partsCost);
+    const totalCost = round2(costSummaryTotals.contractorCost + costSummaryTotals.laborCost + costSummaryTotals.partsCost);
+
+    // ── Asset KPIs ────────────────────────────────────────────────────────────
+    // MTBF: mean time between corrective failures per asset, then average across assets
+    const wosByAsset = new Map<string, { createdAt: Date; closedAt: Date }[]>();
+    for (const wo of correctiveWOs) {
+      const list = wosByAsset.get(wo.assetId) ?? [];
+      list.push({ createdAt: wo.createdAt, closedAt: wo.closedAt! });
+      wosByAsset.set(wo.assetId, list);
+    }
+
+    const mtbfIntervals: number[] = [];
+    const mttrValues: number[] = [];
+    const failureCountInPeriod = new Map<string, { assetName: string; count: number; lastDate: Date }>();
+
+    for (const wo of correctiveWOs) {
+      const durationMs = wo.closedAt!.getTime() - wo.createdAt.getTime();
+      mttrValues.push(durationMs / (1000 * 60 * 60));
+
+      if (wo.createdAt >= since) {
+        const existing = failureCountInPeriod.get(wo.assetId);
+        if (!existing) {
+          failureCountInPeriod.set(wo.assetId, { assetName: wo.asset.name, count: 1, lastDate: wo.createdAt });
+        } else {
+          existing.count += 1;
+          if (wo.createdAt > existing.lastDate) existing.lastDate = wo.createdAt;
+        }
+      }
+    }
+
+    for (const wos of wosByAsset.values()) {
+      for (let i = 1; i < wos.length; i++) {
+        const gapMs = wos[i].createdAt.getTime() - wos[i - 1].closedAt.getTime();
+        if (gapMs > 0) mtbfIntervals.push(gapMs / (1000 * 60 * 60 * 24));
+      }
+    }
+
+    const globalMtbfDays = mtbfIntervals.length > 0
+      ? Math.round((mtbfIntervals.reduce((s, v) => s + v, 0) / mtbfIntervals.length) * 10) / 10
+      : null;
+    const globalMttrHours = mttrValues.length > 0
+      ? Math.round((mttrValues.reduce((s, v) => s + v, 0) / mttrValues.length) * 10) / 10
+      : null;
+
+    const topFailingAssets = [...failureCountInPeriod.entries()]
+      .map(([assetId, v]) => ({ assetId, assetName: v.assetName, failureCount: v.count, lastFailureDate: v.lastDate.toISOString() }))
+      .sort((a, b) => b.failureCount - a.failureCount)
+      .slice(0, 10);
+
+    const topCostAssets = [...costByAsset.entries()]
+      .map(([assetId, v]) => ({
+        assetId,
+        assetName: v.assetName,
+        totalCost: round2(v.laborCost + v.partsCost + v.contractorCost),
+      }))
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, 10);
+
+    const preventiveClosedCount = preventiveWOsInPeriod.filter((w) => w.status === WorkOrderStatus.CLOSED).length;
+    const preventiveComplianceRate = preventiveWOsInPeriod.length > 0
+      ? Math.round((preventiveClosedCount / preventiveWOsInPeriod.length) * 1000) / 1000
+      : null;
+
+    // ── Technician KPIs ───────────────────────────────────────────────────────
+    const techMap = new Map<string, {
+      id: string; name: string; closedCount: number;
+      totalActiveMins: number; activeMinsCount: number;
+      firstPassCount: number; totalHoldPeriods: number;
+      totalResponseMs: number; responseCount: number;
+    }>();
+
+    for (const wo of techKpiWOs) {
+      const techId = wo.principalTechnicianId!;
+      const entry = techMap.get(techId) ?? {
+        id: techId, name: wo.principalTechnician?.name ?? techId,
+        closedCount: 0, totalActiveMins: 0, activeMinsCount: 0,
+        firstPassCount: 0, totalHoldPeriods: 0, totalResponseMs: 0, responseCount: 0,
+      };
+      entry.closedCount += 1;
+      entry.totalHoldPeriods += wo.onHoldPeriods.length;
+
+      const wasRejected = wo.validationActions.some((a) => a.action === 'REJECTED');
+      if (!wasRejected) entry.firstPassCount += 1;
+
+      for (const log of wo.interventionLogs) {
+        if (log.activeDurationMinutes !== null) {
+          entry.totalActiveMins += log.activeDurationMinutes;
+          entry.activeMinsCount += 1;
+        }
+      }
+
+      const firstLog = wo.interventionLogs[0];
+      if (firstLog) {
+        entry.totalResponseMs += firstLog.startedAt.getTime() - wo.createdAt.getTime();
+        entry.responseCount += 1;
+      }
+
+      techMap.set(techId, entry);
+    }
+
+    const technicianKpis = [...techMap.values()].map((t) => ({
+      technicianId: t.id,
+      name: t.name,
+      closedCount: t.closedCount,
+      avgActiveDurationMinutes: t.activeMinsCount > 0
+        ? Math.round(t.totalActiveMins / t.activeMinsCount * 10) / 10 : null,
+      firstPassRate: t.closedCount > 0
+        ? Math.round(t.firstPassCount / t.closedCount * 1000) / 1000 : null,
+      avgHoldPerWo: t.closedCount > 0
+        ? Math.round(t.totalHoldPeriods / t.closedCount * 10) / 10 : null,
+      avgResponseTimeHours: t.responseCount > 0
+        ? Math.round(t.totalResponseMs / t.responseCount / (1000 * 60 * 60) * 10) / 10 : null,
+    })).sort((a, b) => b.closedCount - a.closedCount);
+
+    // ── Requester analytics ───────────────────────────────────────────────────
+    const totalReports = reportsInPeriod.length;
+    const convertedReports = reportsInPeriod.filter((r) => r.derivedWorkOrders.length > 0).length;
+    const conversionRate = totalReports > 0 ? Math.round(convertedReports / totalReports * 1000) / 1000 : null;
+
+    const processedReports = reportsInPeriod.filter((r) => r.processedAt !== null);
+    let reportToActionAvgDays: number | null = null;
+    if (processedReports.length > 0) {
+      const totalMs = processedReports.reduce(
+        (s, r) => s + (r.processedAt!.getTime() - r.createdAt.getTime()), 0,
+      );
+      reportToActionAvgDays = Math.round(totalMs / processedReports.length / (1000 * 60 * 60 * 24) * 10) / 10;
+    }
+
+    // ── Preventive plan efficiency ────────────────────────────────────────────
+    const anomalyItems = checklistItemsDone.filter((c) => c.status === ChecklistItemStatus.ANOMALY_DETECTED).length;
+    const anomalyRate = checklistItemsDone.length > 0
+      ? Math.round(anomalyItems / checklistItemsDone.length * 1000) / 1000
+      : null;
+
+    // ── Operational overview ──────────────────────────────────────────────────
+    const sourceDistribution = Object.fromEntries(sourceDistRaw.map((r) => [r.sourceType, r._count.id]));
+    const rejectionReasonDistribution = Object.fromEntries(
+      rejectionRaw.map((r) => [r.rejectionReason!, r._count.id]),
     );
 
-    costSummary.contractorCost = Math.round((costSummary.contractorCost + Number.EPSILON) * 100) / 100;
-    costSummary.laborCost = Math.round((costSummary.laborCost + Number.EPSILON) * 100) / 100;
-    costSummary.partsCost = Math.round((costSummary.partsCost + Number.EPSILON) * 100) / 100;
-
-    const totalCost = Math.round(
-      (costSummary.contractorCost + costSummary.laborCost + costSummary.partsCost + Number.EPSILON) * 100,
-    ) / 100;
+    const totalHoldPeriodsAll = techKpiWOs.reduce((s, wo) => s + wo.onHoldPeriods.length, 0);
+    const avgHoldPeriodsPerWo = techKpiWOs.length > 0
+      ? Math.round(totalHoldPeriodsAll / techKpiWOs.length * 10) / 10
+      : null;
 
     return {
       periodDays,
+      categoryId: categoryId ?? null,
       summary: { total, open, overdue, closedThisPeriod, cancelledThisPeriod, resolutionRate },
       byStatus,
       byType,
       byPriority,
       avgResolutionDays,
-      costSummary: {
-        ...costSummary,
-        totalCost,
+      costSummary: { ...costSummaryTotals, totalCost },
+      assetKpis: {
+        globalMtbfDays,
+        globalMttrHours,
+        topByFailureFrequency: topFailingAssets,
+        topByCost: topCostAssets,
+        preventiveComplianceRate,
+        totalMaintenanceCost: totalCost,
+      },
+      technicianKpis,
+      requesterAnalytics: {
+        totalReportsSubmitted: totalReports,
+        totalConverted: convertedReports,
+        conversionRate,
+        reportToActionAvgDays,
+      },
+      preventivePlanEfficiency: {
+        complianceRate: preventiveComplianceRate,
+        anomalyRate,
+        totalPreventiveWOs: preventiveWOsInPeriod.length,
+        closedPreventiveWOs: preventiveClosedCount,
+      },
+      operationalOverview: {
+        sourceDistribution,
+        rejectionReasonDistribution,
+        reassignmentCount,
+        avgHoldPeriodsPerWo,
       },
     };
+  }
+
+  async getRecurringFailureAssets(thresholdCount: number, periodDays: number) {
+    const since = new Date();
+    since.setDate(since.getDate() - periodDays);
+
+    const wos = await this.prisma.workOrder.findMany({
+      where: { type: WorkOrderType.CORRECTIVE, createdAt: { gte: since } },
+      select: { assetId: true, asset: { select: { name: true, qrCodeIdentifier: true } }, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const byAsset = new Map<string, { assetName: string; qrCode: string; count: number; lastFailureDate: Date }>();
+    for (const wo of wos) {
+      const entry = byAsset.get(wo.assetId) ?? {
+        assetName: wo.asset.name,
+        qrCode: wo.asset.qrCodeIdentifier,
+        count: 0,
+        lastFailureDate: wo.createdAt,
+      };
+      entry.count += 1;
+      if (wo.createdAt > entry.lastFailureDate) entry.lastFailureDate = wo.createdAt;
+      byAsset.set(wo.assetId, entry);
+    }
+
+    return [...byAsset.entries()]
+      .filter(([, v]) => v.count >= thresholdCount)
+      .map(([assetId, v]) => ({
+        assetId,
+        assetName: v.assetName,
+        qrCode: v.qrCode,
+        failureCount: v.count,
+        lastFailureDate: v.lastFailureDate.toISOString(),
+      }))
+      .sort((a, b) => b.failureCount - a.failureCount);
   }
 
   async autoEscalateOverduePriorities(): Promise<{ checked: number; escalated: number }> {

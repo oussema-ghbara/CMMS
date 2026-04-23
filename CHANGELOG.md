@@ -4,6 +4,55 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Technician pre-assignment, email preferences, and calendar preview (April 23, 2026)
+
+#### `feat(work-orders): add technician pre-assignment and duration hints to WO creation (§2.5)`
+- `CreateWorkOrderDto` gains two new optional fields: `principalTechnicianId?: string` and `contributorIds?: string[]` (both validated with `@IsOptional`, `@IsString`, `@IsArray`).
+- `WorkOrdersController.create()` becomes async: when `principalTechnicianId` is provided in the payload, the controller calls `workOrders.publish()` then `assignment.assign()` immediately after creation — the WO is published and assigned in a single request.
+- `GET /work-orders/duration-hints?assetId=&type=&technicianId=` returns `{ last5AssetAvgDays: number|null, categoryAvgDays: number|null, technicianAvgDays: number|null }`. All three values are computed in parallel via `Promise.all`: last-5 closed WOs on the same asset; average across closed WOs of the same category (skipped — resolves to `[]` — when the asset has no category); average for the given technician (omitted when `technicianId` is not provided). All averages rounded to 1 decimal.
+- `DurationHintsQueryDto` added (`apps/backend/src/work-orders/dto/duration-hints-query.dto.ts`) with `assetId: string`, `type: WorkOrderType` (`@IsEnum`), and `technicianId?: string`.
+- Route `GET /work-orders/duration-hints` declared before `GET /work-orders/:id` to prevent NestJS parameter capture.
+- `GET /users/technicians` endpoint added to `UsersController` with `@Roles(Role.ADMIN, Role.SUPERVISOR)` method-level override (bypasses class-level ADMIN-only guard via `Reflector.getAllAndOverride`). Returns active TECHNICIAN users with id, name, email.
+- Frontend `work-order-form-dialog.tsx` rewritten:
+  - Technician `<Select>` populated from `usersApi.listTechnicians()`; shows open-WO count badge (amber CRITICAL indicator when any critical WO); principal is excluded from contributor list.
+  - Contributor checkbox list shows per-tech load.
+  - Blue duration-hints panel (Clock icon) shows `last5AssetAvgDays` / `categoryAvgDays` / `technicianAvgDays` — queried only when both `assetId` and `type` are selected.
+  - `doCreate()` includes `principalTechnicianId` and `contributorIds` in the payload.
+- `TechnicianOption` interface + `listTechnicians()` API call added to `apps/web/lib/users.api.ts`.
+- `DurationHintsResponse` interface + `getDurationHints()` API call added to `apps/web/lib/work-orders.api.ts`.
+- i18n keys added: `supervisorWorkOrders.form.principalTechnician`, `technicianPlaceholder`, `contributors`, `techLoad`, `techNoLoad`, `durationHints.{title, last5Asset, categoryAvg, techAvg}`.
+- **Tests (6 in `work-orders.service.spec.ts`):** all-null with no WOs; correct averaging; technician avg; null when `technicianId` absent; category query uses asset's `categoryId`; rounding to 1 decimal. Note: when `categoryId` is null, `Promise.all` does not invoke `findMany` for category — only 2 mock calls needed.
+- **423 backend tests total — 0 regressions.**
+
+#### `feat(users): add per-user email notification preferences (§1.15)`
+- `UsersService.getPreferences(userId)`: queries `emailNotificationsEnabled` for the user; throws `NotFoundException` if user does not exist.
+- `UsersService.updateEmailNotificationsPreference(userId, enabled)`: updates the field and returns `{ emailNotificationsEnabled }`. Throws `NotFoundException` when user not found; does not call `update` in that case.
+- `UpdateEmailNotificationsDto` (`apps/backend/src/users/dto/update-email-notifications.dto.ts`): single `@IsBoolean() enabled` field.
+- `GET /users/me/preferences` endpoint: all roles allowed (method-level `@Roles` override). Returns `{ emailNotificationsEnabled: boolean }`.
+- `PATCH /users/me/email-notifications` endpoint: all roles allowed, `@HttpCode(200)`. Accepts `UpdateEmailNotificationsDto`.
+- `app-sidebar.tsx` sidebar user menu gains an email notification toggle item:
+  - `useQuery` reads current preference; `useMutation` toggles it.
+  - Optimistic cache update via `queryClient.setQueryData` on success.
+  - `Mail` icon used regardless of enabled/disabled state (lucide-react v0.x does not export `MailOff`).
+- `getMyPreferences()` + `updateEmailNotifications(enabled)` added to `apps/web/lib/users.api.ts`.
+- i18n keys added: `userPreferences.emailNotifications.{label, description, enabled, disabled, updateSuccess, updateError}`.
+- **Tests (11 in `users.service.spec.ts`):** `getPreferences` returns value; `getPreferences` throws on missing user; `updateEmailNotificationsPreference` updates to false; updates to true; throws on missing user; does not call `update` when user not found; `listActiveTechnicians` uses correct role filter.
+- **434 backend tests total — 0 regressions.**
+
+#### `feat(preventive-plans): add foreseeable WO generation calendar preview (§2.9)`
+- `PreventivePlansService.getCalendarPreview(fromDate, toDate)`: fetches all active plans via `repo.findAll()`; for each plan with a non-null `nextDueAt`, projects future WO generation dates by iterating `computeNextDueAt()` in a loop. Safety cap: `MAX_ITEMS_PER_PLAN = 200` items per plan; `try/catch` around each `computeNextDueAt()` call breaks on malformed cron expressions. Occurrences before `fromDate` are skipped; iteration stops once past `toDate`. Final result is sorted ascending by `generationDate`.
+- `CalendarPreviewItem` interface exported from `preventive-plans.service.ts`: `{ planId, planTitle, assetId, assetName, generationDate: string, estimatedDurationMinutes: number|null, defaultTechnicianId: string|null, defaultTechnicianName: string|null }`.
+- `GET /preventive-plans/calendar?fromDate&toDate` endpoint: SUPERVISOR only; inline `CalendarQueryDto` class with `@IsOptional @IsDateString` fields; defaults to today and today + 90 days when params omitted. Declared before `GET /preventive-plans/:id`.
+- Frontend `preventive-plans-board.tsx` gains a List/Calendar toggle button group in the header:
+  - List view: existing table + pagination (unchanged).
+  - Calendar view: `useQuery` for `preventivePlansApi.getCalendar()`; results grouped by day string via `useMemo`; each day section shows plan title, asset name, technician name (if set), and estimated duration in minutes.
+- `CalendarPreviewItem` interface + `getCalendar()` API call added to `apps/web/lib/preventive-plans.api.ts`.
+- i18n keys added: `supervisorPreventivePlans.views.{list, calendar}`, `supervisorPreventivePlans.calendar.{empty, total, itemCount}`.
+- **Tests (8 in `preventive-plans-calendar.service.spec.ts`):** empty array when no `nextDueAt`; item within window; 3 occurrences with 30-day interval over 90 days; excludes occurrences before `fromDate`; results sorted by date across multiple plans; `defaultTechnicianName` populated when plan has a technician; `defaultTechnicianId` null when no technician.
+- **442 backend tests total — 0 regressions.**
+
+---
+
 ### Added — Storekeeper cost analytics and on-hold long-waiting request detection (April 23, 2026)
 
 #### `feat(inventory): add monthly cost trend analytics (§3.1)`

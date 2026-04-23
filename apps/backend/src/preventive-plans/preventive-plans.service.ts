@@ -337,4 +337,69 @@ export class PreventivePlansService {
     }
     return admin.id;
   }
+
+  async getCalendarPreview(fromDate: Date, toDate: Date): Promise<CalendarPreviewItem[]> {
+    const { data: plans } = await this.repo.findAll({ isActive: true, page: 1, limit: 1000 });
+
+    const items: CalendarPreviewItem[] = [];
+    const MAX_ITEMS_PER_PLAN = 200;
+
+    for (const plan of plans) {
+      if (!plan.nextDueAt) continue;
+
+      let current = new Date(plan.nextDueAt);
+      let iterations = 0;
+
+      while (current <= toDate && iterations < MAX_ITEMS_PER_PLAN) {
+        iterations++;
+
+        if (current >= fromDate) {
+          const p = plan as unknown as {
+            asset: { id: string; name: string };
+            defaultTechnician: { id: string; name: string } | null;
+            frequencyType: string;
+            intervalDays: number | null;
+            calendarExpression: string | null;
+            estimatedDurationMinutes: number | null;
+            defaultTechnicianId: string | null;
+          };
+
+          items.push({
+            planId: plan.id,
+            planTitle: plan.title,
+            assetId: p.asset.id,
+            assetName: p.asset.name,
+            generationDate: current.toISOString(),
+            defaultTechnicianId: plan.defaultTechnicianId ?? null,
+            defaultTechnicianName: p.defaultTechnician?.name ?? null,
+            estimatedDurationMinutes: p.estimatedDurationMinutes,
+          });
+        }
+
+        try {
+          const p = plan as unknown as {
+            frequencyType: PreventiveFrequencyType;
+            intervalDays: number | null;
+            calendarExpression: string | null;
+          };
+          current = computeNextDueAt(p.frequencyType, p.intervalDays, p.calendarExpression, current);
+        } catch {
+          break;
+        }
+      }
+    }
+
+    return items.sort((a, b) => new Date(a.generationDate).getTime() - new Date(b.generationDate).getTime());
+  }
+}
+
+export interface CalendarPreviewItem {
+  planId: string;
+  planTitle: string;
+  assetId: string;
+  assetName: string;
+  generationDate: string;
+  defaultTechnicianId: string | null;
+  defaultTechnicianName: string | null;
+  estimatedDurationMinutes: number | null;
 }

@@ -16,6 +16,20 @@ import { PlanQueryDto } from './dto/plan-query.dto';
 import { CreatePlanChecklistItemDto } from './dto/create-checklist-item.dto';
 import { UpdatePlanChecklistItemDto } from './dto/update-checklist-item.dto';
 import { ReorderPlanChecklistItemsDto } from './dto/reorder-checklist-items.dto';
+import { IsDateString, IsOptional } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+class CalendarQueryDto {
+  @ApiPropertyOptional({ description: 'ISO date string for start of preview window (default: today)' })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiPropertyOptional({ description: 'ISO date string for end of preview window (default: today + 90 days)' })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+}
 
 @ApiTags('Preventive Plans')
 @ApiBearerAuth()
@@ -31,6 +45,25 @@ export class PreventivePlansController {
   @ApiOperation({ summary: 'List preventive plans with filters and pagination (all roles)' })
   findAll(@Query() query: PlanQueryDto) {
     return this.service.findAll(query);
+  }
+
+  @Get('calendar')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({
+    summary: 'Foreseeable WO generation calendar for active plans (Supervisor) — spec §2.9',
+    description:
+      'Returns projected WO generation events within the requested date window. ' +
+      'Defaults to today through today + 90 days. Maximum 200 events per plan.',
+  })
+  getCalendar(@Query() query: CalendarQueryDto) {
+    const now = new Date();
+    const defaultTo = new Date(now);
+    defaultTo.setDate(defaultTo.getDate() + 90);
+
+    const fromDate = query.fromDate ? new Date(query.fromDate) : now;
+    const toDate = query.toDate ? new Date(query.toDate) : defaultTo;
+
+    return this.service.getCalendarPreview(fromDate, toDate);
   }
 
   @Get(':id')

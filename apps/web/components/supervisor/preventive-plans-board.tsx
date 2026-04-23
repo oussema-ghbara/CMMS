@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, Loader2, PauseCircle, Pencil, PlayCircle, Plus, Search } from 'lucide-react';
+import {
+  CalendarDays, Eye, Loader2, List, PauseCircle, Pencil, PlayCircle, Plus, Search, User,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { assetsApi } from '@/lib/assets.api';
-import { preventivePlansApi, type PreventivePlanItem } from '@/lib/preventive-plans.api';
+import { preventivePlansApi, type PreventivePlanItem, type CalendarPreviewItem } from '@/lib/preventive-plans.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +41,7 @@ export function PreventivePlansBoard() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PreventivePlanItem | null>(null);
+  const [activeView, setActiveView] = useState<'list' | 'calendar'>('list');
 
   const queryParams = useMemo(
     () => ({
@@ -60,6 +63,24 @@ export function PreventivePlansBoard() {
     queryKey: ['supervisor', 'preventive-plans', 'asset-picker', assetSearch],
     queryFn: () => assetsApi.list({ page: 1, limit: 20, ...(assetSearch.trim() ? { search: assetSearch.trim() } : {}) }),
   });
+
+  const { data: calendarData, isLoading: calendarLoading } = useQuery({
+    queryKey: ['supervisor', 'preventive-plans', 'calendar'],
+    queryFn: () => preventivePlansApi.getCalendar(),
+    enabled: activeView === 'calendar',
+  });
+
+  const calendarByDate = useMemo(() => {
+    if (!calendarData) return new Map<string, CalendarPreviewItem[]>();
+    const map = new Map<string, CalendarPreviewItem[]>();
+    for (const item of calendarData) {
+      const day = item.generationDate.slice(0, 10);
+      const existing = map.get(day) ?? [];
+      existing.push(item);
+      map.set(day, existing);
+    }
+    return map;
+  }, [calendarData]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
   const selectedPlan = data?.data.find((plan) => plan.id === selectedPlanId) ?? null;
@@ -154,14 +175,47 @@ export function PreventivePlansBoard() {
           </Button>
         </div>
 
-        <Button type="button" onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('supervisorPreventivePlans.actions.create')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border border-input overflow-hidden">
+            <button
+              type="button"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${
+                activeView === 'list'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent'
+              }`}
+              onClick={() => setActiveView('list')}
+            >
+              <List className="h-3.5 w-3.5" />
+              {t('supervisorPreventivePlans.views.list')}
+            </button>
+            <button
+              type="button"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${
+                activeView === 'calendar'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent'
+              }`}
+              onClick={() => setActiveView('calendar')}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              {t('supervisorPreventivePlans.views.calendar')}
+            </button>
+          </div>
+          <Button type="button" onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('supervisorPreventivePlans.actions.create')}
+          </Button>
+        </div>
       </div>
 
-      {data && <div className="text-sm text-muted-foreground">{t('supervisorPreventivePlans.total', { count: data.total })}</div>}
+      {activeView === 'list' && data && (
+        <div className="text-sm text-muted-foreground">
+          {t('supervisorPreventivePlans.total', { count: data.total })}
+        </div>
+      )}
 
+      {activeView === 'list' && (
       <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
@@ -262,13 +316,84 @@ export function PreventivePlansBoard() {
           </TableBody>
         </Table>
       </div>
+      )}
 
+      {activeView === 'list' && (
       <PaginationControls
         page={page}
         totalPages={totalPages}
         onPrevious={() => setPage((current) => current - 1)}
         onNext={() => setPage((current) => current + 1)}
       />
+      )}
+
+      {activeView === 'calendar' && (
+        <div className="space-y-4">
+          {calendarLoading ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !calendarData || calendarData.length === 0 ? (
+            <div className="flex h-32 items-center justify-center rounded-md border text-sm text-muted-foreground">
+              {t('supervisorPreventivePlans.calendar.empty')}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t('supervisorPreventivePlans.calendar.total', { count: calendarData.length })}
+              </p>
+              {[...calendarByDate.entries()].map(([day, items]) => (
+                <div key={day} className="rounded-md border bg-card overflow-hidden">
+                  <div className="bg-muted/40 border-b px-4 py-2 flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      {new Intl.DateTimeFormat('fr-FR', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      }).format(new Date(day))}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                      {t('supervisorPreventivePlans.calendar.itemCount', { count: items.length })}
+                    </span>
+                  </div>
+                  <ul className="divide-y">
+                    {items.map((item, index) => (
+                      <li
+                        key={`${item.planId}-${index}`}
+                        className="flex items-start gap-3 px-4 py-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{item.planTitle}</p>
+                          <p className="text-xs text-muted-foreground truncate">{item.assetName}</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {item.estimatedDurationMinutes && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {item.estimatedDurationMinutes}min
+                            </span>
+                          )}
+                          {item.defaultTechnicianName ? (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <User className="h-3 w-3" />
+                              {item.defaultTechnicianName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {t('supervisorPreventivePlans.labels.unassigned')}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <PreventivePlanFormDialog
         open={planDialogOpen}

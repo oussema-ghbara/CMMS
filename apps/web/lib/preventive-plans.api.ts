@@ -147,6 +147,9 @@ export const preventivePlansApi = {
 
   deletePlanDocument: (planId: string, docId: string) =>
     api.delete(`/preventive-plans/${planId}/documents/${docId}`),
+
+  getCalendar: (params?: { fromDate?: string; toDate?: string }) =>
+    api.get<CalendarPreviewItem[]>('/preventive-plans/calendar', { params }).then((r) => r.data),
 };
 
 export interface PlanDocument {
@@ -159,4 +162,16 @@ export interface PlanDocument {
   isCurrentVersion: boolean;
   createdAt: string;
   uploadedBy?: { id: string; name: string } | null;
+}
+
+export interface CalendarPreviewItem {
+  planId: string;
+  planTitle: string;
+  assetId: string;
+  assetName: string;
+  /** ISO date string of the projected WO generation date */
+  generationDate: string;
+  defaultTechnicianId: string | null;
+  defaultTechnicianName: string | null;
+  estimatedDurationMinutes: number | null;
 }

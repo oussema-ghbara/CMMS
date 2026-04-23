@@ -726,3 +726,94 @@ describe('WorkOrdersService.getTechnicianLoad', () => {
     );
   });
 });
+
+// ─── getDurationHints ────────────────────────────────────────────────────────
+
+describe('WorkOrdersService.getDurationHints', () => {
+  let service: WorkOrdersService;
+  let prisma: { asset: { findUnique: jest.Mock }; workOrder: { findMany: jest.Mock } };
+
+  function makeWo(durationDays: number): { createdAt: Date; closedAt: Date } {
+    const base = new Date('2026-01-01T12:00:00Z');
+    return {
+      createdAt: new Date(base.getTime() - durationDays * 24 * 60 * 60 * 1000),
+      closedAt: new Date(base.getTime()),
+    };
+  }
+
+  beforeEach(async () => {
+    prisma = {
+      asset: { findUnique: jest.fn() },
+      workOrder: { findMany: jest.fn() },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: { create: jest.fn(), findAll: jest.fn(), findById: jest.fn(), updateStatus: jest.fn(), updatePriority: jest.fn(), findOverdueForEscalation: jest.fn() },
+        },
+        { provide: PrismaService, useValue: prisma },
+        { provide: NotificationsService, useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() } },
+        { provide: PartRequestsService, useValue: { handleWorkOrderCancellation: jest.fn() } },
+      ],
+    }).compile();
+
+    service = module.get(WorkOrdersService);
+  });
+
+  it('returns all null when no closed WOs exist', async () => {
+    (prisma.asset.findUnique as jest.Mock).mockResolvedValue({ categoryId: 'cat-1' });
+    (prisma.workOrder.findMany as jest.Mock).mockResolvedValue([]);
+    const result = await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE);
+    expect(result).toEqual({ last5AssetAvgDays: null, categoryAvgDays: null, technicianAvgDays: null });
+  });
+
+  it('computes last5AssetAvgDays from two WOs of 10 days each', async () => {
+    (prisma.asset.findUnique as jest.Mock).mockResolvedValue({ categoryId: null });
+    (prisma.workOrder.findMany as jest.Mock)
+      .mockResolvedValueOnce([makeWo(10), makeWo(10)])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const result = await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE);
+    expect(result.last5AssetAvgDays).toBe(10);
+  });
+
+  it('returns technicianAvgDays when technicianId is provided', async () => {
+    // categoryId is null → category query uses Promise.resolve([]), NOT findMany
+    // So findMany is called only twice: asset WOs + technician WOs
+    (prisma.asset.findUnique as jest.Mock).mockResolvedValue({ categoryId: null });
+    (prisma.workOrder.findMany as jest.Mock)
+      .mockResolvedValueOnce([])        // asset WOs
+      .mockResolvedValueOnce([makeWo(15)]); // technician WOs
+    const result = await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE, 'tech-1');
+    expect(result.technicianAvgDays).toBe(15);
+  });
+
+  it('returns null technicianAvgDays when no technicianId is provided', async () => {
+    (prisma.asset.findUnique as jest.Mock).mockResolvedValue({ categoryId: null });
+    (prisma.workOrder.findMany as jest.Mock).mockResolvedValue([]);
+    const result = await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE);
+    expect(result.technicianAvgDays).toBeNull();
+  });
+
+  it('queries asset category when categoryId is set', async () => {
+    (prisma.asset.findUnique as jest.Mock).mockResolvedValue({ categoryId: 'cat-2' });
+    (prisma.workOrder.findMany as jest.Mock).mockResolvedValue([]);
+    await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE);
+    const categoryCall = (prisma.workOrder.findMany as jest.Mock).mock.calls[1];
+    expect(categoryCall[0].where.asset).toEqual({ categoryId: 'cat-2' });
+  });
+
+  it('rounds average to 1 decimal place', async () => {
+    (prisma.asset.findUnique as jest.Mock).mockResolvedValue({ categoryId: null });
+    const totalMs = 7.333 * 24 * 60 * 60 * 1000;
+    (prisma.workOrder.findMany as jest.Mock)
+      .mockResolvedValueOnce([{ createdAt: new Date(0), closedAt: new Date(totalMs) }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const result = await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE);
+    expect(result.last5AssetAvgDays).toBe(7.3);
+  });
+});

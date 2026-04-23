@@ -331,6 +331,35 @@ export class UsersService {
     return { userId: payload.sub, jti: payload.jti };
   }
 
+  async getPreferences(userId: string): Promise<{ emailNotificationsEnabled: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { emailNotificationsEnabled: true },
+    });
+    if (!user) throw new NotFoundException(`User ${userId} not found`);
+    return { emailNotificationsEnabled: user.emailNotificationsEnabled };
+  }
+
+  async listActiveTechnicians(): Promise<UserResponseDto[]> {
+    return this.findAll({ role: Role.TECHNICIAN, isActive: true });
+  }
+
+  async updateEmailNotificationsPreference(
+    userId: string,
+    enabled: boolean,
+  ): Promise<{ emailNotificationsEnabled: boolean }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new NotFoundException(`User ${userId} not found`);
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { emailNotificationsEnabled: enabled },
+      select: { emailNotificationsEnabled: true },
+    });
+
+    return updated;
+  }
+
   private toUserResponse(user: {
     id: string;
     email: string;

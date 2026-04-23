@@ -1,4 +1,14 @@
 {
+  "userPreferences": {
+    "emailNotifications": {
+      "label": "Notifications par e-mail",
+      "description": "Recevoir les notifications importantes par e-mail en plus des notifications en application.",
+      "enabled": "Activées",
+      "disabled": "Désactivées",
+      "updateSuccess": "Préférences e-mail mises à jour",
+      "updateError": "Erreur lors de la mise à jour des préférences"
+    }
+  },
   "auth": {
     "login": "Connexion",
     "logout": "Déconnexion",
@@ -643,7 +653,18 @@
       "internalNotes": "Notes internes (optionnel)",
       "internalNotesPlaceholder": "Notes à usage interne uniquement",
       "dueDate": "Date d'échéance (optionnel)",
-      "estimatedDurationMinutes": "Durée estimée en minutes (optionnel)"
+      "estimatedDurationMinutes": "Durée estimée en minutes (optionnel)",
+      "principalTechnician": "Technicien principal",
+      "technicianPlaceholder": "Sélectionnez un technicien (optionnel)",
+      "contributors": "Contributeurs",
+      "techLoad": "{{count}} OT actif(s)",
+      "techNoLoad": "Aucun OT actif",
+      "durationHints": {
+        "title": "Références historiques de durée",
+        "last5Asset": "5 derniers OT sur cet équipement",
+        "categoryAvg": "Moyenne catégorie",
+        "techAvg": "Moyenne technicien sélectionné"
+      }
     },
     "cancellationReason": {
       "DUPLICATE": "Doublon d'un ordre existant",
@@ -769,6 +790,15 @@
     "labels": {
       "intervalDays": "Tous les {{count}} jour(s)",
       "unassigned": "Non assigné"
+    },
+    "views": {
+      "list": "Liste",
+      "calendar": "Calendrier prévisionnel"
+    },
+    "calendar": {
+      "empty": "Aucune génération prévue dans les 90 prochains jours.",
+      "total": "{{count}} génération(s) prévue(s) sur 90 jours",
+      "itemCount": "{{count}} plan(s)"
     },
     "actions": {
       "create": "Nouveau plan",

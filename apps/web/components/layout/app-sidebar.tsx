@@ -26,6 +26,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usersApi } from '@/lib/users.api';
+import { toast } from 'sonner';
+import { Mail } from 'lucide-react';
 import { SIDEBAR_MODULES } from './sidebar-nav.config';
 import { isModuleActive, isPathActive } from './sidebar-utils';
 
@@ -186,6 +190,23 @@ export function AppSidebar() {
 
   const visibleModules = SIDEBAR_MODULES.filter((module) => user?.roles.includes(module.role));
 
+  const queryClient = useQueryClient();
+
+  const { data: prefs } = useQuery({
+    queryKey: ['users', 'me', 'preferences'],
+    queryFn: () => usersApi.getMyPreferences(),
+    enabled: !!user,
+  });
+
+  const emailPrefMutation = useMutation({
+    mutationFn: (enabled: boolean) => usersApi.updateEmailNotifications(enabled),
+    onSuccess: (data) => {
+      void queryClient.setQueryData(['users', 'me', 'preferences'], data);
+      toast.success(t('userPreferences.emailNotifications.updateSuccess'));
+    },
+    onError: () => toast.error(t('userPreferences.emailNotifications.updateError')),
+  });
+
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
@@ -278,8 +299,24 @@ export function AppSidebar() {
               <span className="sr-only">{user?.name}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56 border-sidebar-border bg-sidebar text-sidebar-foreground">
+          <DropdownMenuContent align="end" side="top" className="w-64 border-sidebar-border bg-sidebar text-sidebar-foreground">
             <DropdownMenuLabel>{user?.name}</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-sidebar-border" />
+            <DropdownMenuItem
+              onClick={() =>
+                emailPrefMutation.mutate(!(prefs?.emailNotificationsEnabled ?? true))
+              }
+              disabled={emailPrefMutation.isPending}
+              className="cursor-pointer"
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              <span className="flex-1">{t('userPreferences.emailNotifications.label')}</span>
+              <span className="text-xs text-sidebar-foreground/60">
+                {prefs?.emailNotificationsEnabled !== false
+                  ? t('userPreferences.emailNotifications.enabled')
+                  : t('userPreferences.emailNotifications.disabled')}
+              </span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-sidebar-border" />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />

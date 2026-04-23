@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, Plus, Pencil, Power, PowerOff, Search, PackagePlus, SlidersHorizontal, History, X, Undo2 } from 'lucide-react';
+import { Loader2, Plus, Pencil, Power, PowerOff, Search, PackagePlus, SlidersHorizontal, History, X, Undo2, FileText } from 'lucide-react';
 import { PartUnit } from '@gmao/shared';
 import { inventoryApi } from '@/lib/inventory.api';
 import type { PartCatalogItem } from '@/lib/inventory.api';
@@ -29,6 +29,7 @@ import { StockIncomingDialog } from '@/components/storekeeper/stock-incoming-dia
 import { StockAdjustmentDialog } from '@/components/storekeeper/stock-adjustment-dialog';
 import { StockMovementsDialog } from '@/components/storekeeper/stock-movements-dialog';
 import { StockReturnDialog } from '@/components/storekeeper/stock-return-dialog';
+import { PartDocumentsDialog } from '@/components/storekeeper/part-documents-dialog';
 
 const LIMIT = 20;
 
@@ -80,6 +81,7 @@ export function InventoryCatalog() {
   const [adjustmentDialogPart, setAdjustmentDialogPart] = useState<PartCatalogItem | null>(null);
   const [movementsDialogPart, setMovementsDialogPart] = useState<PartCatalogItem | null>(null);
   const [returnDialogPart, setReturnDialogPart] = useState<PartCatalogItem | null>(null);
+  const [documentsDialogPart, setDocumentsDialogPart] = useState<PartCatalogItem | null>(null);
   const [lowStockBannerDismissed, setLowStockBannerDismissed] = useState(false);
 
   const queryParams = useMemo(
@@ -434,6 +436,15 @@ export function InventoryCatalog() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title={t('storekeeperInventory.actions.viewDocuments')}
+                          onClick={() => setDocumentsDialogPart(part)}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           title={
                             part.isActive
                               ? t('storekeeperInventory.actions.deactivate')
@@ -612,6 +623,14 @@ export function InventoryCatalog() {
           if (!open) setReturnDialogPart(null);
         }}
         part={returnDialogPart}
+      />
+
+      <PartDocumentsDialog
+        open={!!documentsDialogPart}
+        onOpenChange={(open) => {
+          if (!open) setDocumentsDialogPart(null);
+        }}
+        part={documentsDialogPart}
       />
     </div>
   );

@@ -1345,7 +1345,8 @@
       "receiveStock": "Réceptionner",
       "adjustStock": "Ajuster",
       "viewMovements": "Historique",
-      "returnStock": "Retourner au stock"
+      "returnStock": "Retourner au stock",
+      "viewDocuments": "Documents"
     },
     "lowStockBanner": "{{count}} pièce(s) en dessous du seuil minimum. Réapprovisionnez le stock.",
     "states": {
@@ -1444,6 +1445,38 @@
       "toasts": {
         "success": "Retour de pièces enregistré",
         "error": "Impossible d'enregistrer le retour"
+      }
+    },
+    "documents": {
+      "dialogTitle": "Documents — {{name}}",
+      "dialogDescription": "Fiches techniques, fiches de sécurité et spécifications fournisseur.",
+      "empty": "Aucun document enregistré pour cette pièce.",
+      "uploadTitle": "Ajouter un document",
+      "uploadHint": "Si un document du même type existe déjà, il sera archivé (versioning automatique).",
+      "documentType": {
+        "TECHNICAL_MANUAL": "Manuel technique",
+        "SAFETY_DATA_SHEET": "Fiche de données de sécurité",
+        "SPECIFICATION_SHEET": "Fiche technique"
+      },
+      "form": {
+        "type": "Type de document",
+        "file": "Fichier",
+        "chooseFile": "Choisir un fichier",
+        "upload": "Téléverser"
+      },
+      "validation": {
+        "fileRequired": "Veuillez sélectionner un fichier"
+      },
+      "actions": {
+        "download": "Télécharger",
+        "delete": "Supprimer"
+      },
+      "toasts": {
+        "uploadSuccess": "Document téléversé",
+        "uploadError": "Impossible de téléverser le document",
+        "deleteSuccess": "Document supprimé",
+        "deleteError": "Impossible de supprimer le document",
+        "downloadError": "Impossible de télécharger le document"
       }
     }
   },

@@ -1,6 +1,18 @@
 import { PartUnit, StockAdjustmentReason, StockMovementType } from '@gmao/shared';
 import { api } from './api';
 
+export interface PartDocument {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  version: number;
+  isCurrentVersion: boolean;
+  createdAt: string;
+  uploadedBy?: { id: string; name: string } | null;
+}
+
 export interface PartCatalogItem {
   id: string;
   name: string;
@@ -142,4 +154,23 @@ export const inventoryApi = {
 
   recordReturn: (payload: RecordPartReturnPayload) =>
     api.post<{ part: PartCatalogItem; movement: StockMovement }>('/stock/returns', payload).then((r) => r.data),
+
+  listPartDocuments: (partId: string) =>
+    api.get<PartDocument[]>(`/parts/${partId}/documents`).then((r) => r.data),
+
+  uploadPartDocument: (partId: string, file: File, documentType: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', documentType);
+    return api.post<PartDocument>(`/parts/${partId}/documents`, form).then((r) => r.data);
+  },
+
+  getPartDocumentDownloadUrl: (partId: string, docId: string) =>
+    api.get<string>(`/parts/${partId}/documents/${docId}/download`).then((r) => r.data),
+
+  getPartDocumentVersionHistory: (partId: string, docId: string) =>
+    api.get<PartDocument[]>(`/parts/${partId}/documents/${docId}/versions`).then((r) => r.data),
+
+  deletePartDocument: (partId: string, docId: string) =>
+    api.delete(`/parts/${partId}/documents/${docId}`),
 };

@@ -4,6 +4,7 @@ import { Prisma, PartUnit } from '@gmao/db';
 import { InventoryRepository } from './inventory.repository';
 import { InventoryService } from './inventory.service';
 import { PartsController } from './parts.controller';
+import { DocumentsService } from '../assets/documents.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -36,6 +37,7 @@ describe('PartsController (integration)', () => {
         InventoryRepository,
         { provide: PrismaService, useValue: prismaMock },
         { provide: NotificationsService, useValue: {} },
+        { provide: DocumentsService, useValue: {} },
       ],
     }).compile();
 

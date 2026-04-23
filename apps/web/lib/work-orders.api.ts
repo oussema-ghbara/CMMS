@@ -232,6 +232,19 @@ export interface CreateWorkOrderPayload {
   dueDate?: string;
   estimatedDurationMinutes?: number;
   forceCreate?: boolean;
+  /** Pre-assign principal technician — triggers auto-publish + assign (spec §9.2) */
+  principalTechnicianId?: string;
+  /** Contributor IDs — only meaningful when principalTechnicianId is provided */
+  contributorIds?: string[];
+}
+
+export interface DurationHintsResponse {
+  /** Average closure days for last 5 closed WOs of same type on this asset */
+  last5AssetAvgDays: number | null;
+  /** Average closure days for last 50 closed WOs of same type in the asset's category */
+  categoryAvgDays: number | null;
+  /** Average closure days for the selected technician's last 10 closed WOs of same type */
+  technicianAvgDays: number | null;
 }
 
 export interface DuplicateWoConflict {
@@ -375,4 +388,7 @@ export const workOrdersApi = {
 
   getTechnicianLoad: () =>
     api.get<TechnicianLoadItem[]>('/work-orders/technician-load').then((r) => r.data),
+
+  getDurationHints: (params: { assetId: string; type: string; technicianId?: string }) =>
+    api.get<DurationHintsResponse>('/work-orders/duration-hints', { params }).then((r) => r.data),
 };

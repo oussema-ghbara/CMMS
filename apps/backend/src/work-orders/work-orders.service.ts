@@ -11,7 +11,7 @@ import { CancelWorkOrderDto } from './dto/cancel-work-order.dto';
 import { ChangePriorityDto } from './dto/change-priority.dto';
 import {
   WorkOrderSource, WorkOrderStatus, AssetStatus, NotificationType, Role,
-  WorkOrderPriority,
+  WorkOrderPriority, WorkOrderType,
 } from '@gmao/db';
 import { StockMovementType } from '@gmao/db';
 import { WOCancellationReason } from '@gmao/shared';
@@ -23,6 +23,15 @@ export interface TechnicianLoadItem {
   name: string;
   openWoCount: number;
   hasCritical: boolean;
+}
+
+export interface DurationHintsResult {
+  /** Average closure time (days) of the last 5 closed WOs of the same type on this asset */
+  last5AssetAvgDays: number | null;
+  /** Average closure time (days) of the last 50 closed WOs of the same type in the asset's category */
+  categoryAvgDays: number | null;
+  /** Average closure time (days) of the selected technician's last 10 closed WOs of the same type (null when no technicianId given) */
+  technicianAvgDays: number | null;
 }
 
 const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
@@ -514,6 +523,64 @@ export class WorkOrdersService {
     }
 
     return [...map.values()].sort((a, b) => b.openWoCount - a.openWoCount);
+  }
+
+  async getDurationHints(
+    assetId: string,
+    type: WorkOrderType,
+    technicianId?: string,
+  ): Promise<DurationHintsResult> {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+      select: { categoryId: true },
+    });
+
+    const [last5AssetWOs, categoryWOs, techWOs] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where: { assetId, type, status: WorkOrderStatus.CLOSED, closedAt: { not: null } },
+        orderBy: { closedAt: 'desc' },
+        take: 5,
+        select: { createdAt: true, closedAt: true },
+      }),
+      asset?.categoryId
+        ? this.prisma.workOrder.findMany({
+            where: {
+              type,
+              status: WorkOrderStatus.CLOSED,
+              closedAt: { not: null },
+              asset: { categoryId: asset.categoryId },
+            },
+            orderBy: { closedAt: 'desc' },
+            take: 50,
+            select: { createdAt: true, closedAt: true },
+          })
+        : Promise.resolve([]),
+      technicianId
+        ? this.prisma.workOrder.findMany({
+            where: {
+              type,
+              status: WorkOrderStatus.CLOSED,
+              closedAt: { not: null },
+              principalTechnicianId: technicianId,
+            },
+            orderBy: { closedAt: 'desc' },
+            take: 10,
+            select: { createdAt: true, closedAt: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const avgDays = (wos: { createdAt: Date; closedAt: Date | null }[]): number | null => {
+      if (wos.length === 0) return null;
+      const total = wos.reduce((sum, wo) => sum + (wo.closedAt!.getTime() - wo.createdAt.getTime()), 0);
+      return Math.round((total / wos.length / (1000 * 60 * 60 * 24)) * 10) / 10;
+    };
+
+    return {
+      last5AssetAvgDays: avgDays(last5AssetWOs),
+      categoryAvgDays: avgDays(categoryWOs),
+      technicianAvgDays: avgDays(techWOs),
+    };
   }
 
   private getEscalatedPriority(priority: WorkOrder['priority']): WorkOrder['priority'] | null {

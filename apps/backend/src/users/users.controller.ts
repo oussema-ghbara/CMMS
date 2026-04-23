@@ -17,6 +17,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { UpdateEmailNotificationsDto } from './dto/update-email-notifications.dto';
 import type { AccessTokenPayload } from '../auth/types/jwt-payload.type';
 import type { Request } from 'express';
 
@@ -30,6 +31,37 @@ interface AuthenticatedRequest extends Request {
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  // ── Self-service endpoints (all authenticated roles) ────────────────────────
+
+  @Get('technicians')
+  @Roles(Role.ADMIN, Role.SUPERVISOR)
+  @ApiOperation({ summary: 'List all active technicians (Admin + Supervisor) — used in WO creation form §9.2' })
+  listTechnicians(): Promise<UserResponseDto[]> {
+    return this.usersService.listActiveTechnicians();
+  }
+
+  @Get('me/preferences')
+  @Roles(Role.ADMIN, Role.SUPERVISOR, Role.STOREKEEPER, Role.TECHNICIAN, Role.REQUESTER)
+  @ApiOperation({ summary: 'Get own notification preferences (all authenticated roles) — spec §12.1' })
+  getMyPreferences(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ emailNotificationsEnabled: boolean }> {
+    return this.usersService.getPreferences(req.user.sub);
+  }
+
+  @Patch('me/email-notifications')
+  @Roles(Role.ADMIN, Role.SUPERVISOR, Role.STOREKEEPER, Role.TECHNICIAN, Role.REQUESTER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update own email notification preference (all authenticated roles) — spec §12.1' })
+  updateEmailNotifications(
+    @Body() dto: UpdateEmailNotificationsDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ emailNotificationsEnabled: boolean }> {
+    return this.usersService.updateEmailNotificationsPreference(req.user.sub, dto.enabled);
+  }
+
+  // ── Admin-only endpoints ─────────────────────────────────────────────────────
 
   @Get()
   @ApiOperation({ summary: 'List all users (Admin)' })

@@ -29,6 +29,8 @@ import { ValidateWorkOrderDto } from './dto/validate-work-order.dto';
 import { CompleteChecklistItemDto } from './dto/complete-checklist-item.dto';
 import { CancelWorkOrderDto } from './dto/cancel-work-order.dto';
 import { ChangePriorityDto } from './dto/change-priority.dto';
+import { DurationHintsQueryDto } from './dto/duration-hints-query.dto';
+import { WorkOrderType } from '@gmao/shared';
 
 type AuthRequest = { user: { sub: string; roles: Role[] } };
 
@@ -70,6 +72,21 @@ export class WorkOrdersController {
     return this.workOrders.getTechnicianLoad();
   }
 
+  @Get('duration-hints')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({
+    summary: 'Historical duration averages for WO creation estimation (Supervisor) — spec §9.2',
+    description:
+      'Returns average closure times: last 5 WOs on the asset, category average (last 50), ' +
+      'and optionally the selected technician\'s average (last 10 of same type).',
+  })
+  @ApiQuery({ name: 'assetId', required: true, type: String })
+  @ApiQuery({ name: 'type', required: true, enum: WorkOrderType })
+  @ApiQuery({ name: 'technicianId', required: false, type: String })
+  getDurationHints(@Query() query: DurationHintsQueryDto) {
+    return this.workOrders.getDurationHints(query.assetId, query.type, query.technicianId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get full work order detail (all roles)' })
   async findById(@Param('id') id: string) {
@@ -80,9 +97,20 @@ export class WorkOrdersController {
 
   @Post()
   @Roles(Role.SUPERVISOR)
-  @ApiOperation({ summary: 'Create work order (Supervisor)' })
-  create(@Body() dto: CreateWorkOrderDto, @Request() req: AuthRequest): Promise<WorkOrder> {
-    return this.workOrders.create(dto, req.user.sub);
+  @ApiOperation({ summary: 'Create work order (Supervisor) — with optional pre-assignment (spec §9.2)' })
+  async create(@Body() dto: CreateWorkOrderDto, @Request() req: AuthRequest): Promise<WorkOrder> {
+    const wo = await this.workOrders.create(dto, req.user.sub);
+
+    if (dto.principalTechnicianId) {
+      await this.workOrders.publish(wo.id, req.user.sub);
+      return this.assignment.assign(
+        wo.id,
+        { principalTechnicianId: dto.principalTechnicianId, contributorIds: dto.contributorIds },
+        req.user.sub,
+      );
+    }
+
+    return wo;
   }
 
   @Post(':id/follow-up')

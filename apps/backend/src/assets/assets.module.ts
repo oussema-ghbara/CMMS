@@ -27,6 +27,6 @@ import { CertificateExpiryJob } from './jobs/certificate-expiry.job';
     DocumentsService,
     CertificateExpiryJob,
   ],
-  exports: [AssetsService],
+  exports: [AssetsService, DocumentsService],
 })
 export class AssetsModule {}

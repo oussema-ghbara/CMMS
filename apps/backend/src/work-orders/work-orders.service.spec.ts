@@ -360,6 +360,10 @@ describe('WorkOrdersService.getAnalytics', () => {
               count: jest.fn(),
               findMany: jest.fn(),
             },
+            problemReport: { findMany: jest.fn() },
+            workOrderChecklistItem: { findMany: jest.fn() },
+            workOrderValidation: { groupBy: jest.fn() },
+            workOrderReassignment: { count: jest.fn() },
           },
         },
         {
@@ -385,7 +389,8 @@ describe('WorkOrdersService.getAnalytics', () => {
         { status: WorkOrderStatus.CLOSED, _count: { id: 2 } },
       ])
       .mockResolvedValueOnce([{ type: WorkOrderType.CORRECTIVE, _count: { id: 3 } }])
-      .mockResolvedValueOnce([{ priority: WorkOrderPriority.HIGH, _count: { id: 3 } }]);
+      .mockResolvedValueOnce([{ priority: WorkOrderPriority.HIGH, _count: { id: 3 } }])
+      .mockResolvedValueOnce([]); // sourceDistRaw
     prisma.workOrder.count
       .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(1)
@@ -404,6 +409,8 @@ describe('WorkOrdersService.getAnalytics', () => {
       ])
       .mockResolvedValueOnce([
         {
+          assetId: 'a1',
+          asset: { name: 'Pump A' },
           contractorCost: '120.00',
           interventionLogs: [
             { activeDurationMinutes: 120, hourlyRateAtTime: '50.00' },
@@ -414,6 +421,8 @@ describe('WorkOrdersService.getAnalytics', () => {
           ],
         },
         {
+          assetId: 'a2',
+          asset: { name: 'Motor B' },
           contractorCost: '0.00',
           interventionLogs: [
             { activeDurationMinutes: 30, hourlyRateAtTime: '80.00' },
@@ -422,7 +431,14 @@ describe('WorkOrdersService.getAnalytics', () => {
             { type: 'OUTGOING', quantity: 2, unitCostAtTime: '5.00' },
           ],
         },
-      ]);
+      ])
+      .mockResolvedValueOnce([]) // correctiveWOs (MTBF/MTTR)
+      .mockResolvedValueOnce([]) // techKpiWOs
+      .mockResolvedValueOnce([]); // preventiveWOsInPeriod
+    prisma.problemReport.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
+    prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
 
     const analytics = await service.getAnalytics(30);
 
@@ -815,5 +831,107 @@ describe('WorkOrdersService.getDurationHints', () => {
       .mockResolvedValueOnce([]);
     const result = await service.getDurationHints('asset-1', WorkOrderType.CORRECTIVE);
     expect(result.last5AssetAvgDays).toBe(7.3);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.getRecurringFailureAssets
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('WorkOrdersService.getRecurringFailureAssets', () => {
+  let service: WorkOrdersService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(), findAll: jest.fn(), findById: jest.fn(),
+            updateStatus: jest.fn(), updatePriority: jest.fn(), findOverdueForEscalation: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            workOrder: { findMany: jest.fn() },
+            problemReport: { findMany: jest.fn() },
+            workOrderChecklistItem: { findMany: jest.fn() },
+            workOrderValidation: { groupBy: jest.fn() },
+            workOrderReassignment: { count: jest.fn() },
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get(WorkOrdersService);
+  });
+
+  it('returns empty array when no assets have corrective WOs', async () => {
+    const prisma = service['prisma'] as any;
+    prisma.workOrder.findMany.mockResolvedValueOnce([]);
+
+    const result = await service.getRecurringFailureAssets(3, 90);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns asset when corrective WO count meets threshold', async () => {
+    const prisma = service['prisma'] as any;
+    const date = new Date('2026-04-01');
+    prisma.workOrder.findMany.mockResolvedValueOnce([
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+    ]);
+
+    const result = await service.getRecurringFailureAssets(3, 90);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ assetId: 'a1', assetName: 'Pump A', failureCount: 3 });
+  });
+
+  it('excludes asset when count is below threshold', async () => {
+    const prisma = service['prisma'] as any;
+    const date = new Date('2026-04-01');
+    prisma.workOrder.findMany.mockResolvedValueOnce([
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+    ]);
+
+    const result = await service.getRecurringFailureAssets(3, 90);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it('sorts results descending by failure count', async () => {
+    const prisma = service['prisma'] as any;
+    const date = new Date('2026-04-01');
+    const wos = [
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+      { assetId: 'a1', asset: { name: 'Pump A', qrCodeIdentifier: 'QR-001' }, createdAt: date },
+      { assetId: 'a2', asset: { name: 'Motor B', qrCodeIdentifier: 'QR-002' }, createdAt: date },
+      { assetId: 'a2', asset: { name: 'Motor B', qrCodeIdentifier: 'QR-002' }, createdAt: date },
+      { assetId: 'a2', asset: { name: 'Motor B', qrCodeIdentifier: 'QR-002' }, createdAt: date },
+      { assetId: 'a2', asset: { name: 'Motor B', qrCodeIdentifier: 'QR-002' }, createdAt: date },
+      { assetId: 'a2', asset: { name: 'Motor B', qrCodeIdentifier: 'QR-002' }, createdAt: date },
+    ];
+    prisma.workOrder.findMany.mockResolvedValueOnce(wos);
+
+    const result = await service.getRecurringFailureAssets(3, 90);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].failureCount).toBeGreaterThanOrEqual(result[1].failureCount);
+    expect(result[0].assetId).toBe('a2');
   });
 });

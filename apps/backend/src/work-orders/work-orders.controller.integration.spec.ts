@@ -352,7 +352,7 @@ describe('WorkOrdersController integration', () => {
       .set('Authorization', 'Bearer SUPERVISOR');
 
     expect(response.status).toBe(200);
-    expect(workOrders.getAnalytics).toHaveBeenCalledWith(45);
+    expect(workOrders.getAnalytics).toHaveBeenCalledWith(45, undefined);
     expect(response.body.costSummary).toEqual({
       contractorCost: 120,
       laborCost: 80.5,

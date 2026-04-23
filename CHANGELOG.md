@@ -4,6 +4,58 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Storekeeper cost analytics and on-hold long-waiting request detection (April 23, 2026)
+
+#### `feat(inventory): add monthly cost trend analytics (§3.1)`
+- `InventoryRepository.getCostTrend(periodDays)`: raw SQL query that groups `OUTGOING` stock movements by calendar month and computes `SUM(quantity × COALESCE(unitCostAtTime, unitCost, 0))`. Returns `[{ month: "YYYY-MM", totalCost: number }]` ordered ASC — suitable for a month-over-month trend table.
+- `InventoryCostTrendItem` interface added to `apps/web/lib/inventory.api.ts`.
+- `StockAnalyticsBoard` gains a "Évolution des dépenses en pièces" section: table of monthly spending rows with currency formatting; empty state shown when no OUTGOING movements exist in the period.
+
+#### `feat(inventory): add long-waiting requests on blocked work orders (§3.2)`
+- `InventoryRepository.getLongWaitingOnHoldRequests(thresholdHours)`: raw SQL with `JOIN "WorkOrder" ON status='ON_HOLD'`, `LEFT JOIN "Part"`, filtered to `PartRequest.status='PENDING'` and `createdAt <= NOW() - thresholdHours`. Returns full request detail including `waitingHours` (rounded integer).
+- `LongWaitingPartRequest` interface added to `apps/web/lib/inventory.api.ts`.
+- `InventoryService.getAnalytics()` extended with a `longWaitingThresholdHours = 24` parameter (backward compatible; existing callers without the param keep the default of 24 h).
+- `GET /stock/analytics` gains an optional `?longWaitingThresholdHours` query param (clamped to ≥ 1 in controller).
+- `StockAnalyticsBoard` gains a configurable "Attente max (h)" filter input and a "Demandes en attente sur OT bloqués" section: amber warning banner when count > 0 (badge on card title); table of stuck requests with WO reference, part name (or off-catalog description), quantity, and waiting hours; empty state when none detected.
+- `InventoryAnalyticsResponse` extended with `costTrend`, `longWaitingRequests`, and `longWaitingThresholdHours` fields; `getAnalytics()` API call accepts the new param.
+- i18n: `storekeeperAnalytics.filters.longWaitingHours`, `storekeeperAnalytics.sections.{costTrend,costTrendDescription,longWaitingRequests,longWaitingRequestsDescription}`, `storekeeperAnalytics.columns.{month,totalSpending,workOrder,waitingHours}`, `storekeeperAnalytics.labels.{offCatalog,longWaitingWarning}`, `storekeeperAnalytics.states.noLongWaiting` added to FR translations.
+- **Tests (9 in `inventory.repository.spec.ts`):** `getCostTrend` maps rows; empty array on no data; null total_cost defaults to 0; `since` date boundary matches `periodDays × 86400 s`. `getLongWaitingOnHoldRequests` maps rows; off-catalog request (null partId/partName); empty array; cutoff boundary matches `thresholdHours × 3600 s`; `waitingHours` rounds correctly.
+- **417 backend tests total — 0 regressions.**
+
+### Added — Document versioning, part catalog documents, and preventive plan documents (April 22, 2026)
+
+#### `feat(documents): implement automatic versioning on document upload (§1.10)`
+- `DocumentsService` now implements version archiving via a private `_doUpload()` helper called by all upload paths (asset, part, plan).
+- On each upload: queries for an existing `isCurrentVersion: true` document with the same `entityType + entityId + documentType`; if found, marks it `isCurrentVersion = false` and sets `replacedById = newDocId` inside a Prisma `$transaction` that atomically creates the new record; new document receives `version = old.version + 1`. First upload always creates `version = 1`.
+- New `getVersionHistory(docId)`: finds all documents sharing the same `entityType`, `entityId`, and `documentType`, returned in `version desc` order.
+- Existing asset document upload (`upload()`) now delegates to `_doUpload()` — asset documents gain versioning without any API surface change.
+- **Tests (25 in `documents.service.spec.ts`):** version-1 creation when no prior doc; version-2 creation + archiving of prior current version; `replacedById` wired correctly; `$transaction` used; `getVersionHistory` queries all chain docs; `NotFoundException` on missing entity (asset, part, plan); `BadRequestException` for disallowed types per entity; `ForbiddenException` on delete of certificate-owned doc; `getDownloadUrl` returns presigned URL.
+
+#### `feat(inventory): add document attachments to part catalog (§1.11 + §3.3)`
+- `DocumentsService.findByPart(partId)` + `uploadForPart(partId, file, documentType, actorId)` added. Allowed types enforced: `TECHNICAL_MANUAL`, `SAFETY_DATA_SHEET`, `SPECIFICATION_SHEET`. Any other type throws `BadRequestException`.
+- `AssetsModule` exports `DocumentsService`; `InventoryModule` imports `AssetsModule` to inject it into `PartsController`.
+- `PartsController` gains five new endpoints:
+  - `GET /parts/:id/documents` — list current-version docs (all operational roles)
+  - `POST /parts/:id/documents` — upload with multipart `file` + `documentType` (SUPERVISOR or STOREKEEPER)
+  - `GET /parts/:id/documents/:docId/download` — presigned URL (all operational roles)
+  - `GET /parts/:id/documents/:docId/versions` — full version history (all operational roles)
+  - `DELETE /parts/:id/documents/:docId` — hard delete (SUPERVISOR or STOREKEEPER)
+- `PartDocument` interface + five `inventoryApi` methods added to `apps/web/lib/inventory.api.ts`.
+- `PartDocumentsDialog` component (`apps/web/components/storekeeper/part-documents-dialog.tsx`): Dialog opened from a new FileText icon button on every part row in the storekeeper inventory catalog; shows current-version documents with version badge, download and delete actions; inline upload form (type select + file picker) shown only to SUPERVISOR/STOREKEEPER roles (checked via `useAuthStore`).
+- `storekeeperInventory.documents.*` and `storekeeperInventory.actions.viewDocuments` i18n keys added.
+- **Tests (10 in `parts.documents.controller.spec.ts`):** `listDocuments` → `findByPart`; `uploadDocument` → `uploadForPart` with correct args; `BadRequestException` propagated for invalid type; `getDocumentDownload` → presigned URL; `getDocumentVersionHistory` → ordered list; `deleteDocument` → `delete`; `NotFoundException` propagated on all paths.
+
+#### `feat(preventive-plans): add document attachments to preventive plans (§1.12)`
+- `DocumentsService.findByPlan(planId)` + `uploadForPlan(planId, file, documentType, actorId)` added. Allowed types: `PROCEDURE_DOCUMENT`, `SAFETY_DATA_SHEET`, `SPECIFICATION_SHEET`.
+- `PreventivePlansModule` imports `AssetsModule`; `PreventivePlansController` injects `DocumentsService`.
+- `PreventivePlansController` gains five new endpoints following the same pattern as parts (all-roles read, SUPERVISOR-only write).
+- `PlanDocument` interface + five `preventivePlansApi` methods added to `apps/web/lib/preventive-plans.api.ts`.
+- `PreventivePlanDetailDialog` gains an inline "Documents du plan" section positioned between the plan metadata and the checklist: document list with version badge + download + delete; upload form (type select + file picker) always visible to supervisors (the only role accessing this dialog); `useQuery` with `['supervisor', 'preventive-plans', planId, 'documents']` key.
+- `supervisorPreventivePlans.documents.*` i18n keys added.
+- **Tests (6 in `preventive-plans.documents.controller.spec.ts`):** delegates to `DocumentsService` on all 5 endpoints; error propagation verified.
+- **Frontend tests (27 in `document-utils.spec.ts`):** `PART_ALLOWED_TYPES` contains exactly the 3 allowed types and excludes all 6 disallowed types; `PLAN_ALLOWED_TYPES` same coverage; `formatFileSize` boundary tests (bytes / KB / MB); version chain semantics (single upload = v1, chain cardinality, `isCurrentVersion` uniqueness, `replacedById` linkage).
+- **408 backend tests total — 0 regressions. 74 frontend tests total — 0 regressions.**
+
 ### Added — Admin notifications for job failures and email delivery errors (April 22, 2026)
 
 #### `feat(notifications): add notifyAdmins() to NotificationsService (§1.16)`

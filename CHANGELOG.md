@@ -4,6 +4,32 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Full KPI analytics and asset health recurring-failure detection (April 23, 2026)
+
+#### `feat(work-orders): add full KPI analytics across 5 categories (§1.1 §2.1)`
+- `WorkOrdersService.getAnalytics(periodDays, categoryId?)` extended with 5 new KPI categories computed in a single parallel `Promise.all` alongside the existing basic queries:
+  - **Asset KPIs:** global MTBF (average days between corrective failures across assets); global MTTR (average hours from WO created to closed for CLOSED CORRECTIVE WOs); top-10 assets by failure frequency in period; top-10 assets by total maintenance cost; preventive compliance rate (closed preventive WOs / total preventive WOs created in period); total maintenance cost.
+  - **Technician KPIs:** per-technician closed WO count, first-pass resolution rate (closed without any REJECTED validation action), average active intervention duration (minutes), average response time (hours from WO creation to first intervention log), average hold periods per WO.
+  - **Requester analytics:** total problem reports submitted, total converted to WO (via `derivedWorkOrders`), conversion rate, average report-to-action delay (days from report creation to `processedAt`).
+  - **Preventive plan efficiency:** compliance rate, checklist anomaly rate (`ANOMALY_DETECTED` items / all completed items on closed WOs in period), total vs closed preventive WOs.
+  - **Operational overview:** WO source distribution (grouped by `sourceType`), rejection reason distribution (grouped by `rejectionReason` on `REJECTED` validations), reassignment count (`WorkOrderReassignment.count`), average hold periods per WO.
+- `GET /work-orders/analytics` gains optional `?categoryId` query parameter — when provided, all asset-related queries filter by `asset.categoryId`.
+- New interfaces: `AssetFailureKpiItem`, `AssetCostKpiItem`, `TechnicianKpiItem`, `AssetHealthItem`.
+- `WorkOrderAnalyticsResponse` extended with `categoryId`, `assetKpis`, `technicianKpis`, `requesterAnalytics`, `preventivePlanEfficiency`, `operationalOverview` fields (backward-compatible addition).
+- `SupervisorAnalyticsBoard` fully rewritten with 6-tab navigation using local state and `Button` components (no Radix dependency): Overview, Équipements, Techniciens, Plans préventifs, Demandeurs, Opérationnel. Each tab renders KPI cards + relevant tables.
+- i18n keys added: `supervisorAnalytics.tabs.*`, `supervisorAnalytics.kpi.{globalMtbf,globalMttr,preventiveCompliance,totalMaintenanceCost,planComplianceRate,anomalyRate,totalPreventiveWOs,totalReportsSubmitted,reportConversionRate,reportToActionDelay,reassignmentCount,avgHoldPeriodsPerWo,...}`, `supervisorAnalytics.sections.{topFailingAssets,topCostAssets,technicianPerformance,sourceDistribution,rejectionReasons}`, `supervisorAnalytics.columns.*`, `supervisorAnalytics.states.noData`.
+
+#### `feat(work-orders): add asset health recurring-failure panel to supervisor dashboard (§2.2)`
+- `WorkOrdersService.getRecurringFailureAssets(thresholdCount, periodDays)`: groups CORRECTIVE WOs by asset within the lookback window, returns assets meeting or exceeding `thresholdCount` sorted descending by failure count. Returns `{ assetId, assetName, qrCode, failureCount, lastFailureDate }[]`.
+- `GET /work-orders/asset-health?thresholdCount=3&periodDays=90` endpoint (Supervisor only, placed before `/:id`). Defaults: threshold = 3, period = 90 days.
+- `AssetHealthItem` interface + `getAssetHealth()` API call added to `apps/web/lib/work-orders.api.ts`.
+- Asset health panel added to `supervisor/page.tsx` between technician load and operational alerts sections: red border when assets are flagged; lists each at-risk asset with `Activity` icon, failure count badge, and last failure date.
+- i18n keys: `supervisorDashboard.assetHealth.{title, description, none, lastFailure}`.
+- **Tests (4 backend + 6 frontend):** `getRecurringFailureAssets` — empty when no WOs; asset returned when count meets threshold; excluded when below threshold; sorted descending by failure count. Frontend: `WorkOrderAnalyticsResponse` full contract, all-null nullable fields, `AssetHealthItem` shape, `TechnicianKpiItem` with data and nulls.
+- **441 backend tests + 87 frontend tests total — 0 regressions.**
+
+---
+
 ### Added — Technician pre-assignment, email preferences, and calendar preview (April 23, 2026)
 
 #### `feat(work-orders): add technician pre-assignment and duration hints to WO creation (§2.5)`

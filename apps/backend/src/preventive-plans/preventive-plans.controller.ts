@@ -1,11 +1,15 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, Query, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query, HttpCode, HttpStatus, Request,
+  UseInterceptors, UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { OperationalRoles } from '../common/decorators/operational-roles.decorator';
 import { Role } from '@gmao/shared';
+import { DocumentType } from '@gmao/db';
 import { PreventivePlansService } from './preventive-plans.service';
+import { DocumentsService } from '../assets/documents.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlanQueryDto } from './dto/plan-query.dto';
@@ -18,7 +22,10 @@ import { ReorderPlanChecklistItemsDto } from './dto/reorder-checklist-items.dto'
 @OperationalRoles()
 @Controller('preventive-plans')
 export class PreventivePlansController {
-  constructor(private readonly service: PreventivePlansService) {}
+  constructor(
+    private readonly service: PreventivePlansService,
+    private readonly documents: DocumentsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List preventive plans with filters and pagination (all roles)' })
@@ -104,5 +111,46 @@ export class PreventivePlansController {
   @ApiOperation({ summary: 'Reorder checklist template items (Supervisor)' })
   reorderChecklistItems(@Param('id') id: string, @Body() dto: ReorderPlanChecklistItemsDto) {
     return this.service.reorderChecklistItems(id, dto);
+  }
+
+  // ── Plan Documents ────────────────────────────────────────────────────────
+
+  @Get(':id/documents')
+  @ApiOperation({ summary: 'List current-version documents for a plan (all roles)' })
+  listDocuments(@Param('id') id: string) {
+    return this.documents.findByPlan(id);
+  }
+
+  @Post(':id/documents')
+  @Roles(Role.SUPERVISOR)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload document to a preventive plan (Supervisor)' })
+  uploadDocument(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('documentType') documentType: DocumentType,
+    @Request() req: { user: { sub: string } },
+  ) {
+    return this.documents.uploadForPlan(id, file, documentType, req.user.sub);
+  }
+
+  @Get(':id/documents/:docId/download')
+  @ApiOperation({ summary: 'Get presigned download URL for a plan document (all roles)' })
+  getDocumentDownload(@Param('docId') docId: string) {
+    return this.documents.getDownloadUrl(docId);
+  }
+
+  @Get(':id/documents/:docId/versions')
+  @ApiOperation({ summary: 'List all versions of a plan document (all roles)' })
+  getDocumentVersionHistory(@Param('docId') docId: string) {
+    return this.documents.getVersionHistory(docId);
+  }
+
+  @Delete(':id/documents/:docId')
+  @Roles(Role.SUPERVISOR)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a plan document (Supervisor)' })
+  deleteDocument(@Param('docId') docId: string) {
+    return this.documents.delete(docId);
   }
 }

@@ -860,6 +860,36 @@
       "itemDeleteSuccess": "Élément supprimé",
       "itemDeleteError": "Impossible de supprimer l'élément",
       "reorderError": "Impossible de réordonner les éléments"
+    },
+    "documents": {
+      "title": "Documents du plan",
+      "empty": "Aucun document enregistré pour ce plan.",
+      "uploadTitle": "Ajouter un document",
+      "documentType": {
+        "PROCEDURE_DOCUMENT": "Document de procédure",
+        "SAFETY_DATA_SHEET": "Fiche de sécurité",
+        "SPECIFICATION_SHEET": "Spécification de référence"
+      },
+      "form": {
+        "type": "Type de document",
+        "file": "Fichier",
+        "chooseFile": "Choisir un fichier",
+        "upload": "Téléverser"
+      },
+      "validation": {
+        "fileRequired": "Veuillez sélectionner un fichier"
+      },
+      "actions": {
+        "download": "Télécharger",
+        "delete": "Supprimer"
+      },
+      "toasts": {
+        "uploadSuccess": "Document téléversé",
+        "uploadError": "Impossible de téléverser le document",
+        "deleteSuccess": "Document supprimé",
+        "deleteError": "Impossible de supprimer le document",
+        "downloadError": "Impossible de télécharger le document"
+      }
     }
   },
   "supervisorAssets": {

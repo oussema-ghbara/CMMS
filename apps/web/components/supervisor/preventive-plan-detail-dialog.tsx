@@ -1,21 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, GripVertical, Loader2, PauseCircle, Pencil, PlayCircle, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowDown, ArrowUp, Download, FileText, GripVertical, Loader2, Paperclip, PauseCircle, Pencil, PlayCircle, Plus, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import {
   preventivePlansApi,
+  type PlanDocument,
   type PreventivePlanChecklistItem,
   type PreventivePlanItem,
 } from '@/lib/preventive-plans.api';
 import { cn } from '@/lib/utils';
 import { PreventivePlanChecklistItemDialog, type ChecklistFormValues } from './preventive-plan-checklist-item-dialog';
+
+const PLAN_DOC_TYPES = ['PROCEDURE_DOCUMENT', 'SAFETY_DATA_SHEET', 'SPECIFICATION_SHEET'] as const;
+type PlanDocType = (typeof PLAN_DOC_TYPES)[number];
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
 
 interface PreventivePlanDetailDialogProps {
   open: boolean;
@@ -44,6 +55,19 @@ export function PreventivePlanDetailDialog({ open, onOpenChange, plan, onEditPla
   const [editingItem, setEditingItem] = useState<PreventivePlanChecklistItem | null>(null);
   const [orderedItems, setOrderedItems] = useState<PreventivePlanChecklistItem[]>([]);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+
+  // Documents state
+  const [docType, setDocType] = useState<PlanDocType>('PROCEDURE_DOCUMENT');
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null);
+  const [docFileError, setDocFileError] = useState(false);
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+  const docFileInputRef = useRef<HTMLInputElement>(null);
+
+  const documentsQuery = useQuery({
+    queryKey: ['supervisor', 'preventive-plans', plan?.id, 'documents'],
+    queryFn: () => preventivePlansApi.listPlanDocuments(plan!.id),
+    enabled: open && !!plan,
+  });
 
   useEffect(() => {
     setOrderedItems(plan?.checklistItems ?? []);
@@ -125,6 +149,55 @@ export function PreventivePlanDetailDialog({ open, onOpenChange, plan, onEditPla
     },
     onError: () => toast.error(t('supervisorPreventivePlans.toasts.reorderError')),
   });
+
+  const uploadDocMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedDocFile || !plan) throw new Error('no_file');
+      return preventivePlansApi.uploadPlanDocument(plan.id, selectedDocFile, docType);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['supervisor', 'preventive-plans', plan?.id, 'documents'],
+      });
+      toast.success(t('supervisorPreventivePlans.documents.toasts.uploadSuccess'));
+      setSelectedDocFile(null);
+      if (docFileInputRef.current) docFileInputRef.current.value = '';
+    },
+    onError: () => toast.error(t('supervisorPreventivePlans.documents.toasts.uploadError')),
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) => preventivePlansApi.deletePlanDocument(plan!.id, docId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['supervisor', 'preventive-plans', plan?.id, 'documents'],
+      });
+      toast.success(t('supervisorPreventivePlans.documents.toasts.deleteSuccess'));
+    },
+    onError: () => toast.error(t('supervisorPreventivePlans.documents.toasts.deleteError')),
+  });
+
+  const handleDocDownload = async (doc: PlanDocument) => {
+    if (!plan) return;
+    setDownloadingDocId(doc.id);
+    try {
+      const url = await preventivePlansApi.getPlanDocumentDownloadUrl(plan.id, doc.id);
+      window.open(url, '_blank');
+    } catch {
+      toast.error(t('supervisorPreventivePlans.documents.toasts.downloadError'));
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
+
+  const handleDocSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDocFile) {
+      setDocFileError(true);
+      return;
+    }
+    uploadDocMutation.mutate();
+  };
 
   const closeDetail = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
@@ -233,6 +306,137 @@ export function PreventivePlanDetailDialog({ open, onOpenChange, plan, onEditPla
             <div className="space-y-2">
               <p className="text-sm font-medium">{t('supervisorPreventivePlans.detail.descriptionLabel')}</p>
               <p className="text-sm text-muted-foreground">{plan.description ?? t('common.noData')}</p>
+            </div>
+
+            <Separator />
+
+            {/* ── Documents ── */}
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold">{t('supervisorPreventivePlans.documents.title')}</h3>
+
+              {documentsQuery.isLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (documentsQuery.data ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('supervisorPreventivePlans.documents.empty')}
+                </p>
+              ) : (
+                <ul className="divide-y rounded-md border">
+                  {(documentsQuery.data ?? []).map((doc) => (
+                    <li key={doc.id} className="flex items-center gap-3 px-3 py-2.5">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{doc.fileName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t(`supervisorPreventivePlans.documents.documentType.${doc.documentType}`)} —{' '}
+                          {formatFileSize(doc.fileSize)} — v{doc.version} —{' '}
+                          {doc.uploadedBy?.name ?? '—'}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="shrink-0 text-xs">
+                        v{doc.version}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void handleDocDownload(doc)}
+                        disabled={downloadingDocId === doc.id}
+                        title={t('supervisorPreventivePlans.documents.actions.download')}
+                      >
+                        {downloadingDocId === doc.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteDocMutation.mutate(doc.id)}
+                        disabled={deleteDocMutation.isPending}
+                        title={t('supervisorPreventivePlans.documents.actions.delete')}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Upload form */}
+              <form onSubmit={handleDocSubmit} className="space-y-3 rounded-md border p-3">
+                <p className="text-sm font-medium">{t('supervisorPreventivePlans.documents.uploadTitle')}</p>
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="space-y-1.5 flex-1 min-w-[180px]">
+                    <Label htmlFor="plan-doc-type">{t('supervisorPreventivePlans.documents.form.type')}</Label>
+                    <select
+                      id="plan-doc-type"
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value as PlanDocType)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    >
+                      {PLAN_DOC_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {t(`supervisorPreventivePlans.documents.documentType.${type}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5 flex-1 min-w-[160px]">
+                    <Label>{t('supervisorPreventivePlans.documents.form.file')}</Label>
+                    {selectedDocFile ? (
+                      <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm h-9">
+                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="truncate flex-1 text-xs">{selectedDocFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDocFile(null);
+                            if (docFileInputRef.current) docFileInputRef.current.value = '';
+                          }}
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-full"
+                        onClick={() => docFileInputRef.current?.click()}
+                      >
+                        <Paperclip className="mr-1.5 h-4 w-4" />
+                        {t('supervisorPreventivePlans.documents.form.chooseFile')}
+                      </Button>
+                    )}
+                    <input
+                      ref={docFileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setSelectedDocFile(f);
+                        if (f) setDocFileError(false);
+                      }}
+                    />
+                    {docFileError && (
+                      <p className="text-xs text-destructive">
+                        {t('supervisorPreventivePlans.documents.validation.fileRequired')}
+                      </p>
+                    )}
+                  </div>
+                  <Button type="submit" size="sm" disabled={uploadDocMutation.isPending} className="h-9">
+                    {uploadDocMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {t('supervisorPreventivePlans.documents.form.upload')}
+                  </Button>
+                </div>
+              </form>
             </div>
 
             <Separator />

@@ -128,4 +128,35 @@ export const preventivePlansApi = {
 
   reorderChecklistItems: (planId: string, items: { id: string; sortOrder: number }[]) =>
     api.post<void>(`/preventive-plans/${planId}/checklist-items/reorder`, { items }).then((response) => response.data),
+
+  listPlanDocuments: (planId: string) =>
+    api.get<PlanDocument[]>(`/preventive-plans/${planId}/documents`).then((r) => r.data),
+
+  uploadPlanDocument: (planId: string, file: File, documentType: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', documentType);
+    return api.post<PlanDocument>(`/preventive-plans/${planId}/documents`, form).then((r) => r.data);
+  },
+
+  getPlanDocumentDownloadUrl: (planId: string, docId: string) =>
+    api.get<string>(`/preventive-plans/${planId}/documents/${docId}/download`).then((r) => r.data),
+
+  getPlanDocumentVersionHistory: (planId: string, docId: string) =>
+    api.get<PlanDocument[]>(`/preventive-plans/${planId}/documents/${docId}/versions`).then((r) => r.data),
+
+  deletePlanDocument: (planId: string, docId: string) =>
+    api.delete(`/preventive-plans/${planId}/documents/${docId}`),
 };
+
+export interface PlanDocument {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  version: number;
+  isCurrentVersion: boolean;
+  createdAt: string;
+  uploadedBy?: { id: string; name: string } | null;
+}

@@ -30,6 +30,10 @@ import {
 } from '@/lib/work-orders.api';
 import { InterventionResult } from '@gmao/shared';
 import { usersApi } from '@/lib/users.api';
+import {
+  getContributorWithoutLogNames,
+  getTimeDeviationPresentation,
+} from '@/lib/work-order-validation-insights';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -496,6 +500,12 @@ export function WorkOrderDetailDialog({
 
   const isCouldNotIntervene =
     lastCompletedIntervention?.result === InterventionResult.COULD_NOT_INTERVENE;
+
+  const contributorsWithoutLog = detail?.contributorsWithoutLog ?? [];
+  const hasContributorsWithoutLog = contributorsWithoutLog.length > 0;
+  const hasNotableTimeDeviation = detail?.hasNotableTimeDeviation ?? false;
+  const timeDeviation = detail?.timeDeviation;
+  const timeDeviationPresentation = getTimeDeviationPresentation(timeDeviation);
 
   const renderActionPanel = () => {
     if (!detail || !status || isTerminalStatus(status)) return null;
@@ -1252,6 +1262,47 @@ export function WorkOrderDetailDialog({
                     <p className="whitespace-pre-wrap text-muted-foreground">{detail.sourceReport.description}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {(status === WorkOrderStatus.PENDING_VALIDATION &&
+              (hasContributorsWithoutLog || hasNotableTimeDeviation)) && (
+              <div className="rounded-md border border-amber-400/60 bg-amber-50/40 p-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  {t('supervisorWorkOrders.detail.validationSignalsTitle')}
+                </p>
+
+                {hasContributorsWithoutLog && (
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-900">
+                      {t('supervisorWorkOrders.detail.contributorsWithoutLogTitle')}
+                    </p>
+                    <p className="text-amber-900/90">
+                      {t('supervisorWorkOrders.detail.contributorsWithoutLogDescription', {
+                        names: getContributorWithoutLogNames(contributorsWithoutLog),
+                      })}
+                    </p>
+                  </div>
+                )}
+
+                {hasNotableTimeDeviation && timeDeviation && (
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-900">
+                      {t('supervisorWorkOrders.detail.timeDeviationTitle')}
+                    </p>
+                    <p className="text-amber-900/90">
+                      {t('supervisorWorkOrders.detail.timeDeviationDescription', {
+                        estimated: timeDeviation.estimatedDurationMinutes ?? 0,
+                        actual: timeDeviation.actualDurationMinutes,
+                        deltaMinutes: timeDeviationPresentation.absoluteDeviationMinutes ?? 0,
+                        deltaPercent: timeDeviationPresentation.absoluteDeviationPercent ?? 0,
+                        direction: t(
+                          `supervisorWorkOrders.detail.timeDeviationDirection.${timeDeviationPresentation.direction}`,
+                        ),
+                      })}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -176,6 +176,18 @@ export interface WorkOrderCrossRef {
   referenceNumber: string;
 }
 
+export interface WorkOrderContributorWithoutLog {
+  technicianId: string;
+  name: string;
+}
+
+export interface WorkOrderTimeDeviation {
+  estimatedDurationMinutes: number | null;
+  actualDurationMinutes: number;
+  deltaMinutes: number | null;
+  deltaPercent: number | null;
+}
+
 export interface WorkOrderDetail {
   id: string;
   referenceNumber: string;
@@ -211,6 +223,12 @@ export interface WorkOrderDetail {
   followUpFrom: WorkOrderCrossRef | null;
   /** Follow-up WOs created from this WO after a COULD_NOT_INTERVENE validation. */
   followUps: WorkOrderCrossRef[];
+  /** Active contributors assigned to this WO who have no intervention log yet. */
+  contributorsWithoutLog: WorkOrderContributorWithoutLog[];
+  /** True when estimated vs actual intervention time differs. */
+  hasNotableTimeDeviation: boolean;
+  /** Detailed estimate vs actual time metrics for supervisor validation context. */
+  timeDeviation: WorkOrderTimeDeviation;
 }
 
 export interface WorkOrderSourceReport {

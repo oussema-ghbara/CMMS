@@ -702,6 +702,17 @@
       "costParts": "Pièces",
       "costContractor": "Sous-traitance",
       "costTotal": "Total",
+      "validationSignalsTitle": "Signaux de validation",
+      "contributorsWithoutLogTitle": "Contributeurs sans journal",
+      "contributorsWithoutLogDescription": "Aucun journal d'intervention enregistré pour : {{names}}.",
+      "timeDeviationTitle": "Écart de durée constaté",
+      "timeDeviationDescription": "Durée estimée : {{estimated}} min, durée réelle : {{actual}} min ({{direction}} de {{deltaMinutes}} min, {{deltaPercent}}%).",
+      "timeDeviationDirection": {
+        "none": "écart non disponible",
+        "over": "dépassement",
+        "under": "écart inférieur",
+        "equal": "écart nul"
+      },
       "followUpChain": "Chaîne de suivi",
       "followUpFrom": "Suite à :",
       "followUps": "OT de suivi :"

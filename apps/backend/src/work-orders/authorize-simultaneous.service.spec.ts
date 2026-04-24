@@ -65,6 +65,8 @@ function buildMocks() {
     prisma as never,
     notifications as never,
     partRequests as never,
+    {} as never,
+    {} as never,
   );
 
   return {

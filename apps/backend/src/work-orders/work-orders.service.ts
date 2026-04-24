@@ -217,6 +217,23 @@ export class WorkOrdersService {
       })),
     );
 
+    // §9.4, §12.4: Notify the original requester when the WO was created from a
+    // problem report and has now been cancelled.
+    type SourceReport = { reporter: { id: string } };
+    const sourceReport = (wo as unknown as { sourceReport: SourceReport | null }).sourceReport;
+    if (sourceReport?.reporter?.id) {
+      await this.notifications.notify({
+        recipientId: sourceReport.reporter.id,
+        type: NotificationType.LINKED_WO_CLOSED,
+        title: 'Votre signalement a été archivé',
+        summary:
+          `L'ordre de travail ${wo.referenceNumber}, issu de votre signalement, ` +
+          `a été annulé.`,
+        entityType: 'WorkOrder',
+        entityId: id,
+      });
+    }
+
     // Cancel pending part requests and prompt return of fulfilled parts
     await this.partRequests.handleWorkOrderCancellation(id, actorId);
 

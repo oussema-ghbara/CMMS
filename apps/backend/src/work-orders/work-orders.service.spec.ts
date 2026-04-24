@@ -333,6 +333,69 @@ describe('WorkOrdersService.cancel', () => {
     });
   });
 
+  // §9.4, §12.4: cancellation must notify the original requester when the WO
+  // was created from a problem report.
+  it('notifies source report requester on cancellation', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-020',
+      status: WorkOrderStatus.OPEN,
+      sourceReport: { reporter: { id: 'requester-42' } },
+    });
+
+    const notifications = service['notifications'] as jest.Mocked<NotificationsService>;
+
+    await service.cancel('wo-1', { reason: WOCancellationReason.DUPLICATE } as any, ACTOR_ID);
+
+    expect(notifications.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: 'requester-42',
+        type: NotificationType.LINKED_WO_CLOSED,
+        entityType: 'WorkOrder',
+        entityId: 'wo-1',
+      }),
+    );
+  });
+
+  it('does NOT send requester notification when WO has no source report', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-021',
+      status: WorkOrderStatus.OPEN,
+      sourceReport: null,
+    });
+
+    const notifications = service['notifications'] as jest.Mocked<NotificationsService>;
+
+    await service.cancel('wo-1', { reason: WOCancellationReason.DUPLICATE } as any, ACTOR_ID);
+
+    const linkedWoCalls = (notifications.notify as jest.Mock).mock.calls.filter(
+      ([arg]: [{ type: string }]) => arg?.type === NotificationType.LINKED_WO_CLOSED,
+    );
+    expect(linkedWoCalls).toHaveLength(0);
+  });
+
+  it('does NOT send requester notification when sourceReport has no reporter', async () => {
+    (repo.findById as jest.Mock).mockResolvedValue({
+      id: 'wo-1',
+      assetId: 'asset-1',
+      referenceNumber: 'WO-2026-022',
+      status: WorkOrderStatus.OPEN,
+      sourceReport: { reporter: null },
+    });
+
+    const notifications = service['notifications'] as jest.Mocked<NotificationsService>;
+
+    await service.cancel('wo-1', { reason: WOCancellationReason.DUPLICATE } as any, ACTOR_ID);
+
+    const linkedWoCalls = (notifications.notify as jest.Mock).mock.calls.filter(
+      ([arg]: [{ type: string }]) => arg?.type === NotificationType.LINKED_WO_CLOSED,
+    );
+    expect(linkedWoCalls).toHaveLength(0);
+  });
+
 });
 
 describe('WorkOrdersService.getAnalytics', () => {

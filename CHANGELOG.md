@@ -4,6 +4,31 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Audit gap resolution: escalation, CRITICAL overdue, FOLLOW_UP_PROMPT, cancel notification (April 24, 2026)
+
+#### `fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only (§4.3)`
+- `WorkOrdersRepository.findOverdueForEscalation` previously used `status: { notIn: [CLOSED, CANCELLED] }`, which included IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION — contradicting the spec clause "has not moved to En cours".
+- Changed to `status: { in: [OPEN, ASSIGNED] }`. WOs that are already being worked on are never auto-escalated.
+- Tests: 8 unit tests in `work-orders.repository.escalation.spec.ts` verifying status filter, CRITICAL exclusion, dueDate constraint, and select shape.
+
+#### `fix(work-orders): notify supervisors when a CRITICAL WO becomes overdue (§4.3)`
+- Overdue CRITICAL WOs were silently excluded from the escalation query with no alternative path. The spec states: "Critique en retard ne s'escalade pas davantage — it triggers an immediate notification to the Supervisor."
+- Added `findOverdueCritical(now)` to `WorkOrdersRepository` — queries OPEN/ASSIGNED WOs with CRITICAL priority and `dueDate < now`.
+- `autoEscalateOverduePriorities()` now runs this query first, emits `WO_OVERDUE` via `notifySupervisors()` for each result, and returns a `criticalNotified` counter alongside the existing `checked` and `escalated` values.
+- Tests: 12 unit tests in `work-orders.service.escalation.spec.ts` covering zero case, CRITICAL-only path, escalation chain, mixed run, and return values.
+
+#### `fix(work-orders): send FOLLOW_UP_PROMPT to supervisors, not principal technician (§8.8, §9.5)`
+- `ValidationService.validate()` was dispatching `FOLLOW_UP_PROMPT` to `principalTechnicianId` on a COULD_NOT_INTERVENE result. The spec requires the Supervisor to be prompted (to create a follow-up WO or mark the asset Out of Service); the technician has no action to take.
+- Changed to `notifications.notifySupervisors(FOLLOW_UP_PROMPT, ...)`. The gate on `principalTechnicianId` was also removed — supervisors must be notified regardless.
+- Tests: replaced 2 stale test cases (wrong recipient assertions) with 4 correct tests: `notifySupervisors` called with FOLLOW_UP_PROMPT; `notify()` not called with FOLLOW_UP_PROMPT; fires even when WO has no principal technician.
+
+#### `fix(work-orders): notify source requester when a WO is cancelled (§9.4, §12.4)`
+- `WorkOrdersService.cancel()` notified assigned technicians but ignored the original problem report reporter. The spec states: "Le Demandeur notifié si l'OT provient d'un signalement."
+- `findById` already includes `sourceReport.reporter.id` via its Prisma include. After technician notifications, `cancel()` now reads `sourceReport?.reporter?.id` and sends `LINKED_WO_CLOSED` to that user. Null-safe: no notification when the WO has no source report or the reporter is missing.
+- Tests: 3 unit tests in the `WorkOrdersService.cancel` block — requester notified; skipped when no source report; skipped when reporter is null.
+
+---
+
 ### Added — On-demand PDF report download for closed work orders (April 24, 2026)
 
 #### `fix(work-orders): correct pdfkit CommonJS import for ESM interop`
@@ -522,7 +547,7 @@ All notable changes to the GMAO project are documented here.
 - The service now reads the most recent **completed** intervention log (i.e. with `endedAt IS NOT NULL` and `result IS NOT NULL`) before deciding the post-validation asset status:
   - **Normal results** (RESOLVED, PARTIALLY_RESOLVED, NEEDS_FOLLOW_UP, or no log): asset → `OPERATIONAL` as before
   - **COULD_NOT_INTERVENE**: `assetStatusOverride` is **mandatory**; missing it raises `400 BadRequestException` with an explicit message; the chosen status is applied and logged
-- A `FOLLOW_UP_PROMPT` in-app notification is dispatched to the principal technician on the CNI path to signal that a follow-up intervention may be needed
+- A `FOLLOW_UP_PROMPT` in-app notification is dispatched to all active supervisors on the CNI path (corrected from the initial implementation that incorrectly targeted the principal technician — see §8.8, §9.5 fix above)
 - The WO status log label records `"COULD_NOT_INTERVENE acknowledged — asset set to <status>"` for full auditability
 - New DTO `ValidateWorkOrderDto` with `assetStatusOverride?: AssetStatus` wired into `PATCH /work-orders/:id/validate`
 - Frontend validate panel detects CNI from `detail.interventionLogs`: shows a **red warning banner** and a mandatory asset-status select (OUT_OF_SERVICE / IN_MAINTENANCE / OPERATIONAL — risk accepted); Confirm button is disabled until a choice is made
@@ -576,8 +601,8 @@ All notable changes to the GMAO project are documented here.
 #### `feat(work-orders): add automatic priority escalation job scheduler`
 - New hourly Cron job (`PriorityEscalationJob`) evaluates and escalates overdue work orders
 - Escalation follows strict priority chain: LOW → MEDIUM → HIGH → CRITICAL
-- Already-CRITICAL work orders are excluded to prevent redundant escalations
-- Terminal states (CLOSED, CANCELLED) are skipped automatically
+- Escalation is scoped to OPEN and ASSIGNED statuses only — IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION are excluded (corrected by §4.3 fix above)
+- CRITICAL WOs are not escalated further; overdue CRITICAL WOs trigger a separate `WO_OVERDUE` supervisor notification (added by §4.3 fix above)
 - Full audit trail preserved via `WorkOrderPriorityLog` with `isAutoEscalation=true` flag
 - Supervisor notifications sent via `NotificationType.WO_AUTO_ESCALATED` for every escalated work order
 - System escalations logged explicitly as "automatic system escalation" per spec §4.3

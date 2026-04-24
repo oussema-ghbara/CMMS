@@ -117,10 +117,16 @@ async validate(woId: string, actorId: string): Promise<WorkOrder> {
    ├─ Log: "PDF report generated and stored (Xms)"
    └─ Job complete ✓
    ↓
-4. SUPERVISOR CAN DOWNLOAD REPORT (Future)
-   ├─ GET /work-orders/{id}
-   ├─ Returns reportPdfKey (if available)
-   └─ Frontend generates presigned URL via StorageService
+4. SUPERVISOR DOWNLOADS REPORT
+   ├─ GET /work-orders/{id}/report (Supervisor only)
+   ├─ WorkOrdersService.getReportUrl() checks reportPdfKey
+   ├─ If null: generates PDF on-demand, uploads, persists key
+   └─ Returns { url } — presigned MinIO URL (1-hour TTL)
+   ↓
+5. FRONTEND
+   ├─ Closed-WO dialog footer renders "Télécharger le rapport PDF" button
+   ├─ Click → calls workOrdersApi.getReportUrl(id)
+   └─ Opens presigned URL in new tab
 ```
 
 ---
@@ -294,11 +300,7 @@ curl http://localhost:3000/api/v1/work-orders/{id}
 
 ## Future Enhancements
 
-1. **Download Endpoint:** GET `/work-orders/{id}/report`
-   - Returns presigned PDF URL
-   - Frontend: Download button in WO detail
-
-2. **Email Delivery:** Mail supervisor the PDF
+1. **Email Delivery:** Mail supervisor the PDF
    - Trigger on validation
    - Attach PDF to email
 

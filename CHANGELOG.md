@@ -4,6 +4,26 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — On-demand PDF report download for closed work orders (April 24, 2026)
+
+#### `fix(work-orders): correct pdfkit CommonJS import for ESM interop`
+- `ReportGenerationService` was importing `PDFDocument` as a default ES import (`import PDFDocument from 'pdfkit'`), which compiles to `pdfkit_1.default` under `module: commonjs` without `esModuleInterop`. The `pdfkit` package uses `module.exports = PDFDocument` (CJS), so `pdfkit_1.default` was `undefined` at runtime — `new PDFDocument()` threw `TypeError: pdfkit_1.default is not a constructor`.
+- Fixed by switching to a namespace import: `import * as PDFDocument from 'pdfkit'`. This correctly resolves to the `module.exports` value under CommonJS compilation.
+
+#### `feat(work-orders): add on-demand PDF report download endpoint (§11.3)`
+- `WorkOrdersService.getReportUrl(id)`: fetches the WO, throws `BadRequestException('workOrders.report.notClosed')` if not CLOSED, returns a presigned MinIO URL. When `reportPdfKey` is null (WO closed before async job completed or job failed), generates the PDF synchronously on first request, uploads to the `pdfs` bucket, and persists `reportPdfKey` for subsequent calls.
+- `StorageService` and `ReportGenerationService` injected into `WorkOrdersService` (already in `WorkOrdersModule` providers — no new module wiring needed).
+- `GET /work-orders/:id/report` (Supervisor only) added to `WorkOrdersController` as a clean one-line delegate to `this.workOrders.getReportUrl(id)` — no service logic in the controller.
+- `authorize-simultaneous.service.spec.ts` updated to pass two additional `{} as never` stubs matching the new `WorkOrdersService` constructor arity.
+
+#### `feat(web): add PDF report download button to closed WO detail dialog`
+- `WorkOrderDetail` interface gains `reportPdfKey: string | null` field.
+- `workOrdersApi.getReportUrl(id)` API call added.
+- Download button rendered in `DialogFooter` when `status === WorkOrderStatus.CLOSED`: shows spinner while request is in flight, opens the presigned URL in a new tab on success, shows `toast.error` on failure.
+- i18n keys added (French): `supervisorWorkOrders.actions.downloadReport`, `supervisorWorkOrders.actions.reportNotReady`, `supervisorWorkOrders.toasts.reportDownloadError`.
+
+---
+
 ### Added — Full KPI analytics and asset health recurring-failure detection (April 23, 2026)
 
 #### `feat(work-orders): add full KPI analytics across 5 categories (§1.1 §2.1)`

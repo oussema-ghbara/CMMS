@@ -103,6 +103,7 @@ npx prisma studio    # visual DB browser
 
 ### Account setup (new users)
 - Admin invites new users — backend sends setup email
+- If the setup link expires, users can request a new one from the login screen or `/auth/resend-setup`
 - User clicks setup link → set password on `/auth/setup?token=...`
 - Account activation and password validation via `/auth/setup`
 - Setup tokens expire after 24 hours
@@ -131,10 +132,10 @@ npx prisma studio    # visual DB browser
 | ConfigModule | done — Joi env validation, fail-fast on startup |
 | PrismaModule | done — global |
 | RedisModule | done — global, ioredis |
-| AuthModule | done — login/refresh/logout, JWT rotation, Redis revocation |
+| AuthModule | done — login/refresh/logout, JWT rotation, Redis revocation, public setup resend |
 | MailModule | done — BullMQ queue, Nodemailer, Handlebars templates |
 | SystemConfigModule | done — 14 config keys, password policy |
-| UsersModule | done — Admin CRUD, setup token flow, deactivate/reactivate |
+| UsersModule | done — Admin CRUD, setup token flow, deactivate/reactivate, setup resend by email |
 | StorageModule | done — MinIO/S3 wrapper, multi-bucket, presigned URLs |
 | AssetsModule | done — locations, categories, assets, certificates, documents, compliance certificate soft-archive |
 | NotificationsModule | done — in-app notifications, unread count, mark-read endpoints, Socket.io live push |

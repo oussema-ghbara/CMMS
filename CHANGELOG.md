@@ -4,6 +4,19 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Public setup email resend flow (April 24, 2026)
+
+#### `feat(auth): add public resend-setup endpoint for expired onboarding links`
+- Added `POST /auth/resend-setup` as a public, throttled endpoint that accepts an email address, reuses the existing setup-token mail flow, and returns `204 No Content` regardless of whether a matching inactive user exists.
+- `UsersService` now exposes `resendSetupByEmail(email)` to invalidate any prior setup token for the inactive user and queue a fresh setup email through the existing Handlebars/BullMQ pipeline.
+- Tests: controller integration coverage for success and validation failure, `AuthService` delegation coverage, and `UsersService` unit coverage for inactive, active, and missing-user branches.
+
+#### `feat(web): add public resend setup page and login entry point`
+- Added `/resend-setup` with the same Suspense/card UX used by the other auth screens, plus a legacy `/app/auth/resend-setup` redirect for compatibility.
+- Login and expired-setup screens now link to the resend flow.
+- `authApi.resendSetup(email)` was added alongside i18n strings for the new form and success state.
+- Tests: API wrapper, resend-setup validation/helper, and middleware allowlist coverage.
+
 ### Fixed — Audit gap resolution: escalation, CRITICAL overdue, FOLLOW_UP_PROMPT, cancel notification (April 24, 2026)
 
 #### `fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only (§4.3)`

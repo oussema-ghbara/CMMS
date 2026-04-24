@@ -70,6 +70,12 @@ chore(infra): add healthcheck to redis service
 - Features: Email input, success confirmation
 - API: `authApi.forgotPassword(email)` via `lib/auth.api.ts`
 
+### Public setup resend
+- Path: `/resend-setup`
+- Component: `app/(auth)/resend-setup/resend-setup-content.tsx` (wrapped with Suspense)
+- Features: Email input, success confirmation, redirects back to login
+- API: `authApi.resendSetup(email)` via `lib/auth.api.ts`
+
 ### Password reset
 - Path: `/auth/reset-password?token=...`
 - Component: `app/(auth)/reset-password/reset-content.tsx` (wrapped with Suspense)

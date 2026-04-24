@@ -29,8 +29,8 @@ Tech stack decisions: stack.pdf
   - [x] AuthModule — session inactivity timeout enforced from `SystemConfig` (`SESSION_IDLE_TIMEOUT_HOURS`) across refresh JWT expiry, Redis refresh-token TTL, and refresh cookie maxAge (with 7-day fallback on invalid config)
   - [x] MailModule — BullMQ queue, Nodemailer processor, Handlebars templates (setup-account, password-reset)
   - [x] SystemConfigModule — password policy, 14 config keys seeded
-  - [x] UsersModule — Admin CRUD, setup token flow, deactivate/reactivate, resend setup
-  - [x] Auth endpoints: /auth/setup, /auth/forgot-password, /auth/reset-password
+  - [x] UsersModule — Admin CRUD, setup token flow, deactivate/reactivate, admin resend setup, public resend setup by email
+  - [x] Auth endpoints: /auth/setup, /auth/resend-setup, /auth/forgot-password, /auth/reset-password
   - [x] StorageModule — MinIO/S3 wrapper, multi-bucket, presigned URLs
   - [x] NotificationsModule — in-app + email notifications, global
   - [x] AssetsModule — locations, categories, assets, certificates, documents
@@ -51,7 +51,7 @@ Tech stack decisions: stack.pdf
 - [x] Backend runtime compatibility — advisory lock SQL now casts lock keys to `int` to match PostgreSQL function overloads used in production
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
 - [x] apps/web — Next.js started (auth + protected layouts + admin pages)
-- [x] Auth module (web) — login page + account setup (/auth/setup) + password recovery (/auth/forgot-password, /auth/reset-password)
+- [x] Auth module (web) — login page + account setup (/auth/setup) + public setup resend (/resend-setup) + password recovery (/auth/forgot-password, /auth/reset-password)
 - [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
 - [x] Admin module (web) — users management, system config panel, audit log table
 - [x] Admin module (web) — hardening: ConfirmDialog for deactivate/delete, audit log filter fixed, hourlyRate clear on role change
@@ -65,7 +65,7 @@ Tech stack decisions: stack.pdf
 - [x] Supervisor module (web) — /supervisor/reports (list/filter/pagination + detail dialog + comment + convert/reject/defer/reopen/archive actions)
 - [x] Supervisor module (web) — /supervisor/work-orders (list/filter/pagination + create WO dialog + detail dialog + full lifecycle actions: publish, assign, reassign, promote, validate, reject-closure, cancel, authorize-simultaneous-maintenance; promote rejects terminal work orders and closes the old principal intervention log when promotion happens in IN_PROGRESS; list waits for auth initialization and asset selector respects backend limits; validate panel shows a mandatory asset-status override form when the last intervention result is COULD_NOT_INTERVENE)
 - [x] Supervisor module (web) — /supervisor dashboard summary cards now wait for auth store initialization before firing queries
-- [x] Web auth compatibility — legacy redirect pages `/app/auth/setup` and `/app/auth/reset-password` aligned with Next 15 `searchParams` Promise PageProps contract
+- [x] Web auth compatibility — legacy redirect pages `/app/auth/setup`, `/app/auth/reset-password`, and `/app/auth/resend-setup` aligned with Next 15 `searchParams` Promise PageProps contract
 - [x] Supervisor module (web) — /supervisor/preventive-plans (list/filter/pagination + create/edit + activate/deactivate + trigger-now + checklist CRUD/reorder)
 - [x] Supervisor module (web) — /supervisor/assets (list/filter/pagination + create/edit + detail + status transitions)
 - [x] Supervisor module (web) — asset certificates: full CRUD (add/edit/delete + optional file upload) wired in asset-detail-dialog

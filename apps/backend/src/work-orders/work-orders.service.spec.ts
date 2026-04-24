@@ -14,7 +14,7 @@ import { WorkOrdersRepository } from './work-orders.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PartRequestsService } from '../inventory/part-requests.service';
-import { AssetStatus, WorkOrderStatus } from '@gmao/db';
+import { AssetStatus, WorkOrderStatus, NotificationType } from '@gmao/db';
 import {
   WorkOrderPriority,
   WorkOrderSource,
@@ -70,7 +70,7 @@ describe('WorkOrdersService.create', () => {
             findById: jest.fn(),
             updateStatus: jest.fn(),
             updatePriority: jest.fn(),
-            findOverdueForEscalation: jest.fn(),
+            findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -218,7 +218,7 @@ describe('WorkOrdersService.cancel', () => {
             findById: jest.fn(),
             updateStatus: jest.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.CANCELLED }),
             updatePriority: jest.fn(),
-            findOverdueForEscalation: jest.fn(),
+            findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -332,6 +332,7 @@ describe('WorkOrdersService.cancel', () => {
       where: { workOrderId: 'wo-1', isActive: true },
     });
   });
+
 });
 
 describe('WorkOrdersService.getAnalytics', () => {
@@ -349,7 +350,7 @@ describe('WorkOrdersService.getAnalytics', () => {
             findById: jest.fn(),
             updateStatus: jest.fn(),
             updatePriority: jest.fn(),
-            findOverdueForEscalation: jest.fn(),
+            findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -504,7 +505,7 @@ describe('WorkOrdersService.createFollowUp', () => {
             findAll: jest.fn(),
             updateStatus: jest.fn(),
             updatePriority: jest.fn(),
-            findOverdueForEscalation: jest.fn(),
+            findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -613,7 +614,7 @@ describe('WorkOrdersService.getTechnicianLoad', () => {
             findById: jest.fn(),
             updateStatus: jest.fn(),
             updatePriority: jest.fn(),
-            findOverdueForEscalation: jest.fn(),
+            findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -768,7 +769,7 @@ describe('WorkOrdersService.getDurationHints', () => {
         WorkOrdersService,
         {
           provide: WorkOrdersRepository,
-          useValue: { create: jest.fn(), findAll: jest.fn(), findById: jest.fn(), updateStatus: jest.fn(), updatePriority: jest.fn(), findOverdueForEscalation: jest.fn() },
+          useValue: { create: jest.fn(), findAll: jest.fn(), findById: jest.fn(), updateStatus: jest.fn(), updatePriority: jest.fn(), findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]) },
         },
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationsService, useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() } },
@@ -849,7 +850,7 @@ describe('WorkOrdersService.getRecurringFailureAssets', () => {
           provide: WorkOrdersRepository,
           useValue: {
             create: jest.fn(), findAll: jest.fn(), findById: jest.fn(),
-            updateStatus: jest.fn(), updatePriority: jest.fn(), findOverdueForEscalation: jest.fn(),
+            updateStatus: jest.fn(), updatePriority: jest.fn(), findOverdueForEscalation: jest.fn(), findOverdueCritical: jest.fn().mockResolvedValue([]),
           },
         },
         {

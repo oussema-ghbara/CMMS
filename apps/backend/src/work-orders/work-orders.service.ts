@@ -684,13 +684,28 @@ export class WorkOrdersService {
       .sort((a, b) => b.failureCount - a.failureCount);
   }
 
-  async autoEscalateOverduePriorities(): Promise<{ checked: number; escalated: number }> {
+  async autoEscalateOverduePriorities(): Promise<{ checked: number; escalated: number; criticalNotified: number }> {
     const now = new Date();
+
+    // §4.3: CRITICAL WOs that are overdue do NOT escalate further — they trigger an
+    // immediate supervisor notification instead.
+    const overdueCritical = await this.repo.findOverdueCritical(now);
+    for (const wo of overdueCritical) {
+      this.logger.warn(`CRITICAL WO ${wo.referenceNumber} is overdue — notifying supervisors`);
+      await this.notifications.notifySupervisors(
+        NotificationType.WO_OVERDUE,
+        'Ordre de travail CRITIQUE en retard',
+        `L'ordre de travail CRITIQUE ${wo.referenceNumber} a dépassé sa date d'échéance.`,
+        'WorkOrder',
+        wo.id,
+      );
+    }
+
     const overdue = await this.repo.findOverdueForEscalation(now);
 
-    if (overdue.length === 0) {
+    if (overdue.length === 0 && overdueCritical.length === 0) {
       this.logger.debug('Automatic priority escalation: no overdue work orders eligible');
-      return { checked: 0, escalated: 0 };
+      return { checked: 0, escalated: 0, criticalNotified: 0 };
     }
 
     let escalated = 0;
@@ -715,7 +730,7 @@ export class WorkOrdersService {
       );
     }
 
-    return { checked: overdue.length, escalated };
+    return { checked: overdue.length, escalated, criticalNotified: overdueCritical.length };
   }
 
   private async assertActiveTechnician(technicianId: string): Promise<void> {

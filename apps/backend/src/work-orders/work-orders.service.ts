@@ -4,6 +4,8 @@ import { WorkOrdersRepository } from './work-orders.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PartRequestsService } from '../inventory/part-requests.service';
+import { StorageService } from '../storage/storage.service';
+import { ReportGenerationService } from './report-generation.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { CreateFollowUpDto } from './dto/create-follow-up.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
@@ -57,6 +59,8 @@ export class WorkOrdersService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly partRequests: PartRequestsService,
+    private readonly storage: StorageService,
+    private readonly reportGenerator: ReportGenerationService,
   ) {}
 
   findAll(query: WorkOrderQueryDto) {
@@ -66,7 +70,30 @@ export class WorkOrdersService {
   findById(id: string): Promise<WorkOrder> {
     return this.repo.findById(id);
   }
-  
+
+  async getReportUrl(id: string): Promise<{ url: string }> {
+    const wo = await this.repo.findById(id);
+    if (wo.status !== WorkOrderStatus.CLOSED) {
+      throw new BadRequestException('workOrders.report.notClosed');
+    }
+
+    let storageKey = (wo as any).reportPdfKey as string | null;
+
+    if (!storageKey) {
+      this.logger.log(`Generating on-demand PDF report for WO ${id}`);
+      const pdfBuffer = await this.reportGenerator.generateReport(id);
+      const fileName = `work-order-${id}-${Date.now()}.pdf`;
+      storageKey = `reports/${fileName}`;
+      await this.storage.upload('pdfs', storageKey, pdfBuffer, 'application/pdf');
+      await this.prisma.workOrder.update({
+        where: { id },
+        data: { reportPdfKey: storageKey },
+      });
+    }
+
+    const url = await this.storage.getPresignedUrl('pdfs', storageKey);
+    return { url };
+  }
 
   async create(dto: CreateWorkOrderDto, actorId: string): Promise<WorkOrder> {
     const asset = await this.prisma.asset.findUnique({

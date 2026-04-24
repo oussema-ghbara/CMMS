@@ -110,6 +110,13 @@ export class WorkOrdersController {
     return { ...wo, costSummary };
   }
 
+  @Get(':id/report')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'Get a presigned download URL for the closed WO PDF — generates on demand if not yet stored' })
+  getReportUrl(@Param('id') id: string): Promise<{ url: string }> {
+    return this.workOrders.getReportUrl(id);
+  }
+
   @Post()
   @Roles(Role.SUPERVISOR)
   @ApiOperation({ summary: 'Create work order (Supervisor) — with optional pre-assignment (spec §9.2)' })

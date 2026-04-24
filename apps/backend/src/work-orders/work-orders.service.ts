@@ -36,6 +36,17 @@ export interface DurationHintsResult {
   technicianAvgDays: number | null;
 }
 
+export interface WorkOrderDetailValidationInsights {
+  contributorsWithoutLog: Array<{ technicianId: string; name: string }>;
+  hasNotableTimeDeviation: boolean;
+  timeDeviation: {
+    estimatedDurationMinutes: number | null;
+    actualDurationMinutes: number;
+    deltaMinutes: number | null;
+    deltaPercent: number | null;
+  };
+}
+
 const ACTIVE_WO_STATUSES: WorkOrderStatus[] = [
   WorkOrderStatus.DRAFT,
   WorkOrderStatus.OPEN,
@@ -67,8 +78,83 @@ export class WorkOrdersService {
     return this.repo.findAll(query);
   }
 
-  findById(id: string): Promise<WorkOrder> {
-    return this.repo.findById(id);
+  async findById(id: string): Promise<WorkOrder & WorkOrderDetailValidationInsights> {
+    const wo = await this.repo.findById(id);
+
+    const assignments = (wo as unknown as {
+      assignments?: Array<{
+        technicianId: string;
+        isPrincipal: boolean;
+        isActive: boolean;
+        technician?: { name: string } | null;
+      }>;
+    }).assignments ?? [];
+
+    const interventionLogs = (wo as unknown as {
+      interventionLogs?: Array<{ technicianId: string; activeDurationMinutes: number | null }>;
+    }).interventionLogs ?? [];
+
+    const contributorsWithoutLog = this.computeContributorsWithoutLog(assignments, interventionLogs);
+    const timeDeviation = this.computeTimeDeviation(wo, interventionLogs);
+
+    return {
+      ...wo,
+      contributorsWithoutLog,
+      hasNotableTimeDeviation: timeDeviation.deltaMinutes !== null && timeDeviation.deltaMinutes !== 0,
+      timeDeviation,
+    };
+  }
+
+  private computeContributorsWithoutLog(
+    assignments: Array<{
+      technicianId: string;
+      isPrincipal: boolean;
+      isActive: boolean;
+      technician?: { name: string } | null;
+    }>,
+    interventionLogs: Array<{ technicianId: string }>,
+  ): Array<{ technicianId: string; name: string }> {
+    const contributors = assignments.filter((assignment) => assignment.isActive && !assignment.isPrincipal);
+    const techniciansWithLogs = new Set(interventionLogs.map((log) => log.technicianId));
+
+    return contributors
+      .filter((contributor) => !techniciansWithLogs.has(contributor.technicianId))
+      .map((contributor) => ({
+        technicianId: contributor.technicianId,
+        name: contributor.technician?.name ?? contributor.technicianId,
+      }));
+  }
+
+  private computeTimeDeviation(
+    wo: WorkOrder,
+    interventionLogs: Array<{ activeDurationMinutes: number | null }>,
+  ): WorkOrderDetailValidationInsights['timeDeviation'] {
+    const estimatedDurationMinutes = wo.estimatedDurationMinutes;
+    const actualDurationMinutes = interventionLogs.reduce(
+      (sum, log) => sum + (log.activeDurationMinutes ?? 0),
+      0,
+    );
+
+    if (estimatedDurationMinutes == null) {
+      return {
+        estimatedDurationMinutes: null,
+        actualDurationMinutes,
+        deltaMinutes: null,
+        deltaPercent: null,
+      };
+    }
+
+    const deltaMinutes = actualDurationMinutes - estimatedDurationMinutes;
+    const deltaPercent = estimatedDurationMinutes === 0
+      ? null
+      : Number(((deltaMinutes / estimatedDurationMinutes) * 100).toFixed(2));
+
+    return {
+      estimatedDurationMinutes,
+      actualDurationMinutes,
+      deltaMinutes,
+      deltaPercent,
+    };
   }
 
   async getReportUrl(id: string): Promise<{ url: string }> {

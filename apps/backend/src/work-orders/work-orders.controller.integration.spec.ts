@@ -324,6 +324,41 @@ describe('WorkOrdersController integration', () => {
     });
   });
 
+  it('GET /work-orders/:id returns validation insight fields for supervisor validation view', async () => {
+    workOrders.findById.mockResolvedValue({
+      id: 'wo-1',
+      referenceNumber: 'WO-2026-001',
+      status: 'PENDING_VALIDATION',
+      contractorCost: null,
+      interventionLogs: [],
+      stockMovements: [],
+      contributorsWithoutLog: [{ technicianId: 'tech-2', name: 'Contributor B' }],
+      hasNotableTimeDeviation: true,
+      timeDeviation: {
+        estimatedDurationMinutes: 120,
+        actualDurationMinutes: 180,
+        deltaMinutes: 60,
+        deltaPercent: 50,
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/wo-1')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(response.body.contributorsWithoutLog).toEqual([
+      { technicianId: 'tech-2', name: 'Contributor B' },
+    ]);
+    expect(response.body.hasNotableTimeDeviation).toBe(true);
+    expect(response.body.timeDeviation).toEqual({
+      estimatedDurationMinutes: 120,
+      actualDurationMinutes: 180,
+      deltaMinutes: 60,
+      deltaPercent: 50,
+    });
+  });
+
   it('GET /work-orders/analytics returns the analytics payload including cost summary', async () => {
     workOrders.getAnalytics.mockResolvedValue({
       periodDays: 45,

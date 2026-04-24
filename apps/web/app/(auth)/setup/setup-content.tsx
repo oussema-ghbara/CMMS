@@ -69,6 +69,13 @@ export default function SetupContent() {
               {t('auth.invalidOrExpiredToken')}
             </p>
             <Button
+              onClick={() => router.push('/resend-setup')}
+              variant="outline"
+              className="w-full"
+            >
+              {t('auth.resendSetupButton')}
+            </Button>
+            <Button
               onClick={() => router.push('/login')}
               className="w-full"
             >

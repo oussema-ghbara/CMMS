@@ -19,6 +19,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/resend-setup') ||
     pathname.startsWith('/setup') ||
     pathname.startsWith('/auth/');
 

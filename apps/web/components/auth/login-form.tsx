@@ -109,6 +109,14 @@ export function LoginForm() {
                 {t('auth.forgotPassword')}
               </Button>
             </div>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-xs text-primary"
+              onClick={() => router.push('/resend-setup')}
+            >
+              {t('auth.resendSetupButton')}
+            </Button>
             <Input
               id="password"
               type="password"

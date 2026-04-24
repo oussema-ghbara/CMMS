@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import {
   WorkOrderStatus,
   WorkOrderPriority,
@@ -168,6 +168,8 @@ export function WorkOrderDetailDialog({
 
   // Captured just before validateMutation fires to survive the detail re-fetch
   const pendingFollowUpCtxRef = useRef<typeof followUpPrompt>(null);
+
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
 
   // Promote form state
   const [promoteNewPrincipalId, setPromoteNewPrincipalId] = useState('');
@@ -1767,6 +1769,29 @@ export function WorkOrderDetailDialog({
         ) : null}
 
         <DialogFooter className="mt-2">
+          {status === WorkOrderStatus.CLOSED && detail && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDownloadingReport}
+              onClick={async () => {
+                setIsDownloadingReport(true);
+                try {
+                  const { url } = await workOrdersApi.getReportUrl(detail.id);
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                } catch {
+                  toast.error(t('supervisorWorkOrders.toasts.reportDownloadError'));
+                } finally {
+                  setIsDownloadingReport(false);
+                }
+              }}
+            >
+              {isDownloadingReport
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <Download className="mr-2 h-4 w-4" />}
+              {t('supervisorWorkOrders.actions.downloadReport')}
+            </Button>
+          )}
           <Button type="button" onClick={() => handleOpenChange(false)}>
             {t('common.close')}
           </Button>

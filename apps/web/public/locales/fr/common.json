@@ -623,6 +623,8 @@
       "authorizeSimWarningTitle": "⚠ Maintenance simultanée",
       "authorizeSimWarningBody": "Un autre ordre de travail est déjà en cours sur cet équipement. En autorisant la maintenance simultanée, vous permettez à ce technicien de démarrer malgré ce conflit. Cette action est irréversible et sera consignée dans l'historique.",
       "authorizeSimConfirm": "Autoriser et notifier le technicien",
+      "downloadReport": "Télécharger le rapport PDF",
+      "reportNotReady": "Le rapport PDF n'est pas encore disponible (génération en cours).",
       "editHoldMetadata": "Mettre à jour les informations de mise en attente",
       "editHoldMetadataTitle": "Informations de mise en attente (superviseur)",
       "holdExpectedResolution": "Date de résolution attendue (prestataire)",
@@ -785,7 +787,8 @@
       "holdMetaSuccess": "Informations de mise en attente mises à jour.",
       "holdMetaError": "Impossible de mettre à jour les informations de mise en attente.",
       "followUpCreated": "OT de suivi {{ref}} créé avec succès",
-      "followUpError": "Impossible de créer l'OT de suivi"
+      "followUpError": "Impossible de créer l'OT de suivi",
+      "reportDownloadError": "Impossible de télécharger le rapport PDF"
     },
     "followUp": {
       "promptTitle": "Créer un OT de suivi ?",

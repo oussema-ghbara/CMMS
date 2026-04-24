@@ -195,6 +195,7 @@ export interface WorkOrderDetail {
   cancelledAt: string | null;
   cancellationReason: string | null;
   cancellationDetail: string | null;
+  reportPdfKey: string | null;
   asset: WorkOrderDetailAsset;
   principalTechnician: { id: string; name: string } | null;
   assignments: WorkOrderAssignmentDetail[];
@@ -453,4 +454,7 @@ export const workOrdersApi = {
 
   getDurationHints: (params: { assetId: string; type: string; technicianId?: string }) =>
     api.get<DurationHintsResponse>('/work-orders/duration-hints', { params }).then((r) => r.data),
+
+  getReportUrl: (id: string) =>
+    api.get<{ url: string }>(`/work-orders/${id}/report`).then((r) => r.data),
 };

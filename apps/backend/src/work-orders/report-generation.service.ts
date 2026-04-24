@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+import * as PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { WorkOrderStatus } from '@gmao/db';

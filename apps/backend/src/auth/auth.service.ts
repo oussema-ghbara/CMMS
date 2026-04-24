@@ -227,6 +227,12 @@ export class AuthService {
     this.logger.log(`Account setup complete for user ${userId}`);
   }
 
+  async resendSetup(email: string): Promise<void> {
+    await Promise.resolve(this.usersService.resendSetupByEmail(email)).catch((err: unknown) =>
+      this.logger.error('resendSetup error', err),
+    );
+  }
+
   async forgotPassword(email: string): Promise<void> {
     // Fire-and-forget — no enumeration
     await this.usersService.generateResetToken(email).catch((err: unknown) =>

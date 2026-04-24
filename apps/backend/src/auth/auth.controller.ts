@@ -21,6 +21,7 @@ import { LoginDto } from './dto/login.dto';
 import { SetupAccountDto } from './dto/setup-account.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendSetupDto } from './dto/resend-setup.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import type { AccessTokenPayload } from './types/jwt-payload.type';
 
@@ -91,6 +92,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Activate account and set password using setup token from email' })
   async setup(@Body() dto: SetupAccountDto): Promise<void> {
     await this.authService.setupAccount(dto.token, dto.password);
+  }
+
+  @Post('resend-setup')
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Request a new account setup email (always returns 204)' })
+  async resendSetup(@Body() dto: ResendSetupDto): Promise<void> {
+    await this.authService.resendSetup(dto.email);
   }
 
   @Post('forgot-password')

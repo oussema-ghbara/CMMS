@@ -135,3 +135,82 @@ describe('UsersService.listActiveTechnicians', () => {
     );
   });
 });
+
+describe('UsersService.resendSetupByEmail', () => {
+  let service: UsersService;
+  let prisma: { user: { findUnique: jest.Mock } };
+  let redis: { keys: jest.Mock; del: jest.Mock; setex: jest.Mock };
+  let mail: { enqueue: jest.Mock };
+
+  beforeEach(async () => {
+    prisma = { user: { findUnique: jest.fn() } };
+    redis = { keys: jest.fn(), del: jest.fn(), setex: jest.fn() };
+    mail = { enqueue: jest.fn() };
+
+    const module = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: JwtService, useValue: { verifyAsync: jest.fn(), signAsync: jest.fn().mockResolvedValue('setup-token') } },
+        { provide: ConfigService, useValue: { getOrThrow: jest.fn().mockReturnValue('secret') } },
+        { provide: MailService, useValue: mail },
+        { provide: AuthService, useValue: { invalidateAllUserSessions: jest.fn() } },
+        { provide: REDIS_CLIENT, useValue: redis },
+      ],
+    }).compile();
+
+    service = module.get(UsersService);
+  });
+
+  it('invalidates existing setup tokens and sends a fresh setup email for inactive users', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: USER_ID,
+      email: 'new.user@gmao.local',
+      name: 'New User',
+      isActive: false,
+    });
+    (redis.keys as jest.Mock).mockResolvedValue(['setup:user-abc:old-jti']);
+
+    await service.resendSetupByEmail('new.user@gmao.local');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { email: 'new.user@gmao.local' },
+      select: { id: true, email: true, name: true, isActive: true },
+    });
+    expect(redis.keys).toHaveBeenCalledWith('setup:user-abc:*');
+    expect(redis.del).toHaveBeenCalledWith('setup:user-abc:old-jti');
+    expect(mail.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'new.user@gmao.local',
+        template: 'setup-account',
+        context: expect.objectContaining({
+          name: 'New User',
+          setupUrl: expect.stringContaining('/setup?token=setup-token'),
+        }),
+      }),
+    );
+  });
+
+  it('does nothing when the email does not belong to an inactive user', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await service.resendSetupByEmail('missing@gmao.local');
+
+    expect(redis.keys).not.toHaveBeenCalled();
+    expect(mail.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for active users', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: USER_ID,
+      email: 'active@gmao.local',
+      name: 'Active User',
+      isActive: true,
+    });
+
+    await service.resendSetupByEmail('active@gmao.local');
+
+    expect(redis.keys).not.toHaveBeenCalled();
+    expect(mail.enqueue).not.toHaveBeenCalled();
+  });
+});

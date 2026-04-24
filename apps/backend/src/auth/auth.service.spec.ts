@@ -81,6 +81,7 @@ function createService(configuredSessionHours: string | null = '8') {
     markTokenUsed: jest.fn(),
     generateResetToken: jest.fn(),
     consumeResetToken: jest.fn(),
+    resendSetupByEmail: jest.fn(),
   };
 
   const service = new AuthService(
@@ -106,6 +107,7 @@ function createService(configuredSessionHours: string | null = '8') {
     redis,
     pipelines,
     response,
+    usersService,
   };
 }
 
@@ -253,5 +255,13 @@ describe('AuthService session timeout enforcement', () => {
     await expect(service.refresh('bad-token', response)).rejects.toEqual(
       new UnauthorizedException('auth.invalidRefreshToken'),
     );
+  });
+
+  it('delegates public resend setup requests to UsersService.resendSetupByEmail', async () => {
+    const { service, usersService } = createService('8');
+
+    await service.resendSetup('new.user@gmao.local');
+
+    expect(usersService.resendSetupByEmail).toHaveBeenCalledWith('new.user@gmao.local');
   });
 });

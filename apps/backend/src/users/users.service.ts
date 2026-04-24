@@ -105,7 +105,7 @@ export class UsersService {
       },
     });
 
-    await this.sendSetupEmail(user.id, user.email, user.name, actorId);
+    await this.sendSetupEmail(user.id, user.email, user.name);
 
     await this.prisma.auditLog.create({
       data: {
@@ -230,8 +230,21 @@ export class UsersService {
     // Invalidate any existing setup token for this user
     await this.invalidateSetupToken(id);
 
-    await this.sendSetupEmail(id, user.email, user.name, actorId);
+    await this.sendSetupEmail(id, user.email, user.name);
     this.logger.log(`Setup email resent for user ${id} by actor ${actorId}`);
+  }
+
+  async resendSetupByEmail(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, name: true, isActive: true },
+    });
+
+    if (!user || user.isActive) return;
+
+    await this.invalidateSetupToken(user.id);
+    await this.sendSetupEmail(user.id, user.email, user.name);
+    this.logger.log(`Public setup email resent for user ${user.id}`);
   }
 
   // ── Token generation (called by AuthService for password reset) ──
@@ -280,7 +293,6 @@ export class UsersService {
     userId: string,
     email: string,
     name: string,
-    _actorId: string,
   ): Promise<void> {
     const jti = uuidv4();
     const token = await this.jwt.signAsync(

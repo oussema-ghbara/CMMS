@@ -26,6 +26,7 @@ describe('AuthController integration', () => {
     refresh: jest.fn(),
     logout: jest.fn(),
     setupAccount: jest.fn(),
+    resendSetup: jest.fn(),
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
   };
@@ -95,5 +96,25 @@ describe('AuthController integration', () => {
 
     expect(response.status).toBe(401);
     expect(response.body.message).toBe('auth.invalidRefreshToken');
+  });
+
+  it('POST /auth/resend-setup returns 204 and delegates to AuthService.resendSetup', async () => {
+    authService.resendSetup.mockResolvedValue(undefined);
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/resend-setup')
+      .send({ email: 'new.user@gmao.local' });
+
+    expect(response.status).toBe(204);
+    expect(authService.resendSetup).toHaveBeenCalledWith('new.user@gmao.local');
+  });
+
+  it('POST /auth/resend-setup returns 400 for invalid email', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/resend-setup')
+      .send({ email: 'not-an-email' });
+
+    expect(response.status).toBe(400);
+    expect(authService.resendSetup).not.toHaveBeenCalled();
   });
 });

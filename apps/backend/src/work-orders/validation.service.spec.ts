@@ -334,7 +334,8 @@ describe('ValidationService', () => {
         });
       });
 
-      it('sends FOLLOW_UP_PROMPT notification to the principal technician', async () => {
+      // §8.8, §9.5: FOLLOW_UP_PROMPT must go to supervisors, not the technician.
+      it('sends FOLLOW_UP_PROMPT notification to supervisors via notifySupervisors', async () => {
         const { service, prisma, repo, notifications } = buildMocks();
 
         repo.findById
@@ -352,17 +353,42 @@ describe('ValidationService', () => {
           assetStatusOverride: AssetStatus.OUT_OF_SERVICE,
         });
 
-        expect(notifications.notify).toHaveBeenCalledWith(
-          expect.objectContaining({
-            recipientId: 'tech-1',
-            type: NotificationType.FOLLOW_UP_PROMPT,
-            entityType: 'WorkOrder',
-            entityId: 'wo-1',
-          }),
+        expect(notifications.notifySupervisors).toHaveBeenCalledWith(
+          NotificationType.FOLLOW_UP_PROMPT,
+          expect.any(String),
+          expect.any(String),
+          'WorkOrder',
+          'wo-1',
         );
       });
 
-      it('does NOT send notification when WO has no principal technician', async () => {
+      it('does NOT send FOLLOW_UP_PROMPT via notify() (technician must not receive it)', async () => {
+        const { service, prisma, repo, notifications } = buildMocks();
+
+        repo.findById
+          .mockResolvedValueOnce(
+            buildWorkOrder({
+              interventionLogs: [buildInterventionLog(InterventionResult.COULD_NOT_INTERVENE)],
+              principalTechnicianId: 'tech-1',
+            }),
+          )
+          .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.CLOSED }));
+
+        prisma.asset.findUniqueOrThrow.mockResolvedValue(buildAsset());
+
+        await service.validate('wo-1', 'supervisor-1', {
+          assetStatusOverride: AssetStatus.OUT_OF_SERVICE,
+        });
+
+        // The old (wrong) path would call notify() targeting the technician.
+        // Verify it is NOT called with FOLLOW_UP_PROMPT.
+        const followUpCalls = (notifications.notify as jest.Mock).mock.calls.filter(
+          ([arg]: [{ type: string }]) => arg?.type === NotificationType.FOLLOW_UP_PROMPT,
+        );
+        expect(followUpCalls).toHaveLength(0);
+      });
+
+      it('sends FOLLOW_UP_PROMPT even when WO has no principal technician', async () => {
         const { service, prisma, repo, notifications } = buildMocks();
 
         repo.findById
@@ -380,7 +406,13 @@ describe('ValidationService', () => {
           assetStatusOverride: AssetStatus.OUT_OF_SERVICE,
         });
 
-        expect(notifications.notify).not.toHaveBeenCalled();
+        expect(notifications.notifySupervisors).toHaveBeenCalledWith(
+          NotificationType.FOLLOW_UP_PROMPT,
+          expect.any(String),
+          expect.any(String),
+          'WorkOrder',
+          'wo-1',
+        );
       });
 
       it('writes a status log label that names the CNI acknowledgement and chosen status', async () => {

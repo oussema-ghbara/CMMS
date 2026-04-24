@@ -88,20 +88,19 @@ export class ValidationService {
       });
     });
 
-    // When the technician could not intervene, notify the principal technician
-    // so that a follow-up intervention can be planned.
-    if (isCouldNotIntervene && wo.principalTechnicianId) {
-      await this.notifications.notify({
-        recipientId: wo.principalTechnicianId,
-        type: NotificationType.FOLLOW_UP_PROMPT,
-        title: 'Intervention non réalisée — suivi requis',
-        summary:
-          `L'ordre de travail ${wo.referenceNumber} a été clôturé avec le résultat ` +
+    // §8.8, §9.5: When the technician reported COULD_NOT_INTERVENE the Supervisor —
+    // not the technician — must be prompted to create a follow-up WO or set the
+    // asset to Out of Service. The technician cannot act on this notification.
+    if (isCouldNotIntervene) {
+      await this.notifications.notifySupervisors(
+        NotificationType.FOLLOW_UP_PROMPT,
+        'Intervention non réalisée — suivi requis',
+        `L'ordre de travail ${wo.referenceNumber} a été clôturé avec le résultat ` +
           `"Intervention non réalisée". L'équipement est désormais en statut ` +
           `${resolvedAssetStatus}. Un suivi peut être nécessaire.`,
-        entityType: 'WorkOrder',
-        entityId: woId,
-      });
+        'WorkOrder',
+        woId,
+      );
     }
 
     // Notify the original requester when the WO was created from a problem report (§12.4).

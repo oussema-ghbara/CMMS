@@ -19,6 +19,22 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Audit gap resolution: escalation, CRITICAL overdue, FOLLOW_UP_PROMPT, cancel notification (April 24, 2026)
 
+#### `feat(work-orders): add validation insight signals for supervisor closure review (§9.5)`
+- `WorkOrdersService.findById()` now enriches WO detail responses with three additive fields used by the supervisor validation view:
+  - `contributorsWithoutLog`: active contributor assignments with no intervention log entry.
+  - `timeDeviation`: computed estimate-vs-actual metrics (`estimatedDurationMinutes`, `actualDurationMinutes`, `deltaMinutes`, `deltaPercent`).
+  - `hasNotableTimeDeviation`: boolean flag when the deviation is non-zero.
+- This closes the two missing supervisor validation signals from the audit: contributor-without-log and notable time deviation.
+- Tests: dedicated backend unit suite for all branches (missing estimate, zero estimate, contributor coverage) and controller integration assertion that `GET /work-orders/:id` exposes the new fields.
+
+#### `feat(web): surface validation insight signals in supervisor WO detail dialog (§9.5)`
+- Supervisor WO detail dialog now renders a dedicated validation-signals panel for `PENDING_VALIDATION` WOs when either condition is present:
+  - one or more contributors without intervention logs,
+  - notable estimate-vs-actual duration deviation.
+- Added utility helpers for deterministic UI formatting of contributor names and deviation direction/magnitudes.
+- Added French i18n keys for the new titles/descriptions; no hardcoded user-facing strings introduced.
+- Tests: API contract test for `workOrdersApi.getById` (new fields) and utility tests covering direction/edge cases (`none`, `over`, `under`, `equal`, null percentage).
+
 #### `fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only (§4.3)`
 - `WorkOrdersRepository.findOverdueForEscalation` previously used `status: { notIn: [CLOSED, CANCELLED] }`, which included IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION — contradicting the spec clause "has not moved to En cours".
 - Changed to `status: { in: [OPEN, ASSIGNED] }`. WOs that are already being worked on are never auto-escalated.

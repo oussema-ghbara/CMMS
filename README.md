@@ -230,6 +230,9 @@ Expected behavior:
   - `OPEN` → **Assigner un technicien** — select principal + optional contributors, moves to ASSIGNED
   - `PENDING_VALIDATION` → **Valider la clôture** (moves to CLOSED) or **Rejeter la clôture** (select reason, moves back to IN_PROGRESS)
   - Any non-terminal → **Annuler l'ordre de travail** — select cancellation reason, permanently cancels
+- Validation context signals (status `PENDING_VALIDATION`):
+  - If active contributor(s) have no intervention log, the detail dialog shows a warning list of contributor names
+  - If estimated duration differs from actual logged duration, the detail dialog shows estimate/actual/delta context to assist supervisor decision
 - Cancellation validation contract:
   - If reason is `EXTERNAL_DECISION` or `RESOLVED_OTHERWISE`, cancellation detail is mandatory and cannot be whitespace-only
   - Other cancellation reasons can be submitted without detail

@@ -4,10 +4,32 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
-### Added — Configurable location hierarchy level names (§4.1, §6.2) (April 25, 2026)
+### Added — Overdue work order filter and supervisor dashboard panel (April 26, 2026)
 
-**feat(locations): configurable level names stored in SystemConfig (§4.1, §6.2)**
-- Spec §4.1 and §6.2 require that the names assigned to each level of the location hierarchy (e.g. "Étage" renamed to "Niveau") are configurable by an administrator.
+**feat(work-orders): isOverdue server-side filter on work order list endpoint**
+- `WorkOrderQueryDto` gains `isOverdue?: boolean` decorated with `@IsOptional`, `@IsBoolean`, and `@Transform` (string `"true"` coerces to `true`, any other value to `false`) — matching the existing `isActive` pattern in `PartQueryDto`.
+- `WorkOrdersRepository.findAll()` spreads `{ dueDate: { not: null, lt: new Date() }, status: { in: NON_TERMINAL_STATUSES } }` into the Prisma `where` clause when `isOverdue=true`. Non-terminal statuses: `DRAFT, OPEN, ASSIGNED, IN_PROGRESS, ON_HOLD, PENDING_VALIDATION`. Terminal states (`CLOSED`, `CANCELLED`) are excluded — matching the specification intent of "non clôturés".
+- The filter composes safely with all other existing query params (`priority`, `technicianId`, `type`, etc.).
+- `WorkOrderListQuery` frontend interface gains `isOverdue?: boolean`; `workOrdersApi.list()` passes it as an axios query param (serialised to `"true"` / `"false"` by axios URLSearchParams).
+
+**feat(web): dedicated overdue work orders panel in supervisor dashboard**
+- A 13th React Query entry (`isOverdue: true, limit: 5`) is added to `useQueries` in the supervisor dashboard page.
+- `OverdueWorkOrderRow` component renders reference number, asset name, and a destructive badge showing days overdue (floor division of milliseconds elapsed since `dueDate`). Each row is a Next.js `Link` to `/supervisor/work-orders?id={wo.id}`, opening the WO detail dialog directly via the existing deep-link mechanism.
+- The panel appears between the summary cards and the technician load section. It is conditionally rendered only when `total > 0`. When more than 5 overdue WOs exist, a "N autres OT en retard" overflow note is shown. A "Voir tous les OT en retard" button links to `/supervisor/work-orders?isOverdue=true`.
+- `work-orders-board.tsx` reads `?isOverdue=true` from `useSearchParams` and passes it through `queryParams` to `workOrdersApi.list()`, pre-filtering the full board view on navigation from the dashboard.
+- i18n: `supervisorDashboard.overduePanel.{title, viewAll, viewWo, daysOverdue, more}` added to `apps/web/public/locales/fr/common.json`.
+
+**tests: 8 repository unit + 6 controller integration + 13 frontend logic — all branches covered**
+- `work-orders.repository.isoverdue.spec.ts`: no filter when `isOverdue` is undefined; no filter when `isOverdue=false`; `dueDate.lt` is a `Date` instance within the test's `before`/`after` bounds; `status.in` equals the six non-terminal statuses and excludes `CLOSED` and `CANCELLED`; composition with `priority` filter; both `undefined` and `false` produce identical WHERE clauses; pagination `skip`/`take` correct when `isOverdue=true`; `count` query uses the same WHERE clause as `findMany`.
+- Controller integration tests in `work-orders.controller.integration.spec.ts`: `isOverdue=true` passes `{ isOverdue: true }` to the service; `isOverdue=false` passes `{ isOverdue: false }`; absent param leaves the property undefined; non-"true" string coerces to `false` (Transform behaviour); endpoint is accessible to TECHNICIAN role; returns 401 without auth.
+- `overdue-work-orders.spec.ts`: `computeDaysOverdue` formula (null dueDate, exactly 1 day, less than 24 h, 7 days, future date); `isOverdue` query-param serialisation (true, false, undefined, combined with other params); `readIsOverdueFromSearchParams` URL-wiring (true, false, absent, arbitrary value).
+
+---
+
+### Added — Configurable location hierarchy level names (April 25, 2026)
+
+**feat(locations): configurable level names stored in SystemConfig**
+- Spec and require that the names assigned to each level of the location hierarchy (e.g. "Étage" renamed to "Niveau") are configurable by an administrator.
 - The `Location` model `level` field is an integer (1–5). Previously the frontend hardcoded the display label as "Niveau {{level}}" with no way to override it.
 - Level names are now stored in `SystemConfig` using keys `LOCATION_LEVEL_1_NAME` through `LOCATION_LEVEL_5_NAME`. Existing `SystemConfigService` (globally injected) is reused — no schema change required.
 - French defaults are applied when a key has never been set: Level 1 = "Bâtiment", Level 2 = "Étage", Level 3 = "Zone", Level 4 = "Salle", Level 5 = "Sous-zone".
@@ -18,60 +40,60 @@ All notable changes to the GMAO project are documented here.
 - `PATCH /locations/level-names` (Admin only) — writes the supplied items and returns the full refreshed list.
 - Both routes declared before the `/:id` catch-all to prevent route shadowing.
 
-**feat(web): location level names configuration UI in admin locations board (§4.1, §6.2)**
+**feat(web): location level names configuration UI in admin locations board**
 - `LevelNameItem` interface added to `locations.api.ts`; `locationsApi.getLevelNames()` and `locationsApi.setLevelNames()` API methods added.
 - `LevelNamesCard` component added to `locations-table.tsx`: displays all five level names as `Badge` components in read mode; switches to an inline edit form (one `Input` per level) when the admin clicks the edit button; submits via `PATCH /locations/level-names`; success/error toasts in French.
 - The `LocationsTable` renders `LevelNamesCard` above the existing location table and also uses the fetched `levelNames` to resolve the badge label per row, replacing the previously hardcoded `t('admin.locations.levelBadge', { level })` call with `levelLabel(level)` derived from the live config.
 - `admin.locations.levelNames.{title,subtitle,levelLabel,toasts.{saveSuccess,saveError}}` i18n keys added to `apps/web/public/locales/fr/common.json`.
 
-**tests: 7 backend + 4 frontend — all branches covered (§4.1, §6.2)**
+**tests: 7 backend + 4 frontend — all branches covered**
 - Backend (`locations-level-names.service.spec.ts`): null config → French defaults for all 5 levels; partial config → configured value overrides default for the given level only; correct `SystemConfig` key derivation per level; `setLevelNames` with a full 5-item list writes 5 keys; partial `items` writes only supplied levels without touching others; post-write `getLevelNames` returns the refreshed combined state.
 - Frontend (`lib/locations-level-names.spec.ts`): `getLevelNames` calls `GET /locations/level-names`; `setLevelNames` calls `PATCH /locations/level-names` with `{ items }` wrapper; both propagate network errors correctly.
 - 536 backend tests / 124 frontend tests total, 0 regressions.
 
 ---
 
-### Added — Requester analytics: report accuracy rate and duplicate submission rate (§9.8) (April 25, 2026)
+### Added — Requester analytics: report accuracy rate and duplicate submission rate (April 25, 2026)
 
-**feat(db): add submittedDespiteWarning field to ProblemReport (§9.8)**
-- Spec §9.8 requires a "duplicate submission rate" KPI — the % of reports submitted despite the duplicate-WO warning banner. Computing this requires a persistent flag on each report recording whether the requester confirmed submission after seeing the warning.
+**feat(db): add submittedDespiteWarning field to ProblemReport**
+- Spec requires a "duplicate submission rate" KPI — the % of reports submitted despite the duplicate-WO warning banner. Computing this requires a persistent flag on each report recording whether the requester confirmed submission after seeing the warning.
 - `ProblemReport` schema gains `submittedDespiteWarning Boolean @default(false)`. Migration `20260425145202_add_submitted_despite_warning_to_problem_report` applies a non-destructive `ALTER TABLE ADD COLUMN` with default false, leaving all existing rows unaffected.
 
-**feat(reports): accept and persist submittedDespiteWarning on report submission (§9.8)**
+**feat(reports): accept and persist submittedDespiteWarning on report submission**
 - `CreateReportDto` gains optional `submittedDespiteWarning?: boolean` with `@IsOptional @IsBoolean` validation and `@ApiPropertyOptional` annotation.
 - `ReportsRepository.create()` persists the flag with `?? false` default so callers that omit it (including all existing clients) receive correct behaviour without any contract break.
 
-**feat(analytics): compute reportAccuracyRate and duplicateSubmissionRate for requester KPIs (§9.8)**
-- Spec §9.8 requires two previously absent KPIs: "report accuracy" (% of converted reports resulting in a RÉSOLU closure) and "duplicate submission rate" (% of reports submitted despite the duplicate warning).
+**feat(analytics): compute reportAccuracyRate and duplicateSubmissionRate for requester KPIs**
+- Spec requires two previously absent KPIs: "report accuracy" (% of converted reports resulting in a RÉSOLU closure) and "duplicate submission rate" (% of reports submitted despite the duplicate warning).
 - `getAnalytics()` `reportsInPeriod` query extended: `submittedDespiteWarning` selected on reports; `derivedWorkOrders` now selects `status` and `interventionLogs { result }` in addition to `id` — single additive query, no extra round-trip.
 - `reportAccuracyRate`: denominator is closed conversions only (open WOs have no closure result yet); a conversion is accurate when any derived CLOSED WO has at least one `InterventionLog` with `result = InterventionResult.RESOLVED`. Returns `null` when no closed conversions exist in the period.
 - `duplicateSubmissionRate`: `submittedDespiteWarning=true` count divided by total reports. Returns `null` when no reports exist in the period.
 - Both values exposed in the `requesterAnalytics` object returned by `GET /work-orders/analytics`.
 - Tests: 10 new unit tests covering null-denominators (no closed conversions, no reports), 0/0.5/1.0 accuracy values, non-RESOLVED closure, mixed open/closed WOs in the denominator exclusion, and a combined realistic scenario. 55/55 passing; 0 regressions.
 
-**feat(web): render report accuracy and duplicate submission rate KPIs in analytics board (§9.8)**
+**feat(web): render report accuracy and duplicate submission rate KPIs in analytics board**
 - `SupervisorAnalyticsBoard` requester tab gains two new `KpiCard` components after the existing three: "Précision des signalements" (formatted as %) and "Taux de soumission doublon" (formatted as %). Both display '—' when the backend returns `null`.
 - i18n: `reportAccuracyRate`, `reportAccuracyRateDesc`, `duplicateSubmissionRate`, `duplicateSubmissionRateDesc` added to `apps/web/public/locales/fr/common.json` under `supervisorAnalytics.kpi`.
 
 ---
 
-### Added — Parts consumption breakdown by asset category and WO type (§10.6) (April 25, 2026)
+### Added — Parts consumption breakdown by asset category and WO type (April 25, 2026)
 
-**feat(inventory): add getConsumptionBreakdown() with per-part breakdown by asset category and WO type (§10.6)**
-- Spec §10.6 requires "Consommation par pièce ventilée par catégorie d'actif et type d'OT (correctif vs préventif)." The previous `getConsumptionAnalytics()` grouped only by `partId` with no join to the work order or asset hierarchy.
+**feat(inventory): add getConsumptionBreakdown() with per-part breakdown by asset category and WO type**
+- Spec requires "Consommation par pièce ventilée par catégorie d'actif et type d'OT (correctif vs préventif)." The previous `getConsumptionAnalytics()` grouped only by `partId` with no join to the work order or asset hierarchy.
 - `InventoryRepository.getConsumptionBreakdown(periodDays)`: single `$queryRaw` SQL joining `StockMovement → WorkOrder (LEFT) → Asset (LEFT) → AssetCategory (LEFT)`, grouped by `partId × categoryId × wo.type`; quantity and `COALESCE(unitCostAtTime, unitCost, 0) × quantity` are summed per cell; restricted to the top-20 parts by outgoing quantity via an inline subquery (no extra round-trip).
 - Post-query JS builds a nested `PartConsumptionBreakdown[]` (part → `byAssetCategory[]` → `byWoType[]`); movements not linked to a WO appear under `categoryId: null / woType: null`; final array sorted descending by `totalQuantity`.
 - `InventoryService.getAnalytics()` runs `getConsumptionBreakdown()` in the existing `Promise.all` and returns it as `consumptionBreakdown` alongside the unchanged `consumption` field — fully additive.
 - Tests: 7 new unit tests in `inventory.repository.spec.ts` — empty result, single-row mapping, CORRECTIVE+PREVENTIVE aggregation within the same part+category, multi-category grouping, null WO/category handling, sort order, and `since` date boundary. 19 total, 0 regressions.
 
-**feat(web): render consumption breakdown by asset category and WO type in storekeeper analytics (§10.6)**
+**feat(web): render consumption breakdown by asset category and WO type in storekeeper analytics**
 - Three new interfaces in `inventory.api.ts`: `ConsumptionBreakdownWoTypeEntry`, `ConsumptionBreakdownCategoryEntry`, `PartConsumptionBreakdown`; `InventoryAnalyticsResponse` extended with `consumptionBreakdown: PartConsumptionBreakdown[]`.
 - New **"Consommation par catégorie d'équipement et type d'OT"** Card in `stock-analytics-board.tsx` rendered between the top-consumption cards and the request-breakdown section: per-part bordered block with a table row per `(category × WO type)`, coloured `Badge` labels (CORRECTIVE = destructive, PREVENTIVE = secondary, NONE = outline), subtotals per category, and a grand-total row.
 - i18n: `storekeeperAnalytics.sections.{consumptionBreakdown,consumptionBreakdownDescription}`, `columns.{assetCategory,woType}`, `labels.{noCategory,total,woType.{CORRECTIVE,PREVENTIVE,NONE}}` added to `apps/web/public/locales/fr/common.json`.
 
-### Added — Same-asset same-day preventive plan conflict detection (§9.6) (April 25, 2026)
+### Added — Same-asset same-day preventive plan conflict detection (April 25, 2026)
 
-**feat(preventive-plans): detect same-asset same-day plan conflicts (§9.6)**
+**feat(preventive-plans): detect same-asset same-day plan conflicts**
 - `PreventivePlansRepository.findSameDayAssetConflicts()` new method groups due plans by `assetId` and identifies conflicts: 2+ plans due same day on the same asset.
 - Returns `Map<assetId, conflictDetails[]>` with `{ planId, planTitle, assetName }` for each conflict.
 - Added `AssetSummary` and `TechnicianSummary` type helpers for plan relation includes.
@@ -91,24 +113,24 @@ All notable changes to the GMAO project are documented here.
 - `PlanSchedulerService` can now inject `NotificationsService`.
 - Total test coverage: 12 new tests (6 repository + 6 scheduler), all passing; 0 regressions.
 
-### Fixed — Daily summary role-aware stock visibility + critical deferred report section (§12.3) (April 25, 2026)
+### Fixed — Daily summary role-aware stock visibility + critical deferred report section (April 25, 2026)
 
 **fix(work-orders): complete daily-summary payload and rendering for critical deferred + role-aware inventory**
 - `DailySummaryJob` now computes and exposes additional fields required by the spec:
-  - `criticalDeferredCount`: count of `ProblemReportStatus.DEFERRED` reports with `deferredAt <= now - 14 days`.
-  - `criticalDeferredItems`: top 10 oldest critical deferred reports with `{ referenceNumber, assetName, deferredAt, daysDeferred }`.
-  - `lowStockItems`: top 10 below-threshold parts with `{ name, referenceCode, currentStock, minimumStockThreshold }`.
+ - `criticalDeferredCount`: count of `ProblemReportStatus.DEFERRED` reports with `deferredAt <= now - 14 days`.
+ - `criticalDeferredItems`: top 10 oldest critical deferred reports with `{ referenceNumber, assetName, deferredAt, daysDeferred }`.
+ - `lowStockItems`: top 10 below-threshold parts with `{ name, referenceCode, currentStock, minimumStockThreshold }`.
 - Mail context is now recipient-role aware:
-  - Added `hasStorekeeperRole` flag per supervisor recipient.
-  - Low-stock metrics/details are included only for supervisors who also have `STOREKEEPER` role.
-  - Supervisors without storekeeper role receive `lowStockCount = 0` and `lowStockItems = []` in mail context.
+ - Added `hasStorekeeperRole` flag per supervisor recipient.
+ - Low-stock metrics/details are included only for supervisors who also have `STOREKEEPER` role.
+ - Supervisors without storekeeper role receive `lowStockCount = 0` and `lowStockItems = []` in mail context.
 - `daily-summary.hbs` updated:
-  - Added dashboard row for "Signalements differes critiques (14+ jours)".
-  - Added detailed table section for critical deferred reports with empty-state fallback.
-  - Wrapped low-stock row/table sections in `{{#if hasStorekeeperRole}}` to avoid exposing inventory-only content to non-storekeeper supervisors.
+ - Added dashboard row for "Signalements differes critiques (14+ jours)".
+ - Added detailed table section for critical deferred reports with empty-state fallback.
+ - Wrapped low-stock row/table sections in `{{#if hasStorekeeperRole}}` to avoid exposing inventory-only content to non-storekeeper supervisors.
 - Tests (`daily-summary.job.spec.ts`): expanded from 48 to 53 tests with new branches for critical deferred query predicates, list mapping, and role-based context shaping.
 
-### Fixed — pdfkit test mock CJS interop + §9.8 technician rejection rate by category (April 25, 2026)
+### Fixed — pdfkit test mock CJS interop + technician rejection rate by category (April 25, 2026)
 
 **fix(tests): correct pdfkit CommonJS mock in report-generation specs**
 - Both `report-generation.service.spec.ts` and `report-generation.e2e.spec.ts` returned `{ __esModule: true, default: MockPDFDocument }` from their `jest.mock` factory. With `module: "commonjs"` in tsconfig, `import * as PDFDocument from 'pdfkit'` compiles to `const PDFDocument = require('pdfkit')`, so the factory's return value IS `PDFDocument`. Returning a namespace object instead of the class caused `new PDFDocument()` to throw `TypeError: PDFDocument is not a constructor` at runtime in Jest.
@@ -121,22 +143,22 @@ All notable changes to the GMAO project are documented here.
 - Added `import { StorageService }` and `import { ReportGenerationService }` at the top of the file.
 - Result: 45/45 tests passing.
 
-**feat(analytics): compute per-technician rejection rate by category (§9.8)**
-- Spec §9.8 requires "Taux de rejet : % de clôtures rejetées par le Superviseur, ventilé par catégorie de motif de rejet."
+**feat(analytics): compute per-technician rejection rate by category**
+- Spec requires "Taux de rejet : % de clôtures rejetées par le Superviseur, ventilé par catégorie de motif de rejet."
 - `work-orders.service.ts`: The `techKpiWOs` Prisma select was extended to include `rejectionReason` inside `validationActions`. The `techMap` accumulator gained `rejectionsByReason: Map<string, number>` to count each `REJECTED` validation action's `ValidationRejectionReason` per technician. Null reasons (e.g., validation records from before the field was required) are silently skipped.
 - Each technician KPI entry now exposes three new fields:
-  - `rejectionCount` — total REJECTED validation actions in the period.
-  - `rejectionRate` — `rejectionCount / closedCount` (0–1, rounded to 3 decimal places).
-  - `rejectionRateByCategory` — `Record<ValidationRejectionReason, { count: number; rate: number }>`.
+ - `rejectionCount` — total REJECTED validation actions in the period.
+ - `rejectionRate` — `rejectionCount / closedCount` (0–1, rounded to 3 decimal places).
+ - `rejectionRateByCategory` — `Record<ValidationRejectionReason, { count: number; rate: number }>`.
 - Tests: 5 new unit tests in a dedicated `describe` block covering: no rejections → empty map, single reason, multi-reason accumulation (two technicians stay independent), and null-reason grace handling. 45/45 passing.
 
-**feat(web): display technician rejection rate by category in analytics board (§9.8)**
+**feat(web): display technician rejection rate by category in analytics board**
 - `work-orders.api.ts`: New `TechnicianRejectionCategoryEntry { count, rate }` interface; `TechnicianKpiItem` extended with `rejectionCount`, `rejectionRate`, and `rejectionRateByCategory: Record<string, TechnicianRejectionCategoryEntry>`.
 - `supervisor-analytics-board.tsx`:
-  - `TechRow` gains a 7th column **"Taux de rejet"**; non-zero values are rendered in `text-destructive font-medium`.
-  - When a technician has at least one rejection, a muted sub-row renders per-reason tags: reason label (via existing `validationRejectionReason.*` i18n keys, safe `defaultValue` fallback), count (×N), and percentage.
-  - A new **"Détail des rejets par technicien"** card appears below the performance table whenever any technician in the period has rejections. Lists each affected technician with full per-reason breakdown.
-  - Minimum table width raised to `min-w-[700px]` (was 600).
+ - `TechRow` gains a 7th column **"Taux de rejet"**; non-zero values are rendered in `text-destructive font-medium`.
+ - When a technician has at least one rejection, a muted sub-row renders per-reason tags: reason label (via existing `validationRejectionReason.*` i18n keys, safe `defaultValue` fallback), count (×N), and percentage.
+ - A new **"Détail des rejets par technicien"** card appears below the performance table whenever any technician in the period has rejections. Lists each affected technician with full per-reason breakdown.
+ - Minimum table width raised to `min-w-[700px]` (was 600).
 - `fr/common.json`: 4 new keys added: `supervisorAnalytics.columns.{rejectionRate,rejectionCount}`, `supervisorAnalytics.sections.{technicianRejectionBreakdown,technicianRejectionBreakdownDesc}`.
 - Tests (`work-orders.api.spec.ts`): 3 new tests for `getAnalytics` — full payload with multi-reason breakdown, empty breakdown, and empty `technicianKpis` array. 9/9 passing; 120 frontend tests total, 0 regressions.
 
@@ -148,7 +170,7 @@ All notable changes to the GMAO project are documented here.
 - Frontend: `PromoteTechnicianPayload` updated; promote panel in WO detail dialog gains a reason select and optional free-text detail field.
 - Tests: 2 new unit tests in `assignment.service.spec.ts`.
 
-**feat(work-orders): surface isReassignmentRemnant label on intervention logs (§5.3)**
+**feat(work-orders): surface isReassignmentRemnant label on intervention logs**
 - `WorkOrderInterventionLog` frontend type gains `isReassignmentRemnant: boolean`.
 - WO detail dialog renders an amber pill "incomplet — réassigné" inline with the technician name for force-closed log entries.
 
@@ -189,39 +211,39 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Audit gap resolution: escalation, CRITICAL overdue, FOLLOW_UP_PROMPT, cancel notification (April 24, 2026)
 
-**feat(work-orders): add validation insight signals for supervisor closure review (§9.5)**
+**feat(work-orders): add validation insight signals for supervisor closure review**
 - `WorkOrdersService.findById()` now enriches WO detail responses with three additive fields used by the supervisor validation view:
-  - `contributorsWithoutLog`: active contributor assignments with no intervention log entry.
-  - `timeDeviation`: computed estimate-vs-actual metrics (`estimatedDurationMinutes`, `actualDurationMinutes`, `deltaMinutes`, `deltaPercent`).
-  - `hasNotableTimeDeviation`: boolean flag when the deviation is non-zero.
+ - `contributorsWithoutLog`: active contributor assignments with no intervention log entry.
+ - `timeDeviation`: computed estimate-vs-actual metrics (`estimatedDurationMinutes`, `actualDurationMinutes`, `deltaMinutes`, `deltaPercent`).
+ - `hasNotableTimeDeviation`: boolean flag when the deviation is non-zero.
 - This closes the two missing supervisor validation signals from the audit: contributor-without-log and notable time deviation.
 - Tests: dedicated backend unit suite for all branches (missing estimate, zero estimate, contributor coverage) and controller integration assertion that `GET /work-orders/:id` exposes the new fields.
 
-**feat(web): surface validation insight signals in supervisor WO detail dialog (§9.5)**
+**feat(web): surface validation insight signals in supervisor WO detail dialog**
 - Supervisor WO detail dialog now renders a dedicated validation-signals panel for `PENDING_VALIDATION` WOs when either condition is present:
-  - one or more contributors without intervention logs,
-  - notable estimate-vs-actual duration deviation.
+ - one or more contributors without intervention logs,
+ - notable estimate-vs-actual duration deviation.
 - Added utility helpers for deterministic UI formatting of contributor names and deviation direction/magnitudes.
 - Added French i18n keys for the new titles/descriptions; no hardcoded user-facing strings introduced.
 - Tests: API contract test for `workOrdersApi.getById` (new fields) and utility tests covering direction/edge cases (`none`, `over`, `under`, `equal`, null percentage).
 
-**fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only (§4.3)**
+**fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only**
 - `WorkOrdersRepository.findOverdueForEscalation` previously used `status: { notIn: [CLOSED, CANCELLED] }`, which included IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION — contradicting the spec clause "has not moved to En cours".
 - Changed to `status: { in: [OPEN, ASSIGNED] }`. WOs that are already being worked on are never auto-escalated.
 - Tests: 8 unit tests in `work-orders.repository.escalation.spec.ts` verifying status filter, CRITICAL exclusion, dueDate constraint, and select shape.
 
-**fix(work-orders): notify supervisors when a CRITICAL WO becomes overdue (§4.3)**
+**fix(work-orders): notify supervisors when a CRITICAL WO becomes overdue**
 - Overdue CRITICAL WOs were silently excluded from the escalation query with no alternative path. The spec states: "Critique en retard ne s'escalade pas davantage — it triggers an immediate notification to the Supervisor."
 - Added `findOverdueCritical(now)` to `WorkOrdersRepository` — queries OPEN/ASSIGNED WOs with CRITICAL priority and `dueDate < now`.
 - `autoEscalateOverduePriorities()` now runs this query first, emits `WO_OVERDUE` via `notifySupervisors()` for each result, and returns a `criticalNotified` counter alongside the existing `checked` and `escalated` values.
 - Tests: 12 unit tests in `work-orders.service.escalation.spec.ts` covering zero case, CRITICAL-only path, escalation chain, mixed run, and return values.
 
-**fix(work-orders): send FOLLOW_UP_PROMPT to supervisors, not principal technician (§8.8, §9.5)**
+**fix(work-orders): send FOLLOW_UP_PROMPT to supervisors, not principal technician**
 - `ValidationService.validate()` was dispatching `FOLLOW_UP_PROMPT` to `principalTechnicianId` on a COULD_NOT_INTERVENE result. The spec requires the Supervisor to be prompted (to create a follow-up WO or mark the asset Out of Service); the technician has no action to take.
 - Changed to `notifications.notifySupervisors(FOLLOW_UP_PROMPT, ...)`. The gate on `principalTechnicianId` was also removed — supervisors must be notified regardless.
 - Tests: replaced 2 stale test cases (wrong recipient assertions) with 4 correct tests: `notifySupervisors` called with FOLLOW_UP_PROMPT; `notify()` not called with FOLLOW_UP_PROMPT; fires even when WO has no principal technician.
 
-**fix(work-orders): notify source requester when a WO is cancelled (§9.4, §12.4)**
+**fix(work-orders): notify source requester when a WO is cancelled**
 - `WorkOrdersService.cancel()` notified assigned technicians but ignored the original problem report reporter. The spec states: "Le Demandeur notifié si l'OT provient d'un signalement."
 - `findById` already includes `sourceReport.reporter.id` via its Prisma include. After technician notifications, `cancel()` now reads `sourceReport?.reporter?.id` and sends `LINKED_WO_CLOSED` to that user. Null-safe: no notification when the WO has no source report or the reporter is missing.
 - Tests: 3 unit tests in the `WorkOrdersService.cancel` block — requester notified; skipped when no source report; skipped when reporter is null.
@@ -232,7 +254,7 @@ All notable changes to the GMAO project are documented here.
 - `ReportGenerationService` was importing `PDFDocument` as a default ES import (`import PDFDocument from 'pdfkit'`), which compiles to `pdfkit_1.default` under `module: commonjs` without `esModuleInterop`. The `pdfkit` package uses `module.exports = PDFDocument` (CJS), so `pdfkit_1.default` was `undefined` at runtime — `new PDFDocument()` threw `TypeError: pdfkit_1.default is not a constructor`.
 - Fixed by switching to a namespace import: `import * as PDFDocument from 'pdfkit'`. This correctly resolves to the `module.exports` value under CommonJS compilation.
 
-**feat(work-orders): add on-demand PDF report download endpoint (§11.3)**
+**feat(work-orders): add on-demand PDF report download endpoint**
 - `WorkOrdersService.getReportUrl(id)`: fetches the WO, throws `BadRequestException('workOrders.report.notClosed')` if not CLOSED, returns a presigned MinIO URL. When `reportPdfKey` is null (WO closed before async job completed or job failed), generates the PDF synchronously on first request, uploads to the `pdfs` bucket, and persists `reportPdfKey` for subsequent calls.
 - `StorageService` and `ReportGenerationService` injected into `WorkOrdersService` (already in `WorkOrdersModule` providers — no new module wiring needed).
 - `GET /work-orders/:id/report` (Supervisor only) added to `WorkOrdersController` as a clean one-line delegate to `this.workOrders.getReportUrl(id)` — no service logic in the controller.
@@ -246,20 +268,20 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Full KPI analytics and asset health recurring-failure detection (April 23, 2026)
 
-**feat(work-orders): add full KPI analytics across 5 categories (§1.1 §2.1)**
+**feat(work-orders): add full KPI analytics across 5 categories**
 - `WorkOrdersService.getAnalytics(periodDays, categoryId?)` extended with 5 new KPI categories computed in a single parallel `Promise.all` alongside the existing basic queries:
-  - **Asset KPIs:** global MTBF (average days between corrective failures across assets); global MTTR (average hours from WO created to closed for CLOSED CORRECTIVE WOs); top-10 assets by failure frequency in period; top-10 assets by total maintenance cost; preventive compliance rate (closed preventive WOs / total preventive WOs created in period); total maintenance cost.
-  - **Technician KPIs:** per-technician closed WO count, first-pass resolution rate (closed without any REJECTED validation action), average active intervention duration (minutes), average response time (hours from WO creation to first intervention log), average hold periods per WO.
-  - **Requester analytics:** total problem reports submitted, total converted to WO (via `derivedWorkOrders`), conversion rate, average report-to-action delay (days from report creation to `processedAt`).
-  - **Preventive plan efficiency:** compliance rate, checklist anomaly rate (`ANOMALY_DETECTED` items / all completed items on closed WOs in period), total vs closed preventive WOs.
-  - **Operational overview:** WO source distribution (grouped by `sourceType`), rejection reason distribution (grouped by `rejectionReason` on `REJECTED` validations), reassignment count (`WorkOrderReassignment.count`), average hold periods per WO.
+ - **Asset KPIs:** global MTBF (average days between corrective failures across assets); global MTTR (average hours from WO created to closed for CLOSED CORRECTIVE WOs); top-10 assets by failure frequency in period; top-10 assets by total maintenance cost; preventive compliance rate (closed preventive WOs / total preventive WOs created in period); total maintenance cost.
+ - **Technician KPIs:** per-technician closed WO count, first-pass resolution rate (closed without any REJECTED validation action), average active intervention duration (minutes), average response time (hours from WO creation to first intervention log), average hold periods per WO.
+ - **Requester analytics:** total problem reports submitted, total converted to WO (via `derivedWorkOrders`), conversion rate, average report-to-action delay (days from report creation to `processedAt`).
+ - **Preventive plan efficiency:** compliance rate, checklist anomaly rate (`ANOMALY_DETECTED` items / all completed items on closed WOs in period), total vs closed preventive WOs.
+ - **Operational overview:** WO source distribution (grouped by `sourceType`), rejection reason distribution (grouped by `rejectionReason` on `REJECTED` validations), reassignment count (`WorkOrderReassignment.count`), average hold periods per WO.
 - `GET /work-orders/analytics` gains optional `?categoryId` query parameter — when provided, all asset-related queries filter by `asset.categoryId`.
 - New interfaces: `AssetFailureKpiItem`, `AssetCostKpiItem`, `TechnicianKpiItem`, `AssetHealthItem`.
 - `WorkOrderAnalyticsResponse` extended with `categoryId`, `assetKpis`, `technicianKpis`, `requesterAnalytics`, `preventivePlanEfficiency`, `operationalOverview` fields (backward-compatible addition).
 - `SupervisorAnalyticsBoard` fully rewritten with 6-tab navigation using local state and `Button` components (no Radix dependency): Overview, Équipements, Techniciens, Plans préventifs, Demandeurs, Opérationnel. Each tab renders KPI cards + relevant tables.
 - i18n keys added: `supervisorAnalytics.tabs.*`, `supervisorAnalytics.kpi.{globalMtbf,globalMttr,preventiveCompliance,totalMaintenanceCost,planComplianceRate,anomalyRate,totalPreventiveWOs,totalReportsSubmitted,reportConversionRate,reportToActionDelay,reassignmentCount,avgHoldPeriodsPerWo,...}`, `supervisorAnalytics.sections.{topFailingAssets,topCostAssets,technicianPerformance,sourceDistribution,rejectionReasons}`, `supervisorAnalytics.columns.*`, `supervisorAnalytics.states.noData`.
 
-**feat(work-orders): add asset health recurring-failure panel to supervisor dashboard (§2.2)**
+**feat(work-orders): add asset health recurring-failure panel to supervisor dashboard**
 - `WorkOrdersService.getRecurringFailureAssets(thresholdCount, periodDays)`: groups CORRECTIVE WOs by asset within the lookback window, returns assets meeting or exceeding `thresholdCount` sorted descending by failure count. Returns `{ assetId, assetName, qrCode, failureCount, lastFailureDate }[]`.
 - `GET /work-orders/asset-health?thresholdCount=3&periodDays=90` endpoint (Supervisor only, placed before `/:id`). Defaults: threshold = 3, period = 90 days.
 - `AssetHealthItem` interface + `getAssetHealth()` API call added to `apps/web/lib/work-orders.api.ts`.
@@ -270,7 +292,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Technician pre-assignment, email preferences, and calendar preview (April 23, 2026)
 
-**feat(work-orders): add technician pre-assignment and duration hints to WO creation (§2.5)**
+**feat(work-orders): add technician pre-assignment and duration hints to WO creation**
 - `CreateWorkOrderDto` gains two new optional fields: `principalTechnicianId?: string` and `contributorIds?: string[]` (both validated with `@IsOptional`, `@IsString`, `@IsArray`).
 - `WorkOrdersController.create()` becomes async: when `principalTechnicianId` is provided in the payload, the controller calls `workOrders.publish()` then `assignment.assign()` immediately after creation — the WO is published and assigned in a single request.
 - `GET /work-orders/duration-hints?assetId=&type=&technicianId=` returns `{ last5AssetAvgDays: number|null, categoryAvgDays: number|null, technicianAvgDays: number|null }`. All three values are computed in parallel via `Promise.all`: last-5 closed WOs on the same asset; average across closed WOs of the same category (skipped — resolves to `[]` — when the asset has no category); average for the given technician (omitted when `technicianId` is not provided). All averages rounded to 1 decimal.
@@ -278,38 +300,38 @@ All notable changes to the GMAO project are documented here.
 - Route `GET /work-orders/duration-hints` declared before `GET /work-orders/:id` to prevent NestJS parameter capture.
 - `GET /users/technicians` endpoint added to `UsersController` with `@Roles(Role.ADMIN, Role.SUPERVISOR)` method-level override (bypasses class-level ADMIN-only guard via `Reflector.getAllAndOverride`). Returns active TECHNICIAN users with id, name, email.
 - Frontend `work-order-form-dialog.tsx` rewritten:
-  - Technician `<Select>` populated from `usersApi.listTechnicians()`; shows open-WO count badge (amber CRITICAL indicator when any critical WO); principal is excluded from contributor list.
-  - Contributor checkbox list shows per-tech load.
-  - Blue duration-hints panel (Clock icon) shows `last5AssetAvgDays` / `categoryAvgDays` / `technicianAvgDays` — queried only when both `assetId` and `type` are selected.
-  - `doCreate()` includes `principalTechnicianId` and `contributorIds` in the payload.
+ - Technician `<Select>` populated from `usersApi.listTechnicians()`; shows open-WO count badge (amber CRITICAL indicator when any critical WO); principal is excluded from contributor list.
+ - Contributor checkbox list shows per-tech load.
+ - Blue duration-hints panel (Clock icon) shows `last5AssetAvgDays` / `categoryAvgDays` / `technicianAvgDays` — queried only when both `assetId` and `type` are selected.
+ - `doCreate()` includes `principalTechnicianId` and `contributorIds` in the payload.
 - `TechnicianOption` interface + `listTechnicians()` API call added to `apps/web/lib/users.api.ts`.
 - `DurationHintsResponse` interface + `getDurationHints()` API call added to `apps/web/lib/work-orders.api.ts`.
 - i18n keys added: `supervisorWorkOrders.form.principalTechnician`, `technicianPlaceholder`, `contributors`, `techLoad`, `techNoLoad`, `durationHints.{title, last5Asset, categoryAvg, techAvg}`.
 - **Tests (6 in `work-orders.service.spec.ts`):** all-null with no WOs; correct averaging; technician avg; null when `technicianId` absent; category query uses asset's `categoryId`; rounding to 1 decimal. Note: when `categoryId` is null, `Promise.all` does not invoke `findMany` for category — only 2 mock calls needed.
 - **423 backend tests total — 0 regressions.**
 
-**feat(users): add per-user email notification preferences (§1.15)**
+**feat(users): add per-user email notification preferences**
 - `UsersService.getPreferences(userId)`: queries `emailNotificationsEnabled` for the user; throws `NotFoundException` if user does not exist.
 - `UsersService.updateEmailNotificationsPreference(userId, enabled)`: updates the field and returns `{ emailNotificationsEnabled }`. Throws `NotFoundException` when user not found; does not call `update` in that case.
 - `UpdateEmailNotificationsDto` (`apps/backend/src/users/dto/update-email-notifications.dto.ts`): single `@IsBoolean() enabled` field.
 - `GET /users/me/preferences` endpoint: all roles allowed (method-level `@Roles` override). Returns `{ emailNotificationsEnabled: boolean }`.
 - `PATCH /users/me/email-notifications` endpoint: all roles allowed, `@HttpCode(200)`. Accepts `UpdateEmailNotificationsDto`.
 - `app-sidebar.tsx` sidebar user menu gains an email notification toggle item:
-  - `useQuery` reads current preference; `useMutation` toggles it.
-  - Optimistic cache update via `queryClient.setQueryData` on success.
-  - `Mail` icon used regardless of enabled/disabled state (lucide-react v0.x does not export `MailOff`).
+ - `useQuery` reads current preference; `useMutation` toggles it.
+ - Optimistic cache update via `queryClient.setQueryData` on success.
+ - `Mail` icon used regardless of enabled/disabled state (lucide-react v0.x does not export `MailOff`).
 - `getMyPreferences()` + `updateEmailNotifications(enabled)` added to `apps/web/lib/users.api.ts`.
 - i18n keys added: `userPreferences.emailNotifications.{label, description, enabled, disabled, updateSuccess, updateError}`.
 - **Tests (11 in `users.service.spec.ts`):** `getPreferences` returns value; `getPreferences` throws on missing user; `updateEmailNotificationsPreference` updates to false; updates to true; throws on missing user; does not call `update` when user not found; `listActiveTechnicians` uses correct role filter.
 - **434 backend tests total — 0 regressions.**
 
-**feat(preventive-plans): add foreseeable WO generation calendar preview (§2.9)**
+**feat(preventive-plans): add foreseeable WO generation calendar preview**
 - `PreventivePlansService.getCalendarPreview(fromDate, toDate)`: fetches all active plans via `repo.findAll()`; for each plan with a non-null `nextDueAt`, projects future WO generation dates by iterating `computeNextDueAt()` in a loop. Safety cap: `MAX_ITEMS_PER_PLAN = 200` items per plan; `try/catch` around each `computeNextDueAt()` call breaks on malformed cron expressions. Occurrences before `fromDate` are skipped; iteration stops once past `toDate`. Final result is sorted ascending by `generationDate`.
 - `CalendarPreviewItem` interface exported from `preventive-plans.service.ts`: `{ planId, planTitle, assetId, assetName, generationDate: string, estimatedDurationMinutes: number|null, defaultTechnicianId: string|null, defaultTechnicianName: string|null }`.
 - `GET /preventive-plans/calendar?fromDate&toDate` endpoint: SUPERVISOR only; inline `CalendarQueryDto` class with `@IsOptional @IsDateString` fields; defaults to today and today + 90 days when params omitted. Declared before `GET /preventive-plans/:id`.
 - Frontend `preventive-plans-board.tsx` gains a List/Calendar toggle button group in the header:
-  - List view: existing table + pagination (unchanged).
-  - Calendar view: `useQuery` for `preventivePlansApi.getCalendar()`; results grouped by day string via `useMemo`; each day section shows plan title, asset name, technician name (if set), and estimated duration in minutes.
+ - List view: existing table + pagination (unchanged).
+ - Calendar view: `useQuery` for `preventivePlansApi.getCalendar()`; results grouped by day string via `useMemo`; each day section shows plan title, asset name, technician name (if set), and estimated duration in minutes.
 - `CalendarPreviewItem` interface + `getCalendar()` API call added to `apps/web/lib/preventive-plans.api.ts`.
 - i18n keys added: `supervisorPreventivePlans.views.{list, calendar}`, `supervisorPreventivePlans.calendar.{empty, total, itemCount}`.
 - **Tests (8 in `preventive-plans-calendar.service.spec.ts`):** empty array when no `nextDueAt`; item within window; 3 occurrences with 30-day interval over 90 days; excludes occurrences before `fromDate`; results sorted by date across multiple plans; `defaultTechnicianName` populated when plan has a technician; `defaultTechnicianId` null when no technician.
@@ -317,12 +339,12 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Storekeeper cost analytics and on-hold long-waiting request detection (April 23, 2026)
 
-**feat(inventory): add monthly cost trend analytics (§3.1)**
+**feat(inventory): add monthly cost trend analytics**
 - `InventoryRepository.getCostTrend(periodDays)`: raw SQL query that groups `OUTGOING` stock movements by calendar month and computes `SUM(quantity × COALESCE(unitCostAtTime, unitCost, 0))`. Returns `[{ month: "YYYY-MM", totalCost: number }]` ordered ASC — suitable for a month-over-month trend table.
 - `InventoryCostTrendItem` interface added to `apps/web/lib/inventory.api.ts`.
 - `StockAnalyticsBoard` gains a "Évolution des dépenses en pièces" section: table of monthly spending rows with currency formatting; empty state shown when no OUTGOING movements exist in the period.
 
-**feat(inventory): add long-waiting requests on blocked work orders (§3.2)**
+**feat(inventory): add long-waiting requests on blocked work orders**
 - `InventoryRepository.getLongWaitingOnHoldRequests(thresholdHours)`: raw SQL with `JOIN "WorkOrder" ON status='ON_HOLD'`, `LEFT JOIN "Part"`, filtered to `PartRequest.status='PENDING'` and `createdAt <= NOW() - thresholdHours`. Returns full request detail including `waitingHours` (rounded integer).
 - `LongWaitingPartRequest` interface added to `apps/web/lib/inventory.api.ts`.
 - `InventoryService.getAnalytics()` extended with a `longWaitingThresholdHours = 24` parameter (backward compatible; existing callers without the param keep the default of 24 h).
@@ -335,28 +357,28 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Document versioning, part catalog documents, and preventive plan documents (April 22, 2026)
 
-**feat(documents): implement automatic versioning on document upload (§1.10)**
+**feat(documents): implement automatic versioning on document upload**
 - `DocumentsService` now implements version archiving via a private `_doUpload()` helper called by all upload paths (asset, part, plan).
 - On each upload: queries for an existing `isCurrentVersion: true` document with the same `entityType + entityId + documentType`; if found, marks it `isCurrentVersion = false` and sets `replacedById = newDocId` inside a Prisma `$transaction` that atomically creates the new record; new document receives `version = old.version + 1`. First upload always creates `version = 1`.
 - New `getVersionHistory(docId)`: finds all documents sharing the same `entityType`, `entityId`, and `documentType`, returned in `version desc` order.
 - Existing asset document upload (`upload()`) now delegates to `_doUpload()` — asset documents gain versioning without any API surface change.
 - **Tests (25 in `documents.service.spec.ts`):** version-1 creation when no prior doc; version-2 creation + archiving of prior current version; `replacedById` wired correctly; `$transaction` used; `getVersionHistory` queries all chain docs; `NotFoundException` on missing entity (asset, part, plan); `BadRequestException` for disallowed types per entity; `ForbiddenException` on delete of certificate-owned doc; `getDownloadUrl` returns presigned URL.
 
-**feat(inventory): add document attachments to part catalog (§1.11 + §3.3)**
+**feat(inventory): add document attachments to part catalog**
 - `DocumentsService.findByPart(partId)` + `uploadForPart(partId, file, documentType, actorId)` added. Allowed types enforced: `TECHNICAL_MANUAL`, `SAFETY_DATA_SHEET`, `SPECIFICATION_SHEET`. Any other type throws `BadRequestException`.
 - `AssetsModule` exports `DocumentsService`; `InventoryModule` imports `AssetsModule` to inject it into `PartsController`.
 - `PartsController` gains five new endpoints:
-  - `GET /parts/:id/documents` — list current-version docs (all operational roles)
-  - `POST /parts/:id/documents` — upload with multipart `file` + `documentType` (SUPERVISOR or STOREKEEPER)
-  - `GET /parts/:id/documents/:docId/download` — presigned URL (all operational roles)
-  - `GET /parts/:id/documents/:docId/versions` — full version history (all operational roles)
-  - `DELETE /parts/:id/documents/:docId` — hard delete (SUPERVISOR or STOREKEEPER)
+ - `GET /parts/:id/documents` — list current-version docs (all operational roles)
+ - `POST /parts/:id/documents` — upload with multipart `file` + `documentType` (SUPERVISOR or STOREKEEPER)
+ - `GET /parts/:id/documents/:docId/download` — presigned URL (all operational roles)
+ - `GET /parts/:id/documents/:docId/versions` — full version history (all operational roles)
+ - `DELETE /parts/:id/documents/:docId` — hard delete (SUPERVISOR or STOREKEEPER)
 - `PartDocument` interface + five `inventoryApi` methods added to `apps/web/lib/inventory.api.ts`.
 - `PartDocumentsDialog` component (`apps/web/components/storekeeper/part-documents-dialog.tsx`): Dialog opened from a new FileText icon button on every part row in the storekeeper inventory catalog; shows current-version documents with version badge, download and delete actions; inline upload form (type select + file picker) shown only to SUPERVISOR/STOREKEEPER roles (checked via `useAuthStore`).
 - `storekeeperInventory.documents.*` and `storekeeperInventory.actions.viewDocuments` i18n keys added.
 - **Tests (10 in `parts.documents.controller.spec.ts`):** `listDocuments` → `findByPart`; `uploadDocument` → `uploadForPart` with correct args; `BadRequestException` propagated for invalid type; `getDocumentDownload` → presigned URL; `getDocumentVersionHistory` → ordered list; `deleteDocument` → `delete`; `NotFoundException` propagated on all paths.
 
-**feat(preventive-plans): add document attachments to preventive plans (§1.12)**
+**feat(preventive-plans): add document attachments to preventive plans**
 - `DocumentsService.findByPlan(planId)` + `uploadForPlan(planId, file, documentType, actorId)` added. Allowed types: `PROCEDURE_DOCUMENT`, `SAFETY_DATA_SHEET`, `SPECIFICATION_SHEET`.
 - `PreventivePlansModule` imports `AssetsModule`; `PreventivePlansController` injects `DocumentsService`.
 - `PreventivePlansController` gains five new endpoints following the same pattern as parts (all-roles read, SUPERVISOR-only write).
@@ -369,18 +391,18 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Admin notifications for job failures and email delivery errors (April 22, 2026)
 
-**feat(notifications): add notifyAdmins() to NotificationsService (§1.16)**
+**feat(notifications): add notifyAdmins() to NotificationsService**
 - `NotificationsService.notifyAdmins(type, title, summary, entityType?, entityId?)` added — symmetric to `notifySupervisors()`: queries all active `ADMIN` users and calls `notifyMany()` with the full fan-out; `entityType` and `entityId` are optional to accommodate system-level notifications that have no specific entity.
 - **Tests (3):** active ADMIN users queried; `notifyMany` called with correct `recipientId`/type/title/summary/entityType/entityId per admin; no-op (empty `notifyMany` call) when no active admins exist; `entityType`/`entityId` passed through as `undefined` when omitted.
 
-**feat(job-logger): emit SCHEDULED_JOB_FAILED to admins on cron job failure (§1.16)**
+**feat(job-logger): emit SCHEDULED_JOB_FAILED to admins on cron job failure**
 - `JobLoggerService` now injects `@Optional() NotificationsService | null` as a second constructor argument. The `@Optional()` decorator preserves backward compatibility: all existing unit tests that instantiate the service with only `PrismaService` continue to pass without modification.
 - `recordFailure()` calls the private `notifyAdminsJobFailed(jobName, message)` after persisting the failure log. That helper checks the `Notification` table for a recent `SCHEDULED_JOB_FAILED` entry within the last 23 hours (`entityType='ScheduledJob'`, `entityId=jobName`) and skips if one exists — preventing hourly spam when a job fails persistently.
 - Notification summary includes the job name and the (possibly truncated) error message.
 - No modification to any of the 6 existing cron job files — the notification is fired transparently from the shared logger.
 - **Tests (8 new, 2 updated existing):** dedup skip when recent notification found; sends when no dedup entry; dedup query uses correct `type`/`entityType`/`entityId`/23h window; notification summary contains job name; notification summary contains error message; error message truncated to 500 chars before inclusion; `@Optional()` null-safety — no crash, no notification when `notifications=null`; DB errors in `recordFailure` still swallowed.
 
-**feat(admin): add FailedNotificationDetectorJob for email delivery failure alerting (§1.16)**
+**feat(admin): add FailedNotificationDetectorJob for email delivery failure alerting**
 - New `@Cron(EVERY_HOUR)` job at `apps/backend/src/admin/failed-notification-detector.job.ts`, registered in `AdminModule`.
 - `doRun()` counts `Notification` rows with `emailFailed: true` created within the last 23 hours. If count > 0, checks a dedup entry (`NOTIFICATION_DELIVERY_FAILED`, `entityType='system'`, `entityId='email-delivery'`) within the same 23h window; if not found, emits `NOTIFICATION_DELIVERY_FAILED` to all active admins via `notifyAdmins()` with the failure count in the summary.
 - Job execution wrapped with `jobLogger.recordStart`/`recordSuccess`/`recordFailure`, making it visible in the admin scheduled-job health panel.
@@ -390,29 +412,29 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Supervisor dashboard operational panels and validation queue (April 22, 2026)
 
-**feat(backend): add closedAfter/closedBefore date filters to work-order list query (§2.2)**
+**feat(backend): add closedAfter/closedBefore date filters to work-order list query**
 - `WorkOrderQueryDto` gains two optional `@IsDateString()` fields: `closedAfter` and `closedBefore` (both documented via Swagger `@ApiPropertyOptional`).
 - `WorkOrdersRepository.findAll` translates the params to a `closedAt: { gte, lte }` Prisma predicate using only the provided bounds; absent params produce no `closedAt` key in the `where` clause — all existing callers are unaffected.
 - Used by the supervisor dashboard "Clôturés aujourd'hui" panel to count WOs closed since UTC midnight.
 - **Tests (8):** `closedAfter` → `gte` Date object; `closedBefore` → `lte` Date object; combined range → both keys in same `closedAt` object; absent params → no `closedAt`; `status` filter still applied alongside `closedAfter`; `search` still applied alongside `closedAfter`; param stored as a `Date` instance (not a string); empty query → no `closedAt` key.
 
-**feat(assets): add certificate alerts endpoint for supervisor dashboard (§2.2)**
+**feat(assets): add certificate alerts endpoint for supervisor dashboard**
 - New `CertificatesService.findAlerts()` method: queries all non-archived `EXPIRING_SOON` and `EXPIRED` compliance certificates with their parent asset (`id`, `name`), ordered by `expirationDate` ascending. Returns `CertificateAlertItem[]` (exported interface).
 - New `GET /assets/certificates/alerts` route in `AssetsController` (Supervisor only). Declared before the generic `GET /assets/:id` handler to prevent NestJS routing the literal segment `certificates` as an asset ID.
 - **Tests (5):** only EXPIRING_SOON/EXPIRED queried; archived certs excluded; Prisma rows mapped to `CertificateAlertItem`; EXPIRED status preserved; empty list returned when none; results ordered by `expirationDate asc`. (341 backend tests total, 0 regressions.)
 
-**feat(web): add operational panels to supervisor dashboard (§2.2)**
+**feat(web): add operational panels to supervisor dashboard**
 - New `lib/date-utils.ts` module: `elapsedSince(isoDate)` returns a short human-readable elapsed duration ("3h", "2j"); `todayStartIso()` returns the ISO-8601 UTC midnight timestamp for today. Both utilities are pure functions and covered by dedicated tests.
 - `CertificateAlertItem` interface + `assetsApi.getCertificateAlerts()` added to `assets.api.ts`.
 - `closedAfter?: string` and `closedBefore?: string` added to `WorkOrderListQuery` in `work-orders.api.ts`.
 - Supervisor dashboard (`supervisor/page.tsx`) gains a second row of three operational panels below the existing summary cards:
-  1. **Clôturés aujourd'hui** — live count of WOs with `status=CLOSED&closedAfter=<UTC-midnight>`; links to work-orders board.
-  2. **Demandes bloquées** — fetches up to 100 PENDING part requests and counts those where `workOrder.status === ON_HOLD`; amber border when count > 0; links to work-orders board.
-  3. **Certificats à risque** — lists up to 4 EXPIRING_SOON/EXPIRED certs inline with asset name, expiration date, and colored badge; shows overflow count; links to assets page.
+ 1. **Clôturés aujourd'hui** — live count of WOs with `status=CLOSED&closedAfter=<UTC-midnight>`; links to work-orders board.
+ 2. **Demandes bloquées** — fetches up to 100 PENDING part requests and counts those where `workOrder.status === ON_HOLD`; amber border when count > 0; links to work-orders board.
+ 3. **Certificats à risque** — lists up to 4 EXPIRING_SOON/EXPIRED certs inline with asset name, expiration date, and colored badge; shows overflow count; links to assets page.
 - The "À valider" summary card CTA now navigates to `/supervisor/validation-queue` instead of the general work-orders board.
 - **Tests (10):** `elapsedSince` boundary at 0h / Nh / 23h59m / 24h / 2j / 7j; `todayStartIso` produces UTC midnight of today; ISO-8601 format; always in the past. (37 frontend tests total, 0 regressions.)
 
-**feat(web): add dedicated validation queue view for supervisors (§2.7)**
+**feat(web): add dedicated validation queue view for supervisors**
 - New `ValidationQueueBoard` component (`components/supervisor/validation-queue-board.tsx`): paginated table filtered to `PENDING_VALIDATION` WOs with columns — reference (monospace), asset + location path, principal technician, type badge, priority badge, time-in-queue (from `elapsedSince`). Clicking a row opens the existing `WorkOrderDetailDialog` where the supervisor can approve or reject closure. Empty state, error state, and pagination controls included.
 - New route `app/(protected)/supervisor/validation-queue/page.tsx` with page title and subtitle.
 - Supervisor sidebar gains a "File de validation" nav item (ShieldCheck icon) pointing to `/supervisor/validation-queue`.
@@ -420,11 +442,11 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — COULD_NOT_INTERVENE follow-up WO flow and technician load panel (April 22, 2026)
 
-**feat(db): add FOLLOW_UP to WorkOrderSource enum with migration (§1.4)**
+**feat(db): add FOLLOW_UP to WorkOrderSource enum with migration**
 - `WorkOrderSource.FOLLOW_UP` added to `packages/db/prisma/schema.prisma` and to the `@gmao/shared` `WorkOrderSource` enum in `packages/shared/src/enums/work-order.enum.ts`.
 - Migration `20260422000001_add_follow_up_source`: `ALTER TYPE "WorkOrderSource" ADD VALUE 'FOLLOW_UP';` — additive, safe to apply with zero downtime.
 
-**feat(work-orders): add follow-up WO creation from COULD_NOT_INTERVENE closures (§1.4)**
+**feat(work-orders): add follow-up WO creation from COULD_NOT_INTERVENE closures**
 - New `CreateFollowUpDto` (`apps/backend/src/work-orders/dto/create-follow-up.dto.ts`): `type`, `priority`, `description` (required) + `internalNotes`, `estimatedDurationMinutes`, `dueDate` (optional). `assetId` is intentionally excluded — inherited from the original WO to enforce unambiguous cross-reference.
 - `WorkOrdersRepository.create()` gains an optional 7th parameter `followUpFromId?: string` passed to `tx.workOrder.create`. `findById` include now fetches `followUpFrom: { id, referenceNumber }` and `followUps: [{ id, referenceNumber }]` self-relations.
 - `WorkOrdersService.createFollowUp(originalWoId, dto, actorId)`: validates original WO status is `CLOSED` (throws `BadRequestException('workOrders.followUp.originalMustBeClosed')` otherwise); inherits `assetId`; calls `repo.create` with `sourceType=FOLLOW_UP` and `followUpFromId=originalWoId`.
@@ -432,14 +454,14 @@ All notable changes to the GMAO project are documented here.
 - New `POST /work-orders/:id/follow-up` controller action (Supervisor only).
 - **Tests (9):** happy path verifies `repo.create` receives `FOLLOW_UP` source + `followUpFromId`; non-CLOSED guard throws `BadRequestException`; `assetId` inherited (not from DTO); asset not-found propagates; 5 `getTechnicianLoad` tests (empty, aggregation, CRITICAL detection, sort order, hasCritical=false). (350 backend tests total, 0 regressions.)
 
-**feat(web): add follow-up WO prompt and cross-reference display in validation dialog (§2.4)**
+**feat(web): add follow-up WO prompt and cross-reference display in validation dialog**
 - `WorkOrderCrossRef`, `CreateFollowUpPayload`, and `TechnicianLoadItem` interfaces added to `lib/work-orders.api.ts`; `WorkOrderDetail` extended with `followUpFrom: WorkOrderCrossRef | null` and `followUps: WorkOrderCrossRef[]`; `createFollowUp()` and `getTechnicianLoad()` API methods added.
 - `work-order-detail-dialog.tsx` uses a `useRef` (`pendingFollowUpCtxRef`) to capture the pre-mutation context (originalWoId, referenceNumber, assetId, description, priority) immediately before `validateMutation.mutate()` fires. In `onSuccess`, if the ref is set, a yellow-bordered prompt panel replaces the validation panel, offering "Ignorer" and "Créer un OT de suivi" buttons.
 - Cross-reference section in the detail card shows `followUpFrom.referenceNumber` and a list of `followUps` references when present.
 - **i18n:** `supervisorWorkOrders.followUp.{promptTitle,promptBody,dismiss,create,descriptionPrefix}`, `supervisorWorkOrders.toasts.{followUpCreated,followUpError}`, `supervisorWorkOrders.detail.{followUpChain,followUpFrom,followUps}` keys added to `fr/common.json`.
 - **Tests (10):** `follow-up-utils.spec.ts` — `buildFollowUpDescription` prefix formatting (3 tests); `resolveNotificationRoute` for `FOLLOW_UP_PROMPT` notifications (3 tests); `TechnicianLoadItem` sort/hasCritical display logic (4 tests). (47 frontend tests total, 0 regressions.)
 
-**feat(web): add technician load panel to supervisor dashboard (§2.2 remaining)**
+**feat(web): add technician load panel to supervisor dashboard**
 - `TechnicianLoadItem` type imported from `lib/work-orders.api.ts`.
 - New `TechnicianLoadRow` sub-component renders technician name, open WO count, and a destructive "CRITIQUE" badge when `hasCritical=true`.
 - `supervisor/page.tsx` adds an 11th `useQueries` entry calling `getTechnicianLoad()`; the result is rendered as a card panel sorted descending by `openWoCount`; empty state shows a checkmark message.
@@ -447,7 +469,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Scheduled job health monitoring and QR code print (April 21, 2026)
 
-**feat(admin): track scheduled job execution health with per-job cron log (§4.1)**
+**feat(admin): track scheduled job execution health with per-job cron log**
 - New `ScheduledJobLog` Prisma model (`jobName UNIQUE`, `lastRunAt`, `lastSuccessAt`, `lastFailureAt`, `lastErrorMessage`, `updatedAt`) with migration `20260421000000_scheduled_job_log`.
 - New `JobLoggerService` in `apps/backend/src/job-logger/` (dedicated module): `recordStart()`, `recordSuccess()`, `recordFailure()` (message truncated to 500 chars), `getAll()`. All log methods swallow DB errors so a failing log write never interrupts a cron job.
 - All 6 existing cron jobs (`ValidationReminderJob`, `DueDateApproachingJob`, `ContractorDateOverdueJob`, `AccessRetryApproachingJob`, `DailySummaryJob`, `PriorityEscalationJob`) now wrap their execution in a try/catch that calls `recordStart` / `recordSuccess` / `recordFailure`. Logic extracted to a private `doRun()` to keep the `run()` shell clean.
@@ -456,7 +478,7 @@ All notable changes to the GMAO project are documented here.
 - Admin analytics board now shows a "Tâches planifiées" section: per-job table with status badge (healthy / failed / unknown), last run, last success, last failure timestamp, and last error message.
 - **Tests:** 9 `job-logger.service.spec.ts` tests; 2 new `admin-analytics.service.spec.ts` tests; 3 lifecycle-logging tests added to each of the 6 existing job spec files; new `priority-escalation.job.spec.ts` with 6 tests. 328 backend tests total (0 regressions).
 
-**feat(web): render QR code image with print action in asset detail dialog (§2.8)**
+**feat(web): render QR code image with print action in asset detail dialog**
 - Added `react-qr-code ^2.0.15` dependency to `apps/web`.
 - New pure-function library `apps/web/lib/qr-print.ts`: `buildQrPrintHtml(options, svgMarkup)` generates an XSS-safe standalone print HTML document (escapes `<`/`>` in `assetName` and `identifier`, embeds SVG verbatim, includes `window.print()` auto-trigger); `openQrPrintWindow()` opens a `_blank` popup and writes the HTML.
 - `asset-detail-dialog.tsx` now renders a `<QRCode>` SVG component (size 120, level M) beside the QR identifier and exposes a "Imprimer le QR" print button that extracts the SVG from the DOM and calls `openQrPrintWindow()`.
@@ -465,18 +487,18 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed + Added — Checklist source attribution, WO detail cost summary, and checklist display (April 20, 2026)
 
-**fix(work-orders): fix checklist anomaly-WO source attribution (§1.14)**
+**fix(work-orders): fix checklist anomaly-WO source attribution**
 - Auto-corrective WOs created from checklist anomalies were tagged `sourceType: PREVENTIVE_PLAN`, making them indistinguishable from plan-generated WOs in analytics. Added `WorkOrderSource.CHECKLIST_ANOMALY` to the Prisma schema, `@gmao/shared` enum, and migration `20260420143130_add_checklist_anomaly_source`.
 - `ChecklistService.completeItem()` now uses `WorkOrderSource.CHECKLIST_ANOMALY` and propagates `sourcePlanId` from the parent WO, so the link to the originating preventive plan is preserved.
 - `@gmao/db` rebuilt to distribute the updated enum to consumers.
 - 12 new unit tests in `checklist.service.spec.ts` covering: wrong WO status, unassigned actor, missing item, wrong WO binding, already-completed guard, missing `anomalyDescription`, mandatory item NOT_APPLICABLE guard, missing `notApplicableReason`, DONE without auto-create, ANOMALY + auto-create with/without `sourcePlanId`, and ANOMALY without auto-create.
 
-**feat(work-orders): expose computed cost summary on WO detail endpoint (§1.2)**
+**feat(work-orders): expose computed cost summary on WO detail endpoint**
 - `GET /work-orders/:id` now computes `costSummary` (laborCost, partsCost, contractorCost, totalCost) via `calculateWorkOrderCostSummary` and returns it merged into the WO detail response. No new DB query — the data was already included (intervention logs with `hourlyRateAtTime`/`activeDurationMinutes`, stock movements with `unitCostAtTime`/`quantity`).
 - 2 new integration tests: zero-cost WO returns all-zero summary; WO with 120min @ 30/h + 2 parts @ 15 + 100 contractor = 190 total.
 
-**fix(web): fix checklist status display and expose cost summary in WO detail dialog (§6.3 + §1.2)**
-- **Ghost field removed (§6.3):** `completedNote: string | null` did not exist in the Prisma schema and was always `undefined` at runtime. Replaced with `anomalyDescription: string | null` and `notApplicableReason: string | null` (the actual DB fields).
+**fix(web): fix checklist status display and expose cost summary in WO detail dialog**
+- **Ghost field removed:** `completedNote: string | null` did not exist in the Prisma schema and was always `undefined` at runtime. Replaced with `anomalyDescription: string | null` and `notApplicableReason: string | null` (the actual DB fields).
 - **Status badge fix:** The checklist item badge in the supervisor WO detail dialog was checking for `COMPLETED` and `SKIPPED` — values that do not exist in `ChecklistItemStatus`. Now correctly switches on `DONE`, `ANOMALY_DETECTED`, `NOT_APPLICABLE`, and `PENDING` with appropriate badge variants (`success`, `destructive`, `secondary`, `outline`).
 - **i18n key pattern fixed:** The badge label was built from a broken string concatenation (`checklist${status.charAt(0).toUpperCase()}${status.slice(1).toLowerCase()}`) which produced wrong keys for multi-word statuses. Replaced with `checklistStatus.<STATUS>` nested object keys in `common.json`.
 - **Anomaly/notApplicable sub-text:** Checklist items now show `anomalyDescription` in destructive color and `notApplicableReason` in muted color when set.
@@ -486,20 +508,20 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed + Added — On-hold supervisor management, hold-metadata endpoint, and hold scheduler jobs (April 20, 2026)
 
-**fix(work-orders): separate hold management actor responsibilities (§6.1 + §1.5)**
-- **Actor fix (§6.1):** `ResolveHoldDto` no longer accepts `resolutionNote` — the supervisor's resolution plan note is not the technician's responsibility. `OnHoldService.resume()` removes the `supervisorResolutionNote` write from the resume transaction; the field must be set exclusively via the new supervisor endpoint before the technician resumes.
-- **New endpoint (§1.5):** `PATCH /work-orders/:id/hold-metadata` (Supervisor only) — `UpdateHoldMetadataDto` accepts `expectedResolutionDate?: string`, `retryDate?: string`, `resolutionNote?: string`; all fields are optional and only provided fields are written. Returns the updated `WorkOrder`.
+**fix(work-orders): separate hold management actor responsibilities**
+- **Actor fix:** `ResolveHoldDto` no longer accepts `resolutionNote` — the supervisor's resolution plan note is not the technician's responsibility. `OnHoldService.resume()` removes the `supervisorResolutionNote` write from the resume transaction; the field must be set exclusively via the new supervisor endpoint before the technician resumes.
+- **New endpoint:** `PATCH /work-orders/:id/hold-metadata` (Supervisor only) — `UpdateHoldMetadataDto` accepts `expectedResolutionDate?: string`, `retryDate?: string`, `resolutionNote?: string`; all fields are optional and only provided fields are written. Returns the updated `WorkOrder`.
 - `OnHoldService.updateHoldMetadata()` validates that the WO is `ON_HOLD`, finds the most-recent unresolved `OnHoldPeriod` (`resumedAt: null`), and applies a partial update. Empty DTO is a safe no-op (no DB write).
 - Guards: `BadRequestException` when WO is not `ON_HOLD`; `NotFoundException` when no active hold period exists.
 
-**feat(work-orders): add ContractorDateOverdueJob and AccessRetryApproachingJob schedulers (§1.6)**
+**feat(work-orders): add ContractorDateOverdueJob and AccessRetryApproachingJob schedulers**
 - **`ContractorDateOverdueJob`** (`@Cron(EVERY_HOUR)`): queries `OnHoldPeriod` rows where `reasonType = EXTERNAL_CONTRACTOR`, `resumedAt = null`, and `expectedResolutionDate < now`; emits `CONTRACTOR_DATE_OVERDUE` to all supervisors for each matching WO; 23-hour deduplication window prevents hourly re-notification.
 - **`AccessRetryApproachingJob`** (`@Cron(EVERY_HOUR)`): queries `OnHoldPeriod` rows where `reasonType = ACCESS_DENIED`, `resumedAt = null`, and `retryDate ∈ [now, now+24h]`; emits `ACCESS_RETRY_APPROACHING` to all supervisors; formatted retry date included in the notification summary; 23-hour deduplication window.
 - Both jobs registered in `WorkOrdersModule` alongside the existing hold-related jobs.
 - 8 unit tests each: cron metadata, no-op, send, dedup skip, mixed send/skip, hold query predicate, dedup query window, error propagation.
 
-**feat(web): supervisor hold management UI with hold-metadata endpoint wiring (§2.6 + §6.2)**
-- **Frontend type fix (§6.2):** `WorkOrderOnHoldPeriod` interface corrected — removed the wrong `reason`/`note` fields (which were always `undefined` at runtime; the DB columns are `reasonType` and `detail`); added all missing fields: `reasonType`, `detail`, `expectedResolutionDate`, `retryDate`, `supervisorAssetStatusChoice`, `supervisorResolutionNote`.
+**feat(web): supervisor hold management UI with hold-metadata endpoint wiring**
+- **Frontend type fix:** `WorkOrderOnHoldPeriod` interface corrected — removed the wrong `reason`/`note` fields (which were always `undefined` at runtime; the DB columns are `reasonType` and `detail`); added all missing fields: `reasonType`, `detail`, `expectedResolutionDate`, `retryDate`, `supervisorAssetStatusChoice`, `supervisorResolutionNote`.
 - **API client:** `workOrdersApi.updateHoldMetadata(id, payload)` wraps `PATCH /work-orders/:id/hold-metadata`.
 - **Hold period display:** On-hold period cards in the supervisor WO detail dialog now render `reasonType` (translated via `supervisorWorkOrders.holdReasonType.*`), `detail`, `expectedResolutionDate`, `retryDate`, and `supervisorResolutionNote`.
 - **Supervisor management form:** When the WO is `ON_HOLD`, a collapsible inline form ("Mettre à jour les informations de mise en attente") allows the supervisor to set any combination of `expectedResolutionDate`, `retryDate`, and `resolutionNote` and save via `PATCH /hold-metadata`.
@@ -512,9 +534,9 @@ All notable changes to the GMAO project are documented here.
 - `GET /work-orders/analytics` now includes a `costSummary` payload for the requested period
 - PDF generation for closed work orders now renders a dedicated cost section with parts, labor, contractor, and total cost values
 - Added coverage:
-  - `work-orders.service.spec.ts`: analytics cost summary calculation
-  - `work-orders.controller.integration.spec.ts`: analytics endpoint payload shape
-  - `report-generation.service.spec.ts`: PDF cost section rendering and computed totals
+ - `work-orders.service.spec.ts`: analytics cost summary calculation
+ - `work-orders.controller.integration.spec.ts`: analytics endpoint payload shape
+ - `report-generation.service.spec.ts`: PDF cost section rendering and computed totals
 
 ### Fixed — Work-order promotion guard and intervention-log cleanup (April 18, 2026)
 
@@ -522,8 +544,8 @@ All notable changes to the GMAO project are documented here.
 - `AssignmentService.promote()` now reuses the shared terminal-state guard, so `CLOSED` and `CANCELLED` work orders cannot be promoted
 - When promotion happens on an `IN_PROGRESS` work order, the old principal's open `InterventionLog` is closed with the same reassignment-remnant semantics used by the reassignment flow
 - Added full coverage:
-  - `assignment.service.spec.ts`: terminal rejection, in-progress log closure, and non-in-progress no-op on intervention logs
-  - `work-orders.controller.integration.spec.ts`: promote route auth, validation, and success wiring
+ - `assignment.service.spec.ts`: terminal rejection, in-progress log closure, and non-in-progress no-op on intervention logs
+ - `work-orders.controller.integration.spec.ts`: promote route auth, validation, and success wiring
 
 ### Fixed — Work-order cancellation detail contract enforcement (April 18, 2026)
 
@@ -532,8 +554,8 @@ All notable changes to the GMAO project are documented here.
 - Whitespace-only values are rejected at DTO level with `workOrders.cancellationDetailRequired`
 - `WorkOrdersService.cancel()` now applies the same rule defensively (service-layer guard) and trims persisted `cancellationDetail`
 - Added full coverage:
-  - `work-orders.service.spec.ts`: required/missing detail, whitespace-only edge case, optional detail for other reasons, trimming behavior
-  - `work-orders.controller.integration.spec.ts`: auth (401), role enforcement (403), validation failures (400), and success paths (200)
+ - `work-orders.service.spec.ts`: required/missing detail, whitespace-only edge case, optional detail for other reasons, trimming behavior
+ - `work-orders.controller.integration.spec.ts`: auth (401), role enforcement (403), validation failures (400), and success paths (200)
 
 ### Added — Notification system completeness: WO_RESUMED, LINKED_WO_CLOSED, DUE_DATE_APPROACHING, deep-linking (April 18, 2026)
 
@@ -624,8 +646,8 @@ All notable changes to the GMAO project are documented here.
 - Added endpoint-level throttling on `GET /admin/audit-log` with `@Throttle({ default: { limit: 10, ttl: 60000 } })`
 - Keeps existing auth/role guards intact while reducing high-volume audit-log scraping risk via page iteration
 - Added backend coverage:
-  - `admin.controller.spec.ts` for pagination/filter normalization and failure propagation
-  - `admin.controller.integration.spec.ts` for auth/role enforcement plus route-level 429 behavior after threshold
+ - `admin.controller.spec.ts` for pagination/filter normalization and failure propagation
+ - `admin.controller.integration.spec.ts` for auth/role enforcement plus route-level 429 behavior after threshold
 
 ### Fixed — Backend TypeScript editor diagnostics cleanup (April 17, 2026)
 
@@ -641,62 +663,62 @@ All notable changes to the GMAO project are documented here.
 **fix(auth): enforce SESSION_IDLE_TIMEOUT_HOURS for refresh token lifecycle**
 - `AuthService` no longer uses a hardcoded 7-day refresh-session lifetime for active sessions.
 - Refresh-token TTL is now sourced from `SystemConfig` key `SESSION_IDLE_TIMEOUT_HOURS` and applied consistently to:
-  - refresh JWT `expiresIn`
-  - Redis refresh-token key TTL (`rt:<userId>:<jti>`)
-  - Redis token-set TTL (`rt-set:<userId>`)
-  - HTTP-only `refresh_token` cookie `maxAge`
+ - refresh JWT `expiresIn`
+ - Redis refresh-token key TTL (`rt:<userId>:<jti>`)
+ - Redis token-set TTL (`rt-set:<userId>`)
+ - HTTP-only `refresh_token` cookie `maxAge`
 - Added resilience guard: if `SESSION_IDLE_TIMEOUT_HOURS` is missing/invalid/non-positive, auth falls back to the previous 7-day default and logs a warning.
 - Added backend test coverage:
-  - `auth.service.spec.ts`: configured-timeout path, rotation path, invalid-config fallback, revoked-token rejection, invalid-signature rejection
-  - `auth.controller.integration.spec.ts`: `/auth/refresh` missing-cookie 401, valid-cookie 200, invalid-refresh 401
+ - `auth.service.spec.ts`: configured-timeout path, rotation path, invalid-config fallback, revoked-token rejection, invalid-signature rejection
+ - `auth.controller.integration.spec.ts`: `/auth/refresh` missing-cookie 401, valid-cookie 200, invalid-refresh 401
 
 ### Fixed — Certificate expiry scheduling architecture compliance (April 17, 2026)
 
 **fix(assets): migrate certificate expiry job from setInterval to @nestjs/schedule**
 - Replaced manual lifecycle scheduling (`OnModuleInit` + `setInterval`) in `CertificateExpiryJob` with framework-managed decorators:
-  - `@Timeout(0)` for immediate startup execution
-  - `@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)` for daily recurring execution
+ - `@Timeout(0)` for immediate startup execution
+ - `@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)` for daily recurring execution
 - Removed interval-handle lifecycle cleanup (`OnModuleDestroy`) because scheduling is now fully managed by Nest Scheduler
 - Preserved business behavior: each run still refreshes certificate statuses, scans expiring certificates, writes in-app notifications, and enqueues certificate-expiry emails
 - Added dedicated unit coverage for the job:
-  - scheduler metadata registration (`@Cron` and `@Timeout`)
-  - startup delegation path (`runOnStartup -> run`)
-  - success path (status refresh + reminder processing)
-  - failure path (errors are caught and logged, no throw)
-  - threshold notification matrix (`60`, `30`, and `<= 7` days notify; non-threshold values are skipped)
+ - scheduler metadata registration (`@Cron` and `@Timeout`)
+ - startup delegation path (`runOnStartup -> run`)
+ - success path (status refresh + reminder processing)
+ - failure path (errors are caught and logged, no throw)
+ - threshold notification matrix (`60`, `30`, and `<= 7` days notify; non-threshold values are skipped)
 
 ### Added — Admin analytics dashboard (April 17, 2026)
 
-**feat(admin): add admin analytics endpoints and dashboard (§6.3)**
+**feat(admin): add admin analytics endpoints and dashboard**
 - **Problem:** `AdminController` exposed only system-config CRUD and the audit log. No user-activity analytics (inactive accounts, login frequency) and no system-health view (BullMQ queue statuses, failed notification counts) existed anywhere in the application.
 - **Backend — `AdminAnalyticsService`:**
-  - `GET /admin/analytics/users` — user activity stats: total/active/inactive user counts, accounts that have never logged in, accounts inactive for 30 + and 90 + days, breakdown by role (one count per `Role` enum value), and a five-bucket login-recency distribution (< 7 d, 7–30 d, 30–90 d, > 90 d, never); all ten base counts run inside a single `$transaction` for consistency
-  - `GET /admin/analytics/system` — system health stats: job counts (waiting / active / failed / completed / delayed) from all three BullMQ queues (`mail`, `report-generation`, `preventive-plan-generation`) fetched via `@InjectQueue`; notification delivery counters (email-failed total, pending-delivery count, emails sent in last 24 h) from the `Notification` table
-  - Both endpoints are restricted to `Role.ADMIN` via the existing `@Roles` guard
+ - `GET /admin/analytics/users` — user activity stats: total/active/inactive user counts, accounts that have never logged in, accounts inactive for 30 + and 90 + days, breakdown by role (one count per `Role` enum value), and a five-bucket login-recency distribution (< 7 d, 7–30 d, 30–90 d, > 90 d, never); all ten base counts run inside a single `$transaction` for consistency
+ - `GET /admin/analytics/system` — system health stats: job counts (waiting / active / failed / completed / delayed) from all three BullMQ queues (`mail`, `report-generation`, `preventive-plan-generation`) fetched via `@InjectQueue`; notification delivery counters (email-failed total, pending-delivery count, emails sent in last 24 h) from the `Notification` table
+ - Both endpoints are restricted to `Role.ADMIN` via the existing `@Roles` guard
 - **Module wiring:** `AdminModule` now imports `BullModule.registerQueue()` for all three queues and registers `AdminAnalyticsService` as a provider; existing `PrismaModule` and `SystemConfigModule` imports are preserved
 - **Frontend — `AdminAnalyticsBoard`:**
-  - Two-section layout: *User Activity* and *System Health*, rendered with the existing `Card`, `Badge`, and Lucide icon components
-  - User Activity: six KPI cards + an inline progress-bar login-recency breakdown + a by-role table; warning/danger colour variants applied on inactive counts
-  - System Health: three notification KPI cards (failed, pending, sent-24h) + one `QueueCard` per BullMQ queue showing all five count fields; failed > 0 renders as a destructive red badge
-  - Two independent `useQuery` calls (keys `['admin','analytics','users']` and `['admin','analytics','system']`); shared loading and error states
+ - Two-section layout: *User Activity* and *System Health*, rendered with the existing `Card`, `Badge`, and Lucide icon components
+ - User Activity: six KPI cards + an inline progress-bar login-recency breakdown + a by-role table; warning/danger colour variants applied on inactive counts
+ - System Health: three notification KPI cards (failed, pending, sent-24h) + one `QueueCard` per BullMQ queue showing all five count fields; failed > 0 renders as a destructive red badge
+ - Two independent `useQuery` calls (keys `['admin','analytics','users']` and `['admin','analytics','system']`); shared loading and error states
 - **Navigation:** `Activity` icon + `nav.analytics` key added to the ADMIN sidebar module in `sidebar-nav.config.ts`
 - **API client:** `adminApi.getUserAnalytics()` and `adminApi.getSystemHealth()` added to `lib/admin.api.ts` alongside the full TypeScript response types
 - **i18n:** `adminAnalytics` section added to `public/locales/fr/common.json` (title, subtitle, section labels, all user-stat and system-stat keys, loading and error states — 30 + French keys, zero hardcoded strings in the component)
 - **Tests:** 22 unit tests for `AdminAnalyticsService` — all pass:
-  - `getUserActivityStats`: all 10 queries wrapped in one `$transaction`, positional result mapping, all 5 `loginRecency` buckets, `never === neverLoggedIn` invariant, `byRole` iterates every `Role` enum value exactly once, `isActive: true` filter enforced per role, 30-day and 90-day `lt` thresholds verified, zero-count boundary
-  - `getSystemHealthStats`: all 3 queues called, correct queue-name constants in response, per-field count mapping, `?? 0` fallback for absent states, 3 notification queries in one `$transaction`, email-pending filter (`emailSent: false AND emailFailed: false`), `emailSentAt >= 24 h ago` threshold verified, `emailSent: true` guard
+ - `getUserActivityStats`: all 10 queries wrapped in one `$transaction`, positional result mapping, all 5 `loginRecency` buckets, `never === neverLoggedIn` invariant, `byRole` iterates every `Role` enum value exactly once, `isActive: true` filter enforced per role, 30-day and 90-day `lt` thresholds verified, zero-count boundary
+ - `getSystemHealthStats`: all 3 queues called, correct queue-name constants in response, per-field count mapping, `?? 0` fallback for absent states, 3 notification queries in one `$transaction`, email-pending filter (`emailSent: false AND emailFailed: false`), `emailSentAt >= 24 h ago` threshold verified, `emailSent: true` guard
 
 ### Added — Daily supervisor summary email (April 17, 2026)
 
-**feat(work-orders): implement daily supervisor summary email (§12.3)**
-- **Problem:** `SystemConfig` stored the `DAILY_SUMMARY_HOUR` key but nothing consumed it; no cron job or email existed to send the daily digest required by spec §12.3.
+**feat(work-orders): implement daily supervisor summary email**
+- **Problem:** `SystemConfig` stored the `DAILY_SUMMARY_HOUR` key but nothing consumed it; no cron job or email existed to send the daily digest required by spec
 - **`DailySummaryJob`** (`@Cron(EVERY_HOUR)`):
-  - Reads `DAILY_SUMMARY_HOUR` from `SystemConfig` (default 17; validated to 0–23 range, falls back to 17 on invalid value)
-  - Hour-gate: skips silently when the current hour does not match the configured hour, ensuring exactly one send per day regardless of process restarts
-  - Collects seven work-order metrics in a single `$transaction`: `openCount` (OPEN + ASSIGNED), `inProgressCount`, `pendingValidationCount`, `onHoldCount`, `overdueCount` (active WOs past `dueDate`), `criticalCount` (active CRITICAL WOs), `closedTodayCount` (CLOSED with `closedAt >= midnight today`)
-  - Fetches all active users whose `roles` array contains `'SUPERVISOR'`
-  - Enqueues one `daily-summary` mail job per supervisor via `MailService.enqueue()` using `Promise.all` (parallel, not sequential)
-  - Logs a summary line including metrics and supervisor count
+ - Reads `DAILY_SUMMARY_HOUR` from `SystemConfig` (default 17; validated to 0–23 range, falls back to 17 on invalid value)
+ - Hour-gate: skips silently when the current hour does not match the configured hour, ensuring exactly one send per day regardless of process restarts
+ - Collects seven work-order metrics in a single `$transaction`: `openCount` (OPEN + ASSIGNED), `inProgressCount`, `pendingValidationCount`, `onHoldCount`, `overdueCount` (active WOs past `dueDate`), `criticalCount` (active CRITICAL WOs), `closedTodayCount` (CLOSED with `closedAt >= midnight today`)
+ - Fetches all active users whose `roles` array contains `'SUPERVISOR'`
+ - Enqueues one `daily-summary` mail job per supervisor via `MailService.enqueue()` using `Promise.all` (parallel, not sequential)
+ - Logs a summary line including metrics and supervisor count
 - **`daily-summary.hbs`** Handlebars template: HTML email showing the supervisor's name, today's date (formatted `fr-FR`), and a styled seven-row metrics table with badge-like colouring for critical/overdue values
 - **Mail integration:** `'daily-summary'` added to the `MailTemplate` union type in `send-mail.dto.ts`; `'[GMAO] Résumé quotidien des ordres de travail'` subject added to `SUBJECT_MAP` in `mail.processor.ts`
 - **Module wiring:** `WorkOrdersModule` imports `MailModule` and registers `DailySummaryJob` as a provider; `SystemConfigModule` is already transitively available via `PrismaModule`
@@ -720,14 +742,14 @@ All notable changes to the GMAO project are documented here.
 **feat(work-orders): add authorize-simultaneous endpoint and supervisor UI**
 - **Problem:** `InterventionService.start()` correctly blocks a second work order from starting when an asset already has an `IN_PROGRESS` WO and `simultaneousMaintenanceAuthorized` is `false`. However, no mechanism existed for the supervisor to lift that block — the technician was permanently stuck.
 - **Backend:** New `PATCH /work-orders/:id/authorize-simultaneous` endpoint (Supervisor only)
-  - Guards: `400` if WO is already terminal (CLOSED/CANCELLED); `400` if simultaneous maintenance is already authorized (idempotency)
-  - Transaction: sets `simultaneousMaintenanceAuthorized = true` and writes a `WorkOrderStatusLog` entry (`"Simultaneous maintenance authorized by supervisor"`) for full auditability
-  - Notification: dispatches `SIMULTANEOUS_MAINTENANCE_AUTHORIZED` to the principal technician so they know to retry starting the WO
-  - `WorkOrdersService.authorizeSimultaneousMaintenance()` logs the event via the `WorkOrdersService` logger
+ - Guards: `400` if WO is already terminal (CLOSED/CANCELLED); `400` if simultaneous maintenance is already authorized (idempotency)
+ - Transaction: sets `simultaneousMaintenanceAuthorized = true` and writes a `WorkOrderStatusLog` entry (`"Simultaneous maintenance authorized by supervisor"`) for full auditability
+ - Notification: dispatches `SIMULTANEOUS_MAINTENANCE_AUTHORIZED` to the principal technician so they know to retry starting the WO
+ - `WorkOrdersService.authorizeSimultaneousMaintenance()` logs the event via the `WorkOrdersService` logger
 - **Schema/enums:** Added `SIMULTANEOUS_MAINTENANCE_AUTHORIZED` to `NotificationType` in both `packages/db/prisma/schema.prisma` and `packages/shared/src/enums/notification.enum.ts`; Prisma client and `@gmao/db` rebuilt
 - **Frontend:** Supervisor work-order detail dialog gains an **"Autoriser la maintenance simultanée"** action button, visible only when the WO is `ASSIGNED` and `simultaneousMaintenanceAuthorized` is `false`
-  - Clicking the button opens a confirmation panel with a yellow warning banner explaining the risk
-  - `authorizeSimultaneous` API call, mutation, success/error toasts, and `queryClient.invalidateQueries` all wired following existing dialog patterns
+ - Clicking the button opens a confirmation panel with a yellow warning banner explaining the risk
+ - `authorizeSimultaneous` API call, mutation, success/error toasts, and `queryClient.invalidateQueries` all wired following existing dialog patterns
 - **i18n:** 6 new French keys added under `supervisorWorkOrders` (`actions.authorizeSim`, `actions.authorizeSimWarningTitle`, `actions.authorizeSimWarningBody`, `actions.authorizeSimConfirm`, `toasts.authorizeSimSuccess`, `toasts.authorizeSimError`)
 - **Tests:** 10 unit tests covering success path (transaction shape, status-log content, notification delivery, return value), the no-principal-technician branch, both terminal-status failure modes, already-authorized guard, and DB write isolation on rejection
 
@@ -736,9 +758,9 @@ All notable changes to the GMAO project are documented here.
 **fix(work-orders): enforce assetStatusOverride when technician could not intervene**
 - `ValidationService.validate()` previously set the asset to `OPERATIONAL` unconditionally, even when the technician submitted `result: COULD_NOT_INTERVENE` — marking an unrepaired asset as back in service
 - The service now reads the most recent **completed** intervention log (i.e. with `endedAt IS NOT NULL` and `result IS NOT NULL`) before deciding the post-validation asset status:
-  - **Normal results** (RESOLVED, PARTIALLY_RESOLVED, NEEDS_FOLLOW_UP, or no log): asset → `OPERATIONAL` as before
-  - **COULD_NOT_INTERVENE**: `assetStatusOverride` is **mandatory**; missing it raises `400 BadRequestException` with an explicit message; the chosen status is applied and logged
-- A `FOLLOW_UP_PROMPT` in-app notification is dispatched to all active supervisors on the CNI path (corrected from the initial implementation that incorrectly targeted the principal technician — see §8.8, §9.5 fix above)
+ - **Normal results** (RESOLVED, PARTIALLY_RESOLVED, NEEDS_FOLLOW_UP, or no log): asset → `OPERATIONAL` as before
+ - **COULD_NOT_INTERVENE**: `assetStatusOverride` is **mandatory**; missing it raises `400 BadRequestException` with an explicit message; the chosen status is applied and logged
+- A `FOLLOW_UP_PROMPT` in-app notification is dispatched to all active supervisors on the CNI path
 - The WO status log label records `"COULD_NOT_INTERVENE acknowledged — asset set to <status>"` for full auditability
 - New DTO `ValidateWorkOrderDto` with `assetStatusOverride?: AssetStatus` wired into `PATCH /work-orders/:id/validate`
 - Frontend validate panel detects CNI from `detail.interventionLogs`: shows a **red warning banner** and a mandatory asset-status select (OUT_OF_SERVICE / IN_MAINTENANCE / OPERATIONAL — risk accepted); Confirm button is disabled until a choice is made
@@ -792,11 +814,11 @@ All notable changes to the GMAO project are documented here.
 **feat(work-orders): add automatic priority escalation job scheduler**
 - New hourly Cron job (`PriorityEscalationJob`) evaluates and escalates overdue work orders
 - Escalation follows strict priority chain: LOW → MEDIUM → HIGH → CRITICAL
-- Escalation is scoped to OPEN and ASSIGNED statuses only — IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION are excluded (corrected by §4.3 fix above)
-- CRITICAL WOs are not escalated further; overdue CRITICAL WOs trigger a separate `WO_OVERDUE` supervisor notification (added by §4.3 fix above)
+- Escalation is scoped to OPEN and ASSIGNED statuses only — IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION are excluded
+- CRITICAL WOs are not escalated further; overdue CRITICAL WOs trigger a separate `WO_OVERDUE` supervisor notification
 - Full audit trail preserved via `WorkOrderPriorityLog` with `isAutoEscalation=true` flag
 - Supervisor notifications sent via `NotificationType.WO_AUTO_ESCALATED` for every escalated work order
-- System escalations logged explicitly as "automatic system escalation" per spec §4.3
+- System escalations logged explicitly as "automatic system escalation" per spec
 
 ### Fixed — Reference number integrity under concurrency (April 13, 2026)
 
@@ -804,14 +826,14 @@ All notable changes to the GMAO project are documented here.
 - Replaced all `count + 1` reference generation patterns that could produce duplicate references under parallel writes
 - Added shared utility: `apps/backend/src/common/reference-number.util.ts`
 - New generators use PostgreSQL transaction advisory locks (`pg_advisory_xact_lock`) and last-reference lookup per year:
-  - `nextWorkOrderReference(tx)`
-  - `nextProblemReportReference(tx)`
+ - `nextWorkOrderReference(tx)`
+ - `nextProblemReportReference(tx)`
 - Wired into every affected creation flow:
-  - Work order direct creation (`WorkOrdersRepository.create`)
-  - Preventive plan auto-generated WO (`PreventivePlansService.generateWorkOrder`)
-  - Checklist anomaly auto-created WO (`ChecklistService.completeItem`)
-  - Problem report submission (`ReportsService.submit`)
-  - Report conversion to WO (`ReportsService.convert`)
+ - Work order direct creation (`WorkOrdersRepository.create`)
+ - Preventive plan auto-generated WO (`PreventivePlansService.generateWorkOrder`)
+ - Checklist anomaly auto-created WO (`ChecklistService.completeItem`)
+ - Problem report submission (`ReportsService.submit`)
+ - Report conversion to WO (`ReportsService.convert`)
 - Result: reference generation is serialized per sequence family/year and remains format-compatible (`WO-YYYY-XXXXXX`, `PR-YYYY-XXXXXX`)
 
 ### Added — Role-scope audit: asset certificate/document CRUD + part-return UI (April 9, 2026)
@@ -842,7 +864,7 @@ All notable changes to the GMAO project are documented here.
 
 **fix(web): add missing API client methods to assetsApi**
 - `assetsApi` lacked five methods that the backend fully supports:
-  `createCertificate`, `updateCertificate`, `deleteCertificate`, `uploadDocument`, `deleteDocument`
+ `createCertificate`, `updateCertificate`, `deleteCertificate`, `uploadDocument`, `deleteDocument`
 - All multipart methods build `FormData` internally; callers pass plain objects + optional `File`
 
 **feat(web-i18n): add all French translations for new dialogs**

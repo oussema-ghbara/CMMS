@@ -4,6 +4,23 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Daily summary role-aware stock visibility + critical deferred report section (§12.3) (April 25, 2026)
+
+#### `fix(work-orders): complete daily-summary payload and rendering for critical deferred + role-aware inventory`
+- `DailySummaryJob` now computes and exposes additional fields required by the spec:
+  - `criticalDeferredCount`: count of `ProblemReportStatus.DEFERRED` reports with `deferredAt <= now - 14 days`.
+  - `criticalDeferredItems`: top 10 oldest critical deferred reports with `{ referenceNumber, assetName, deferredAt, daysDeferred }`.
+  - `lowStockItems`: top 10 below-threshold parts with `{ name, referenceCode, currentStock, minimumStockThreshold }`.
+- Mail context is now recipient-role aware:
+  - Added `hasStorekeeperRole` flag per supervisor recipient.
+  - Low-stock metrics/details are included only for supervisors who also have `STOREKEEPER` role.
+  - Supervisors without storekeeper role receive `lowStockCount = 0` and `lowStockItems = []` in mail context.
+- `daily-summary.hbs` updated:
+  - Added dashboard row for "Signalements differes critiques (14+ jours)".
+  - Added detailed table section for critical deferred reports with empty-state fallback.
+  - Wrapped low-stock row/table sections in `{{#if hasStorekeeperRole}}` to avoid exposing inventory-only content to non-storekeeper supervisors.
+- Tests (`daily-summary.job.spec.ts`): expanded from 48 to 53 tests with new branches for critical deferred query predicates, list mapping, and role-based context shaping.
+
 ### Fixed — pdfkit test mock CJS interop + §9.8 technician rejection rate by category (April 25, 2026)
 
 #### `fix(tests): correct pdfkit CommonJS mock in report-generation specs`

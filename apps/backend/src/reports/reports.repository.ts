@@ -122,6 +122,7 @@ export class ReportsRepository {
         reporterId: actorId,
         description: dto.description,
         urgencyPerception: dto.urgencyPerception,
+        submittedDespiteWarning: dto.submittedDespiteWarning ?? false,
       },
     });
   }

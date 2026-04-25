@@ -5,7 +5,7 @@ about: Something is broken
 
 ## What happened
 
-<!-- Describe the bug. -->
+<!-- Describe the bug clearly. What did you expect vs. what actually occurred. -->
 
 ## Steps to reproduce
 
@@ -13,12 +13,20 @@ about: Something is broken
 2.
 3.
 
-## Expected behavior
+## Context
 
-<!-- What should have happened. -->
+- **Affected layer:** <!-- Backend / Web / Both -->
+- **Module:** <!-- e.g. WorkOrders, Inventory, PreventivePlans, Auth ... -->
+- **Endpoint or page:** <!-- e.g. PATCH /work-orders/:id/validate or /supervisor/work-orders -->
+- **WO / asset / entity ID (if applicable):**
+
+## Error output
+
+```
+<!-- Paste the error message, stack trace, or browser console output here -->
+```
 
 ## Environment
 
-- Module:
-- Endpoint (if applicable):
-- Error message / stack trace:
+- [ ] Reproducible in local dev with seeded database
+- Backend version (last commit): <!-- git log --oneline -1 -->

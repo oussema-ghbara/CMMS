@@ -10,6 +10,7 @@ import { ReassignTechnicianDto } from './dto/reassign-technician.dto';
 import { PromoteTechnicianDto } from './dto/promote-technician.dto';
 import { ContributorBlockDto } from './dto/contributor-block.dto';
 import { WorkOrderStatus, AssignmentRole, NotificationType, Role } from '@gmao/db';
+import { WOReassignmentReason } from '@gmao/shared';
 import { isTerminal } from './work-orders.state-machine';
 
 @Injectable()
@@ -170,8 +171,8 @@ export class AssignmentService {
           workOrderId: woId,
           fromTechnicianId: oldPrincipalId,
           toTechnicianId: dto.newPrincipalId,
-          reason: 'TECHNICIAN_ABSENT',
-          reasonDetail: 'Promoted from contributor',
+          reason: dto.reason ?? WOReassignmentReason.TECHNICIAN_ABSENT,
+          reasonDetail: dto.reasonDetail ?? null,
           performedById: actorId,
         },
       });

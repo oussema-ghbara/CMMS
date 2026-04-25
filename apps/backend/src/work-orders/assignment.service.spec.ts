@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { AssignmentService } from './assignment.service';
 import { AssignmentRole, NotificationType, WorkOrderStatus } from '@gmao/db';
+import { WOReassignmentReason } from '@gmao/shared';
 
 const ACTOR_ID = 'supervisor-1';
 
@@ -126,13 +127,14 @@ describe('AssignmentService.promote', () => {
       where: { id: 'wo-1' },
       data: { principalTechnicianId: 'tech-new' },
     });
+    // §5.3: defaults to TECHNICIAN_ABSENT when no reason supplied
     expect(tx.reassignmentCreate).toHaveBeenCalledWith({
       data: {
         workOrderId: 'wo-1',
         fromTechnicianId: 'tech-old',
         toTechnicianId: 'tech-new',
-        reason: 'TECHNICIAN_ABSENT',
-        reasonDetail: 'Promoted from contributor',
+        reason: WOReassignmentReason.TECHNICIAN_ABSENT,
+        reasonDetail: null,
         performedById: ACTOR_ID,
       },
     });
@@ -143,6 +145,60 @@ describe('AssignmentService.promote', () => {
         entityId: 'wo-1',
       }),
     );
+  });
+
+  it('records the caller-supplied reason and reasonDetail in the reassignment log', async () => {
+    const { service, repo, prisma, tx } = buildMocks();
+    repo.findById
+      .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.IN_PROGRESS }) as never)
+      .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.IN_PROGRESS, principalTechnicianId: 'tech-new' }) as never);
+    (prisma.workOrderAssignment.findFirst as jest.Mock).mockResolvedValue({
+      id: 'assignment-1',
+      role: AssignmentRole.CONTRIBUTOR,
+      isActive: true,
+    });
+
+    await service.promote(
+      'wo-1',
+      {
+        newPrincipalId: 'tech-new',
+        reason: WOReassignmentReason.SPECIFIC_SKILL_REQUIRED,
+        reasonDetail: 'Need welding certification',
+      },
+      ACTOR_ID,
+    );
+
+    expect(tx.reassignmentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        reason: WOReassignmentReason.SPECIFIC_SKILL_REQUIRED,
+        reasonDetail: 'Need welding certification',
+      }),
+    });
+  });
+
+  it('records null reasonDetail when reasonDetail is omitted', async () => {
+    const { service, repo, prisma, tx } = buildMocks();
+    repo.findById
+      .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.IN_PROGRESS }) as never)
+      .mockResolvedValueOnce(buildWorkOrder({ status: WorkOrderStatus.IN_PROGRESS, principalTechnicianId: 'tech-new' }) as never);
+    (prisma.workOrderAssignment.findFirst as jest.Mock).mockResolvedValue({
+      id: 'assignment-1',
+      role: AssignmentRole.CONTRIBUTOR,
+      isActive: true,
+    });
+
+    await service.promote(
+      'wo-1',
+      { newPrincipalId: 'tech-new', reason: WOReassignmentReason.PRIORITY_CONFLICT },
+      ACTOR_ID,
+    );
+
+    expect(tx.reassignmentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        reason: WOReassignmentReason.PRIORITY_CONFLICT,
+        reasonDetail: null,
+      }),
+    });
   });
 
   it('does not touch intervention logs when promoting an ASSIGNED work order', async () => {

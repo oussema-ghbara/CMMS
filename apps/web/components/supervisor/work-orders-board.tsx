@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Eye, Loader2, Pencil, Plus, Search } from 'lucide-react';
+import { Eye, Loader2, Pencil, Plus, Search, X } from 'lucide-react';
 import { WorkOrderPriority, WorkOrderStatus, WorkOrderType } from '@gmao/shared';
 import { workOrdersApi, type WorkOrderListItem } from '@/lib/work-orders.api';
 import { Badge } from '@/components/ui/badge';
@@ -108,6 +108,9 @@ export function WorkOrdersBoard() {
   const [type, setType] = useState<WorkOrderType | ''>('');
   const [priority, setPriority] = useState<WorkOrderPriority | ''>('');
 
+  // §9.3: Technician filter applied when navigating from the dashboard load panel (?technicianId=).
+  const technicianId = searchParams.get('technicianId') ?? undefined;
+
   // Priority change dialog (quick-access from row)
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [priorityDialogOpen, setPriorityDialogOpen] = useState(false);
@@ -138,8 +141,9 @@ export function WorkOrdersBoard() {
       ...(status ? { status } : {}),
       ...(type ? { type } : {}),
       ...(priority ? { priority } : {}),
+      ...(technicianId ? { technicianId } : {}),
     }),
-    [page, search, status, type, priority],
+    [page, search, status, type, priority, technicianId],
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -176,6 +180,9 @@ export function WorkOrdersBoard() {
     setType('');
     setPriority('');
     setPage(1);
+    if (technicianId) {
+      router.replace('/supervisor/work-orders', { scroll: false });
+    }
   };
 
   const openPriorityDialog = (item: WorkOrderListItem) => {
@@ -272,6 +279,20 @@ export function WorkOrdersBoard() {
           <Button type="button" variant="ghost" onClick={handleResetFilters}>
             {t('supervisorWorkOrders.filters.reset')}
           </Button>
+
+          {technicianId && (
+            <Badge variant="secondary" className="flex items-center gap-1 pr-1">
+              {t('supervisorWorkOrders.filters.technicianFilter')}
+              <button
+                type="button"
+                aria-label={t('supervisorWorkOrders.filters.clearTechnicianFilter')}
+                onClick={() => router.replace('/supervisor/work-orders', { scroll: false })}
+                className="ml-0.5 rounded hover:bg-secondary-foreground/10"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-3">

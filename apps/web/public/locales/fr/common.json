@@ -233,7 +233,8 @@
       "title": "Charge des techniciens",
       "woCount": "{{count}} OT",
       "criticalLabel": "CRITIQUE",
-      "none": "Aucun technicien avec des OT ouverts"
+      "none": "Aucun technicien avec des OT ouverts",
+      "viewQueue": "Voir la file d'OT de ce technicien"
     },
     "assetHealth": {
       "title": "Santé des équipements",
@@ -493,7 +494,9 @@
       "allTypes": "Tous les types",
       "allPriorities": "Toutes les priorités",
       "apply": "Appliquer",
-      "reset": "Réinitialiser"
+      "reset": "Réinitialiser",
+      "technicianFilter": "Filtré par technicien",
+      "clearTechnicianFilter": "Supprimer le filtre technicien"
     },
     "columns": {
       "createdAt": "Créé le",

@@ -53,6 +53,8 @@ export interface WorkOrderListQuery {
   status?: WorkOrderStatus;
   type?: WorkOrderType;
   priority?: WorkOrderPriority;
+  /** Filter to WOs assigned to (or having an active assignment for) this technician ID. */
+  technicianId?: string;
   page?: number;
   limit?: number;
   /** ISO-8601 — return only WOs closed at or after this date */

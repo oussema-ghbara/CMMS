@@ -106,7 +106,11 @@ function CertAlertRow({ item }: { item: CertificateAlertItem }) {
 function TechnicianLoadRow({ item }: { item: TechnicianLoadItem }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between gap-2 py-1.5 text-sm">
+    <Link
+      href={`/supervisor/work-orders?technicianId=${item.technicianId}`}
+      className="flex items-center justify-between gap-2 rounded py-1.5 px-1 text-sm transition-colors hover:bg-muted/50"
+      title={t('supervisorDashboard.technicianLoad.viewQueue')}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium">{item.name}</span>
@@ -121,7 +125,7 @@ function TechnicianLoadRow({ item }: { item: TechnicianLoadItem }) {
           </Badge>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 

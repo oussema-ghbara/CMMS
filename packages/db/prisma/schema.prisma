@@ -843,26 +843,28 @@ model StockMovement {
 }
 
 model ProblemReport {
-  id                     String                 @id @default(cuid())
-  referenceNumber        String                 @unique
-  assetId                String
-  asset                  Asset                  @relation(fields: [assetId], references: [id])
-  reporterId             String
-  reporter               User                   @relation(fields: [reporterId], references: [id])
-  description            String
-  urgencyPerception      UrgencyPerception
-  status                 ProblemReportStatus    @default(PENDING)
-  processedById          String?
-  processedBy            User?                  @relation("ReportProcessedBy", fields: [processedById], references: [id])
-  processedAt            DateTime?
-  rejectionReason        ReportRejectionReason?
-  rejectionDetail        String?
-  deferredAt             DateTime?
-  deferNote              String?
-  archiveReason          ReportArchiveReason?
-  replacedByWorkOrderRef String?
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+  id                      String                 @id @default(cuid())
+  referenceNumber         String                 @unique
+  assetId                 String
+  asset                   Asset                  @relation(fields: [assetId], references: [id])
+  reporterId              String
+  reporter                User                   @relation(fields: [reporterId], references: [id])
+  description             String
+  urgencyPerception       UrgencyPerception
+  status                  ProblemReportStatus    @default(PENDING)
+  processedById           String?
+  processedBy             User?                  @relation("ReportProcessedBy", fields: [processedById], references: [id])
+  processedAt             DateTime?
+  rejectionReason         ReportRejectionReason?
+  rejectionDetail         String?
+  deferredAt              DateTime?
+  deferNote               String?
+  archiveReason           ReportArchiveReason?
+  replacedByWorkOrderRef  String?
+  // §9.8: set to true when the requester submits despite the duplicate-WO warning banner.
+  submittedDespiteWarning Boolean                @default(false)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
 
   derivedWorkOrders WorkOrder[]
   comments          ProblemReportComment[]

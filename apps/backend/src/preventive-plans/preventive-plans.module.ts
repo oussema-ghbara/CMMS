@@ -7,6 +7,7 @@ import { PlanGeneratorProcessor } from './jobs/plan-generator.processor';
 import { PlanSchedulerService } from './jobs/plan-scheduler.service';
 import { PREVENTIVE_PLAN_QUEUE } from './preventive-plans.constants';
 import { AssetsModule } from '../assets/assets.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AssetsModule } from '../assets/assets.module';
     // registerQueue here connects to that existing Redis connection.
     BullModule.registerQueue({ name: PREVENTIVE_PLAN_QUEUE }),
     AssetsModule,
+    NotificationsModule,
   ],
   controllers: [PreventivePlansController],
   providers: [

@@ -4,6 +4,20 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Parts consumption breakdown by asset category and WO type (§10.6) (April 25, 2026)
+
+**feat(inventory): add getConsumptionBreakdown() with per-part breakdown by asset category and WO type (§10.6)**
+- Spec §10.6 requires "Consommation par pièce ventilée par catégorie d'actif et type d'OT (correctif vs préventif)." The previous `getConsumptionAnalytics()` grouped only by `partId` with no join to the work order or asset hierarchy.
+- `InventoryRepository.getConsumptionBreakdown(periodDays)`: single `$queryRaw` SQL joining `StockMovement → WorkOrder (LEFT) → Asset (LEFT) → AssetCategory (LEFT)`, grouped by `partId × categoryId × wo.type`; quantity and `COALESCE(unitCostAtTime, unitCost, 0) × quantity` are summed per cell; restricted to the top-20 parts by outgoing quantity via an inline subquery (no extra round-trip).
+- Post-query JS builds a nested `PartConsumptionBreakdown[]` (part → `byAssetCategory[]` → `byWoType[]`); movements not linked to a WO appear under `categoryId: null / woType: null`; final array sorted descending by `totalQuantity`.
+- `InventoryService.getAnalytics()` runs `getConsumptionBreakdown()` in the existing `Promise.all` and returns it as `consumptionBreakdown` alongside the unchanged `consumption` field — fully additive.
+- Tests: 7 new unit tests in `inventory.repository.spec.ts` — empty result, single-row mapping, CORRECTIVE+PREVENTIVE aggregation within the same part+category, multi-category grouping, null WO/category handling, sort order, and `since` date boundary. 19 total, 0 regressions.
+
+**feat(web): render consumption breakdown by asset category and WO type in storekeeper analytics (§10.6)**
+- Three new interfaces in `inventory.api.ts`: `ConsumptionBreakdownWoTypeEntry`, `ConsumptionBreakdownCategoryEntry`, `PartConsumptionBreakdown`; `InventoryAnalyticsResponse` extended with `consumptionBreakdown: PartConsumptionBreakdown[]`.
+- New **"Consommation par catégorie d'équipement et type d'OT"** Card in `stock-analytics-board.tsx` rendered between the top-consumption cards and the request-breakdown section: per-part bordered block with a table row per `(category × WO type)`, coloured `Badge` labels (CORRECTIVE = destructive, PREVENTIVE = secondary, NONE = outline), subtotals per category, and a grand-total row.
+- i18n: `storekeeperAnalytics.sections.{consumptionBreakdown,consumptionBreakdownDescription}`, `columns.{assetCategory,woType}`, `labels.{noCategory,total,woType.{CORRECTIVE,PREVENTIVE,NONE}}` added to `apps/web/public/locales/fr/common.json`.
+
 ### Added — Same-asset same-day preventive plan conflict detection (§9.6) (April 25, 2026)
 
 **feat(preventive-plans): detect same-asset same-day plan conflicts (§9.6)**

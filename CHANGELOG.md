@@ -6,14 +6,14 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Same-asset same-day preventive plan conflict detection (§9.6) (April 25, 2026)
 
-#### `feat(preventive-plans): detect same-asset same-day plan conflicts (§9.6)`
+**feat(preventive-plans): detect same-asset same-day plan conflicts (§9.6)**
 - `PreventivePlansRepository.findSameDayAssetConflicts()` new method groups due plans by `assetId` and identifies conflicts: 2+ plans due same day on the same asset.
 - Returns `Map<assetId, conflictDetails[]>` with `{ planId, planTitle, assetName }` for each conflict.
 - Added `AssetSummary` and `TechnicianSummary` type helpers for plan relation includes.
 - Updated `PlanWithRelations` type to include `asset` and `defaultTechnician` relations needed for conflict context.
 - 6 unit tests covering empty plans, single asset conflict, multiple independent asset conflicts, and data accuracy. All passing.
 
-#### `feat(preventive-plans): notify supervisors of same-asset plan conflicts`
+**feat(preventive-plans): notify supervisors of same-asset plan conflicts**
 - `PlanSchedulerService.scheduleDuePlans()` calls `findSameDayAssetConflicts()` before enqueueing WO generation jobs.
 - When conflicts detected: supervisor notification sent with title "Conflit détecté : plusieurs plans préventifs" (French).
 - Message includes asset name, conflict count, and comma-separated plan titles.
@@ -21,14 +21,14 @@ All notable changes to the GMAO project are documented here.
 - **Critical behavior**: All plans are still enqueued (both WOs created as specified). Notification is informational only — no WO generation is blocked.
 - 6 unit tests covering no conflicts, single asset conflict, multi-asset scenarios, and all-plans-enqueued verification. All passing.
 
-#### `fix(preventive-plans): wire NotificationsModule dependency`
+**fix(preventive-plans): wire NotificationsModule dependency**
 - `PreventivePlansModule` now imports `NotificationsModule` to support supervisor conflict notifications.
 - `PlanSchedulerService` can now inject `NotificationsService`.
 - Total test coverage: 12 new tests (6 repository + 6 scheduler), all passing; 0 regressions.
 
 ### Fixed — Daily summary role-aware stock visibility + critical deferred report section (§12.3) (April 25, 2026)
 
-#### `fix(work-orders): complete daily-summary payload and rendering for critical deferred + role-aware inventory`
+**fix(work-orders): complete daily-summary payload and rendering for critical deferred + role-aware inventory**
 - `DailySummaryJob` now computes and exposes additional fields required by the spec:
   - `criticalDeferredCount`: count of `ProblemReportStatus.DEFERRED` reports with `deferredAt <= now - 14 days`.
   - `criticalDeferredItems`: top 10 oldest critical deferred reports with `{ referenceNumber, assetName, deferredAt, daysDeferred }`.
@@ -45,18 +45,18 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — pdfkit test mock CJS interop + §9.8 technician rejection rate by category (April 25, 2026)
 
-#### `fix(tests): correct pdfkit CommonJS mock in report-generation specs`
+**fix(tests): correct pdfkit CommonJS mock in report-generation specs**
 - Both `report-generation.service.spec.ts` and `report-generation.e2e.spec.ts` returned `{ __esModule: true, default: MockPDFDocument }` from their `jest.mock` factory. With `module: "commonjs"` in tsconfig, `import * as PDFDocument from 'pdfkit'` compiles to `const PDFDocument = require('pdfkit')`, so the factory's return value IS `PDFDocument`. Returning a namespace object instead of the class caused `new PDFDocument()` to throw `TypeError: PDFDocument is not a constructor` at runtime in Jest.
 - Fix: return the class directly from the mock factory. Also switched `EventEmitter` to `require('events')` inside the factory to avoid any jest-hoisting reference edge cases.
 - Impact: 11 previously failing tests now pass; 29/29 report-generation tests green; 0 regressions.
 
-#### `fix(tests): add missing StorageService and ReportGenerationService mocks to work-orders.service.spec.ts`
+**fix(tests): add missing StorageService and ReportGenerationService mocks to work-orders.service.spec.ts**
 - All 8 `beforeEach` blocks in `work-orders.service.spec.ts` were missing `StorageService` and `ReportGenerationService` provider mocks. These dependencies were added to the `WorkOrdersService` constructor in a previous session but the spec file was never updated — causing all 45 tests to fail at module instantiation.
 - Added `{ provide: StorageService, useValue: { getSignedUrl: jest.fn() } }` and `{ provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } }` to every `beforeEach` block.
 - Added `import { StorageService }` and `import { ReportGenerationService }` at the top of the file.
 - Result: 45/45 tests passing.
 
-#### `feat(analytics): compute per-technician rejection rate by category (§9.8)`
+**feat(analytics): compute per-technician rejection rate by category (§9.8)**
 - Spec §9.8 requires "Taux de rejet : % de clôtures rejetées par le Superviseur, ventilé par catégorie de motif de rejet."
 - `work-orders.service.ts`: The `techKpiWOs` Prisma select was extended to include `rejectionReason` inside `validationActions`. The `techMap` accumulator gained `rejectionsByReason: Map<string, number>` to count each `REJECTED` validation action's `ValidationRejectionReason` per technician. Null reasons (e.g., validation records from before the field was required) are silently skipped.
 - Each technician KPI entry now exposes three new fields:
@@ -65,7 +65,7 @@ All notable changes to the GMAO project are documented here.
   - `rejectionRateByCategory` — `Record<ValidationRejectionReason, { count: number; rate: number }>`.
 - Tests: 5 new unit tests in a dedicated `describe` block covering: no rejections → empty map, single reason, multi-reason accumulation (two technicians stay independent), and null-reason grace handling. 45/45 passing.
 
-#### `feat(web): display technician rejection rate by category in analytics board (§9.8)`
+**feat(web): display technician rejection rate by category in analytics board (§9.8)**
 - `work-orders.api.ts`: New `TechnicianRejectionCategoryEntry { count, rate }` interface; `TechnicianKpiItem` extended with `rejectionCount`, `rejectionRate`, and `rejectionRateByCategory: Record<string, TechnicianRejectionCategoryEntry>`.
 - `supervisor-analytics-board.tsx`:
   - `TechRow` gains a 7th column **"Taux de rejet"**; non-zero values are rendered in `text-destructive font-medium`.
@@ -75,52 +75,48 @@ All notable changes to the GMAO project are documented here.
 - `fr/common.json`: 4 new keys added: `supervisorAnalytics.columns.{rejectionRate,rejectionCount}`, `supervisorAnalytics.sections.{technicianRejectionBreakdown,technicianRejectionBreakdownDesc}`.
 - Tests (`work-orders.api.spec.ts`): 3 new tests for `getAnalytics` — full payload with multi-reason breakdown, empty breakdown, and empty `technicianKpis` array. 9/9 passing; 120 frontend tests total, 0 regressions.
 
----
-
 ### Added — Audit gap fixes: promote reason, report enrichment, daily summary, technician filter (April 25, 2026)
 
-#### `fix(work-orders): allow caller-supplied reason when promoting contributor to principal`
+**fix(work-orders): allow caller-supplied reason when promoting contributor to principal**
 - `PromoteTechnicianDto` gains optional `reason?: WOReassignmentReason` and `reasonDetail?: string`.
 - `assignmentService.promoteTechnician()` passes caller-supplied values to the reassignment log; falls back to `TECHNICIAN_ABSENT` / `null` only when fields are omitted — removing the hardcoded strings.
 - Frontend: `PromoteTechnicianPayload` updated; promote panel in WO detail dialog gains a reason select and optional free-text detail field.
 - Tests: 2 new unit tests in `assignment.service.spec.ts`.
 
-#### `feat(work-orders): surface isReassignmentRemnant label on intervention logs (§5.3)`
+**feat(work-orders): surface isReassignmentRemnant label on intervention logs (§5.3)**
 - `WorkOrderInterventionLog` frontend type gains `isReassignmentRemnant: boolean`.
 - WO detail dialog renders an amber pill "incomplet — réassigné" inline with the technician name for force-closed log entries.
 
-#### `feat(web): navigate to filtered WO list from technician load panel`
+**feat(web): navigate to filtered WO list from technician load panel**
 - Technician load rows on the supervisor dashboard are now Next.js Links appending `?technicianId=<id>` to `/supervisor/work-orders`.
 - `WorkOrdersBoard` reads `technicianId` from URL params, passes it to the list query, and shows a dismissible amber filter chip.
 - `WorkOrderListQuery` frontend type gains optional `technicianId`; no backend changes needed.
 - Tests: `technician-filter.spec.ts` (4 tests); `work-orders.api.spec.ts` updated.
 
-#### `feat(reports): enrich report detail with asset context data`
+**feat(reports): enrich report detail with asset context data**
 - `ReportsRepository.findById()` includes `asset.workOrders` (non-terminal), `asset.certificates` (EXPIRING_SOON/EXPIRED, non-archived), and `assetInterventionHistory` (last 5 closed WOs, newest first — separate query to avoid Prisma relation-filter limitation).
 - Tests: 7 unit tests in new `reports.repository.spec.ts`.
 
-#### `feat(web): show asset context and duplicate WO warning in report detail`
+**feat(web): show asset context and duplicate WO warning in report detail**
 - `reports-board.tsx`: amber duplicate-WO banner when active WOs exist on the same asset; asset context card with certificate-alert badges and intervention history.
 - `ReportDetailItem` gains `asset.workOrders`, `asset.certificates`, `assetInterventionHistory`; three new interfaces.
 - Tests: `reports-detail-enrichment.spec.ts` (5 tests).
 
-#### `feat(work-orders): extend daily summary email with overdue list, on-hold durations, and inventory alerts`
+**feat(work-orders): extend daily summary email with overdue list, on-hold durations, and inventory alerts**
 - `DailySummaryMetrics` gains `deferredReportCount`, `lowStockCount`, `overdueList` (top 10), and `onHoldItems` (top 10 with computed `holdDurationMinutes`).
 - `$transaction` expanded to 8 queries; low-stock count uses a separate `findMany` + in-memory filter (Prisma column-to-column comparison limitation).
 - `daily-summary.hbs` updated with detailed sections for each new data set; empty fallback messages included.
 - `SendMailDto.context` broadened to `Record<string,unknown>` to support array values.
 - Tests: 48 unit tests (up from 30).
 
----
-
 ### Added — Public setup email resend flow (April 24, 2026)
 
-#### `feat(auth): add public resend-setup endpoint for expired onboarding links`
+**feat(auth): add public resend-setup endpoint for expired onboarding links**
 - Added `POST /auth/resend-setup` as a public, throttled endpoint that accepts an email address, reuses the existing setup-token mail flow, and returns `204 No Content` regardless of whether a matching inactive user exists.
 - `UsersService` now exposes `resendSetupByEmail(email)` to invalidate any prior setup token for the inactive user and queue a fresh setup email through the existing Handlebars/BullMQ pipeline.
 - Tests: controller integration coverage for success and validation failure, `AuthService` delegation coverage, and `UsersService` unit coverage for inactive, active, and missing-user branches.
 
-#### `feat(web): add public resend setup page and login entry point`
+**feat(web): add public resend setup page and login entry point**
 - Added `/resend-setup` with the same Suspense/card UX used by the other auth screens, plus a legacy `/app/auth/resend-setup` redirect for compatibility.
 - Login and expired-setup screens now link to the resend flow.
 - `authApi.resendSetup(email)` was added alongside i18n strings for the new form and success state.
@@ -128,7 +124,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Audit gap resolution: escalation, CRITICAL overdue, FOLLOW_UP_PROMPT, cancel notification (April 24, 2026)
 
-#### `feat(work-orders): add validation insight signals for supervisor closure review (§9.5)`
+**feat(work-orders): add validation insight signals for supervisor closure review (§9.5)**
 - `WorkOrdersService.findById()` now enriches WO detail responses with three additive fields used by the supervisor validation view:
   - `contributorsWithoutLog`: active contributor assignments with no intervention log entry.
   - `timeDeviation`: computed estimate-vs-actual metrics (`estimatedDurationMinutes`, `actualDurationMinutes`, `deltaMinutes`, `deltaPercent`).
@@ -136,7 +132,7 @@ All notable changes to the GMAO project are documented here.
 - This closes the two missing supervisor validation signals from the audit: contributor-without-log and notable time deviation.
 - Tests: dedicated backend unit suite for all branches (missing estimate, zero estimate, contributor coverage) and controller integration assertion that `GET /work-orders/:id` exposes the new fields.
 
-#### `feat(web): surface validation insight signals in supervisor WO detail dialog (§9.5)`
+**feat(web): surface validation insight signals in supervisor WO detail dialog (§9.5)**
 - Supervisor WO detail dialog now renders a dedicated validation-signals panel for `PENDING_VALIDATION` WOs when either condition is present:
   - one or more contributors without intervention logs,
   - notable estimate-vs-actual duration deviation.
@@ -144,52 +140,48 @@ All notable changes to the GMAO project are documented here.
 - Added French i18n keys for the new titles/descriptions; no hardcoded user-facing strings introduced.
 - Tests: API contract test for `workOrdersApi.getById` (new fields) and utility tests covering direction/edge cases (`none`, `over`, `under`, `equal`, null percentage).
 
-#### `fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only (§4.3)`
+**fix(work-orders): scope priority escalation to OPEN/ASSIGNED statuses only (§4.3)**
 - `WorkOrdersRepository.findOverdueForEscalation` previously used `status: { notIn: [CLOSED, CANCELLED] }`, which included IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION — contradicting the spec clause "has not moved to En cours".
 - Changed to `status: { in: [OPEN, ASSIGNED] }`. WOs that are already being worked on are never auto-escalated.
 - Tests: 8 unit tests in `work-orders.repository.escalation.spec.ts` verifying status filter, CRITICAL exclusion, dueDate constraint, and select shape.
 
-#### `fix(work-orders): notify supervisors when a CRITICAL WO becomes overdue (§4.3)`
+**fix(work-orders): notify supervisors when a CRITICAL WO becomes overdue (§4.3)**
 - Overdue CRITICAL WOs were silently excluded from the escalation query with no alternative path. The spec states: "Critique en retard ne s'escalade pas davantage — it triggers an immediate notification to the Supervisor."
 - Added `findOverdueCritical(now)` to `WorkOrdersRepository` — queries OPEN/ASSIGNED WOs with CRITICAL priority and `dueDate < now`.
 - `autoEscalateOverduePriorities()` now runs this query first, emits `WO_OVERDUE` via `notifySupervisors()` for each result, and returns a `criticalNotified` counter alongside the existing `checked` and `escalated` values.
 - Tests: 12 unit tests in `work-orders.service.escalation.spec.ts` covering zero case, CRITICAL-only path, escalation chain, mixed run, and return values.
 
-#### `fix(work-orders): send FOLLOW_UP_PROMPT to supervisors, not principal technician (§8.8, §9.5)`
+**fix(work-orders): send FOLLOW_UP_PROMPT to supervisors, not principal technician (§8.8, §9.5)**
 - `ValidationService.validate()` was dispatching `FOLLOW_UP_PROMPT` to `principalTechnicianId` on a COULD_NOT_INTERVENE result. The spec requires the Supervisor to be prompted (to create a follow-up WO or mark the asset Out of Service); the technician has no action to take.
 - Changed to `notifications.notifySupervisors(FOLLOW_UP_PROMPT, ...)`. The gate on `principalTechnicianId` was also removed — supervisors must be notified regardless.
 - Tests: replaced 2 stale test cases (wrong recipient assertions) with 4 correct tests: `notifySupervisors` called with FOLLOW_UP_PROMPT; `notify()` not called with FOLLOW_UP_PROMPT; fires even when WO has no principal technician.
 
-#### `fix(work-orders): notify source requester when a WO is cancelled (§9.4, §12.4)`
+**fix(work-orders): notify source requester when a WO is cancelled (§9.4, §12.4)**
 - `WorkOrdersService.cancel()` notified assigned technicians but ignored the original problem report reporter. The spec states: "Le Demandeur notifié si l'OT provient d'un signalement."
 - `findById` already includes `sourceReport.reporter.id` via its Prisma include. After technician notifications, `cancel()` now reads `sourceReport?.reporter?.id` and sends `LINKED_WO_CLOSED` to that user. Null-safe: no notification when the WO has no source report or the reporter is missing.
 - Tests: 3 unit tests in the `WorkOrdersService.cancel` block — requester notified; skipped when no source report; skipped when reporter is null.
 
----
-
 ### Added — On-demand PDF report download for closed work orders (April 24, 2026)
 
-#### `fix(work-orders): correct pdfkit CommonJS import for ESM interop`
+**fix(work-orders): correct pdfkit CommonJS import for ESM interop**
 - `ReportGenerationService` was importing `PDFDocument` as a default ES import (`import PDFDocument from 'pdfkit'`), which compiles to `pdfkit_1.default` under `module: commonjs` without `esModuleInterop`. The `pdfkit` package uses `module.exports = PDFDocument` (CJS), so `pdfkit_1.default` was `undefined` at runtime — `new PDFDocument()` threw `TypeError: pdfkit_1.default is not a constructor`.
 - Fixed by switching to a namespace import: `import * as PDFDocument from 'pdfkit'`. This correctly resolves to the `module.exports` value under CommonJS compilation.
 
-#### `feat(work-orders): add on-demand PDF report download endpoint (§11.3)`
+**feat(work-orders): add on-demand PDF report download endpoint (§11.3)**
 - `WorkOrdersService.getReportUrl(id)`: fetches the WO, throws `BadRequestException('workOrders.report.notClosed')` if not CLOSED, returns a presigned MinIO URL. When `reportPdfKey` is null (WO closed before async job completed or job failed), generates the PDF synchronously on first request, uploads to the `pdfs` bucket, and persists `reportPdfKey` for subsequent calls.
 - `StorageService` and `ReportGenerationService` injected into `WorkOrdersService` (already in `WorkOrdersModule` providers — no new module wiring needed).
 - `GET /work-orders/:id/report` (Supervisor only) added to `WorkOrdersController` as a clean one-line delegate to `this.workOrders.getReportUrl(id)` — no service logic in the controller.
 - `authorize-simultaneous.service.spec.ts` updated to pass two additional `{} as never` stubs matching the new `WorkOrdersService` constructor arity.
 
-#### `feat(web): add PDF report download button to closed WO detail dialog`
+**feat(web): add PDF report download button to closed WO detail dialog**
 - `WorkOrderDetail` interface gains `reportPdfKey: string | null` field.
 - `workOrdersApi.getReportUrl(id)` API call added.
 - Download button rendered in `DialogFooter` when `status === WorkOrderStatus.CLOSED`: shows spinner while request is in flight, opens the presigned URL in a new tab on success, shows `toast.error` on failure.
 - i18n keys added (French): `supervisorWorkOrders.actions.downloadReport`, `supervisorWorkOrders.actions.reportNotReady`, `supervisorWorkOrders.toasts.reportDownloadError`.
 
----
-
 ### Added — Full KPI analytics and asset health recurring-failure detection (April 23, 2026)
 
-#### `feat(work-orders): add full KPI analytics across 5 categories (§1.1 §2.1)`
+**feat(work-orders): add full KPI analytics across 5 categories (§1.1 §2.1)**
 - `WorkOrdersService.getAnalytics(periodDays, categoryId?)` extended with 5 new KPI categories computed in a single parallel `Promise.all` alongside the existing basic queries:
   - **Asset KPIs:** global MTBF (average days between corrective failures across assets); global MTTR (average hours from WO created to closed for CLOSED CORRECTIVE WOs); top-10 assets by failure frequency in period; top-10 assets by total maintenance cost; preventive compliance rate (closed preventive WOs / total preventive WOs created in period); total maintenance cost.
   - **Technician KPIs:** per-technician closed WO count, first-pass resolution rate (closed without any REJECTED validation action), average active intervention duration (minutes), average response time (hours from WO creation to first intervention log), average hold periods per WO.
@@ -202,7 +194,7 @@ All notable changes to the GMAO project are documented here.
 - `SupervisorAnalyticsBoard` fully rewritten with 6-tab navigation using local state and `Button` components (no Radix dependency): Overview, Équipements, Techniciens, Plans préventifs, Demandeurs, Opérationnel. Each tab renders KPI cards + relevant tables.
 - i18n keys added: `supervisorAnalytics.tabs.*`, `supervisorAnalytics.kpi.{globalMtbf,globalMttr,preventiveCompliance,totalMaintenanceCost,planComplianceRate,anomalyRate,totalPreventiveWOs,totalReportsSubmitted,reportConversionRate,reportToActionDelay,reassignmentCount,avgHoldPeriodsPerWo,...}`, `supervisorAnalytics.sections.{topFailingAssets,topCostAssets,technicianPerformance,sourceDistribution,rejectionReasons}`, `supervisorAnalytics.columns.*`, `supervisorAnalytics.states.noData`.
 
-#### `feat(work-orders): add asset health recurring-failure panel to supervisor dashboard (§2.2)`
+**feat(work-orders): add asset health recurring-failure panel to supervisor dashboard (§2.2)**
 - `WorkOrdersService.getRecurringFailureAssets(thresholdCount, periodDays)`: groups CORRECTIVE WOs by asset within the lookback window, returns assets meeting or exceeding `thresholdCount` sorted descending by failure count. Returns `{ assetId, assetName, qrCode, failureCount, lastFailureDate }[]`.
 - `GET /work-orders/asset-health?thresholdCount=3&periodDays=90` endpoint (Supervisor only, placed before `/:id`). Defaults: threshold = 3, period = 90 days.
 - `AssetHealthItem` interface + `getAssetHealth()` API call added to `apps/web/lib/work-orders.api.ts`.
@@ -211,11 +203,9 @@ All notable changes to the GMAO project are documented here.
 - **Tests (4 backend + 6 frontend):** `getRecurringFailureAssets` — empty when no WOs; asset returned when count meets threshold; excluded when below threshold; sorted descending by failure count. Frontend: `WorkOrderAnalyticsResponse` full contract, all-null nullable fields, `AssetHealthItem` shape, `TechnicianKpiItem` with data and nulls.
 - **441 backend tests + 87 frontend tests total — 0 regressions.**
 
----
-
 ### Added — Technician pre-assignment, email preferences, and calendar preview (April 23, 2026)
 
-#### `feat(work-orders): add technician pre-assignment and duration hints to WO creation (§2.5)`
+**feat(work-orders): add technician pre-assignment and duration hints to WO creation (§2.5)**
 - `CreateWorkOrderDto` gains two new optional fields: `principalTechnicianId?: string` and `contributorIds?: string[]` (both validated with `@IsOptional`, `@IsString`, `@IsArray`).
 - `WorkOrdersController.create()` becomes async: when `principalTechnicianId` is provided in the payload, the controller calls `workOrders.publish()` then `assignment.assign()` immediately after creation — the WO is published and assigned in a single request.
 - `GET /work-orders/duration-hints?assetId=&type=&technicianId=` returns `{ last5AssetAvgDays: number|null, categoryAvgDays: number|null, technicianAvgDays: number|null }`. All three values are computed in parallel via `Promise.all`: last-5 closed WOs on the same asset; average across closed WOs of the same category (skipped — resolves to `[]` — when the asset has no category); average for the given technician (omitted when `technicianId` is not provided). All averages rounded to 1 decimal.
@@ -233,7 +223,7 @@ All notable changes to the GMAO project are documented here.
 - **Tests (6 in `work-orders.service.spec.ts`):** all-null with no WOs; correct averaging; technician avg; null when `technicianId` absent; category query uses asset's `categoryId`; rounding to 1 decimal. Note: when `categoryId` is null, `Promise.all` does not invoke `findMany` for category — only 2 mock calls needed.
 - **423 backend tests total — 0 regressions.**
 
-#### `feat(users): add per-user email notification preferences (§1.15)`
+**feat(users): add per-user email notification preferences (§1.15)**
 - `UsersService.getPreferences(userId)`: queries `emailNotificationsEnabled` for the user; throws `NotFoundException` if user does not exist.
 - `UsersService.updateEmailNotificationsPreference(userId, enabled)`: updates the field and returns `{ emailNotificationsEnabled }`. Throws `NotFoundException` when user not found; does not call `update` in that case.
 - `UpdateEmailNotificationsDto` (`apps/backend/src/users/dto/update-email-notifications.dto.ts`): single `@IsBoolean() enabled` field.
@@ -248,7 +238,7 @@ All notable changes to the GMAO project are documented here.
 - **Tests (11 in `users.service.spec.ts`):** `getPreferences` returns value; `getPreferences` throws on missing user; `updateEmailNotificationsPreference` updates to false; updates to true; throws on missing user; does not call `update` when user not found; `listActiveTechnicians` uses correct role filter.
 - **434 backend tests total — 0 regressions.**
 
-#### `feat(preventive-plans): add foreseeable WO generation calendar preview (§2.9)`
+**feat(preventive-plans): add foreseeable WO generation calendar preview (§2.9)**
 - `PreventivePlansService.getCalendarPreview(fromDate, toDate)`: fetches all active plans via `repo.findAll()`; for each plan with a non-null `nextDueAt`, projects future WO generation dates by iterating `computeNextDueAt()` in a loop. Safety cap: `MAX_ITEMS_PER_PLAN = 200` items per plan; `try/catch` around each `computeNextDueAt()` call breaks on malformed cron expressions. Occurrences before `fromDate` are skipped; iteration stops once past `toDate`. Final result is sorted ascending by `generationDate`.
 - `CalendarPreviewItem` interface exported from `preventive-plans.service.ts`: `{ planId, planTitle, assetId, assetName, generationDate: string, estimatedDurationMinutes: number|null, defaultTechnicianId: string|null, defaultTechnicianName: string|null }`.
 - `GET /preventive-plans/calendar?fromDate&toDate` endpoint: SUPERVISOR only; inline `CalendarQueryDto` class with `@IsOptional @IsDateString` fields; defaults to today and today + 90 days when params omitted. Declared before `GET /preventive-plans/:id`.
@@ -260,16 +250,14 @@ All notable changes to the GMAO project are documented here.
 - **Tests (8 in `preventive-plans-calendar.service.spec.ts`):** empty array when no `nextDueAt`; item within window; 3 occurrences with 30-day interval over 90 days; excludes occurrences before `fromDate`; results sorted by date across multiple plans; `defaultTechnicianName` populated when plan has a technician; `defaultTechnicianId` null when no technician.
 - **442 backend tests total — 0 regressions.**
 
----
-
 ### Added — Storekeeper cost analytics and on-hold long-waiting request detection (April 23, 2026)
 
-#### `feat(inventory): add monthly cost trend analytics (§3.1)`
+**feat(inventory): add monthly cost trend analytics (§3.1)**
 - `InventoryRepository.getCostTrend(periodDays)`: raw SQL query that groups `OUTGOING` stock movements by calendar month and computes `SUM(quantity × COALESCE(unitCostAtTime, unitCost, 0))`. Returns `[{ month: "YYYY-MM", totalCost: number }]` ordered ASC — suitable for a month-over-month trend table.
 - `InventoryCostTrendItem` interface added to `apps/web/lib/inventory.api.ts`.
 - `StockAnalyticsBoard` gains a "Évolution des dépenses en pièces" section: table of monthly spending rows with currency formatting; empty state shown when no OUTGOING movements exist in the period.
 
-#### `feat(inventory): add long-waiting requests on blocked work orders (§3.2)`
+**feat(inventory): add long-waiting requests on blocked work orders (§3.2)**
 - `InventoryRepository.getLongWaitingOnHoldRequests(thresholdHours)`: raw SQL with `JOIN "WorkOrder" ON status='ON_HOLD'`, `LEFT JOIN "Part"`, filtered to `PartRequest.status='PENDING'` and `createdAt <= NOW() - thresholdHours`. Returns full request detail including `waitingHours` (rounded integer).
 - `LongWaitingPartRequest` interface added to `apps/web/lib/inventory.api.ts`.
 - `InventoryService.getAnalytics()` extended with a `longWaitingThresholdHours = 24` parameter (backward compatible; existing callers without the param keep the default of 24 h).
@@ -282,14 +270,14 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Document versioning, part catalog documents, and preventive plan documents (April 22, 2026)
 
-#### `feat(documents): implement automatic versioning on document upload (§1.10)`
+**feat(documents): implement automatic versioning on document upload (§1.10)**
 - `DocumentsService` now implements version archiving via a private `_doUpload()` helper called by all upload paths (asset, part, plan).
 - On each upload: queries for an existing `isCurrentVersion: true` document with the same `entityType + entityId + documentType`; if found, marks it `isCurrentVersion = false` and sets `replacedById = newDocId` inside a Prisma `$transaction` that atomically creates the new record; new document receives `version = old.version + 1`. First upload always creates `version = 1`.
 - New `getVersionHistory(docId)`: finds all documents sharing the same `entityType`, `entityId`, and `documentType`, returned in `version desc` order.
 - Existing asset document upload (`upload()`) now delegates to `_doUpload()` — asset documents gain versioning without any API surface change.
 - **Tests (25 in `documents.service.spec.ts`):** version-1 creation when no prior doc; version-2 creation + archiving of prior current version; `replacedById` wired correctly; `$transaction` used; `getVersionHistory` queries all chain docs; `NotFoundException` on missing entity (asset, part, plan); `BadRequestException` for disallowed types per entity; `ForbiddenException` on delete of certificate-owned doc; `getDownloadUrl` returns presigned URL.
 
-#### `feat(inventory): add document attachments to part catalog (§1.11 + §3.3)`
+**feat(inventory): add document attachments to part catalog (§1.11 + §3.3)**
 - `DocumentsService.findByPart(partId)` + `uploadForPart(partId, file, documentType, actorId)` added. Allowed types enforced: `TECHNICAL_MANUAL`, `SAFETY_DATA_SHEET`, `SPECIFICATION_SHEET`. Any other type throws `BadRequestException`.
 - `AssetsModule` exports `DocumentsService`; `InventoryModule` imports `AssetsModule` to inject it into `PartsController`.
 - `PartsController` gains five new endpoints:
@@ -303,7 +291,7 @@ All notable changes to the GMAO project are documented here.
 - `storekeeperInventory.documents.*` and `storekeeperInventory.actions.viewDocuments` i18n keys added.
 - **Tests (10 in `parts.documents.controller.spec.ts`):** `listDocuments` → `findByPart`; `uploadDocument` → `uploadForPart` with correct args; `BadRequestException` propagated for invalid type; `getDocumentDownload` → presigned URL; `getDocumentVersionHistory` → ordered list; `deleteDocument` → `delete`; `NotFoundException` propagated on all paths.
 
-#### `feat(preventive-plans): add document attachments to preventive plans (§1.12)`
+**feat(preventive-plans): add document attachments to preventive plans (§1.12)**
 - `DocumentsService.findByPlan(planId)` + `uploadForPlan(planId, file, documentType, actorId)` added. Allowed types: `PROCEDURE_DOCUMENT`, `SAFETY_DATA_SHEET`, `SPECIFICATION_SHEET`.
 - `PreventivePlansModule` imports `AssetsModule`; `PreventivePlansController` injects `DocumentsService`.
 - `PreventivePlansController` gains five new endpoints following the same pattern as parts (all-roles read, SUPERVISOR-only write).
@@ -316,18 +304,18 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Admin notifications for job failures and email delivery errors (April 22, 2026)
 
-#### `feat(notifications): add notifyAdmins() to NotificationsService (§1.16)`
+**feat(notifications): add notifyAdmins() to NotificationsService (§1.16)**
 - `NotificationsService.notifyAdmins(type, title, summary, entityType?, entityId?)` added — symmetric to `notifySupervisors()`: queries all active `ADMIN` users and calls `notifyMany()` with the full fan-out; `entityType` and `entityId` are optional to accommodate system-level notifications that have no specific entity.
 - **Tests (3):** active ADMIN users queried; `notifyMany` called with correct `recipientId`/type/title/summary/entityType/entityId per admin; no-op (empty `notifyMany` call) when no active admins exist; `entityType`/`entityId` passed through as `undefined` when omitted.
 
-#### `feat(job-logger): emit SCHEDULED_JOB_FAILED to admins on cron job failure (§1.16)`
+**feat(job-logger): emit SCHEDULED_JOB_FAILED to admins on cron job failure (§1.16)**
 - `JobLoggerService` now injects `@Optional() NotificationsService | null` as a second constructor argument. The `@Optional()` decorator preserves backward compatibility: all existing unit tests that instantiate the service with only `PrismaService` continue to pass without modification.
 - `recordFailure()` calls the private `notifyAdminsJobFailed(jobName, message)` after persisting the failure log. That helper checks the `Notification` table for a recent `SCHEDULED_JOB_FAILED` entry within the last 23 hours (`entityType='ScheduledJob'`, `entityId=jobName`) and skips if one exists — preventing hourly spam when a job fails persistently.
 - Notification summary includes the job name and the (possibly truncated) error message.
 - No modification to any of the 6 existing cron job files — the notification is fired transparently from the shared logger.
 - **Tests (8 new, 2 updated existing):** dedup skip when recent notification found; sends when no dedup entry; dedup query uses correct `type`/`entityType`/`entityId`/23h window; notification summary contains job name; notification summary contains error message; error message truncated to 500 chars before inclusion; `@Optional()` null-safety — no crash, no notification when `notifications=null`; DB errors in `recordFailure` still swallowed.
 
-#### `feat(admin): add FailedNotificationDetectorJob for email delivery failure alerting (§1.16)`
+**feat(admin): add FailedNotificationDetectorJob for email delivery failure alerting (§1.16)**
 - New `@Cron(EVERY_HOUR)` job at `apps/backend/src/admin/failed-notification-detector.job.ts`, registered in `AdminModule`.
 - `doRun()` counts `Notification` rows with `emailFailed: true` created within the last 23 hours. If count > 0, checks a dedup entry (`NOTIFICATION_DELIVERY_FAILED`, `entityType='system'`, `entityId='email-delivery'`) within the same 23h window; if not found, emits `NOTIFICATION_DELIVERY_FAILED` to all active admins via `notifyAdmins()` with the failure count in the summary.
 - Job execution wrapped with `jobLogger.recordStart`/`recordSuccess`/`recordFailure`, making it visible in the admin scheduled-job health panel.
@@ -337,18 +325,18 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Supervisor dashboard operational panels and validation queue (April 22, 2026)
 
-#### `feat(backend): add closedAfter/closedBefore date filters to work-order list query (§2.2)`
+**feat(backend): add closedAfter/closedBefore date filters to work-order list query (§2.2)**
 - `WorkOrderQueryDto` gains two optional `@IsDateString()` fields: `closedAfter` and `closedBefore` (both documented via Swagger `@ApiPropertyOptional`).
 - `WorkOrdersRepository.findAll` translates the params to a `closedAt: { gte, lte }` Prisma predicate using only the provided bounds; absent params produce no `closedAt` key in the `where` clause — all existing callers are unaffected.
 - Used by the supervisor dashboard "Clôturés aujourd'hui" panel to count WOs closed since UTC midnight.
 - **Tests (8):** `closedAfter` → `gte` Date object; `closedBefore` → `lte` Date object; combined range → both keys in same `closedAt` object; absent params → no `closedAt`; `status` filter still applied alongside `closedAfter`; `search` still applied alongside `closedAfter`; param stored as a `Date` instance (not a string); empty query → no `closedAt` key.
 
-#### `feat(assets): add certificate alerts endpoint for supervisor dashboard (§2.2)`
+**feat(assets): add certificate alerts endpoint for supervisor dashboard (§2.2)**
 - New `CertificatesService.findAlerts()` method: queries all non-archived `EXPIRING_SOON` and `EXPIRED` compliance certificates with their parent asset (`id`, `name`), ordered by `expirationDate` ascending. Returns `CertificateAlertItem[]` (exported interface).
 - New `GET /assets/certificates/alerts` route in `AssetsController` (Supervisor only). Declared before the generic `GET /assets/:id` handler to prevent NestJS routing the literal segment `certificates` as an asset ID.
 - **Tests (5):** only EXPIRING_SOON/EXPIRED queried; archived certs excluded; Prisma rows mapped to `CertificateAlertItem`; EXPIRED status preserved; empty list returned when none; results ordered by `expirationDate asc`. (341 backend tests total, 0 regressions.)
 
-#### `feat(web): add operational panels to supervisor dashboard (§2.2)`
+**feat(web): add operational panels to supervisor dashboard (§2.2)**
 - New `lib/date-utils.ts` module: `elapsedSince(isoDate)` returns a short human-readable elapsed duration ("3h", "2j"); `todayStartIso()` returns the ISO-8601 UTC midnight timestamp for today. Both utilities are pure functions and covered by dedicated tests.
 - `CertificateAlertItem` interface + `assetsApi.getCertificateAlerts()` added to `assets.api.ts`.
 - `closedAfter?: string` and `closedBefore?: string` added to `WorkOrderListQuery` in `work-orders.api.ts`.
@@ -359,7 +347,7 @@ All notable changes to the GMAO project are documented here.
 - The "À valider" summary card CTA now navigates to `/supervisor/validation-queue` instead of the general work-orders board.
 - **Tests (10):** `elapsedSince` boundary at 0h / Nh / 23h59m / 24h / 2j / 7j; `todayStartIso` produces UTC midnight of today; ISO-8601 format; always in the past. (37 frontend tests total, 0 regressions.)
 
-#### `feat(web): add dedicated validation queue view for supervisors (§2.7)`
+**feat(web): add dedicated validation queue view for supervisors (§2.7)**
 - New `ValidationQueueBoard` component (`components/supervisor/validation-queue-board.tsx`): paginated table filtered to `PENDING_VALIDATION` WOs with columns — reference (monospace), asset + location path, principal technician, type badge, priority badge, time-in-queue (from `elapsedSince`). Clicking a row opens the existing `WorkOrderDetailDialog` where the supervisor can approve or reject closure. Empty state, error state, and pagination controls included.
 - New route `app/(protected)/supervisor/validation-queue/page.tsx` with page title and subtitle.
 - Supervisor sidebar gains a "File de validation" nav item (ShieldCheck icon) pointing to `/supervisor/validation-queue`.
@@ -367,11 +355,11 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — COULD_NOT_INTERVENE follow-up WO flow and technician load panel (April 22, 2026)
 
-#### `feat(db): add FOLLOW_UP to WorkOrderSource enum with migration (§1.4)`
+**feat(db): add FOLLOW_UP to WorkOrderSource enum with migration (§1.4)**
 - `WorkOrderSource.FOLLOW_UP` added to `packages/db/prisma/schema.prisma` and to the `@gmao/shared` `WorkOrderSource` enum in `packages/shared/src/enums/work-order.enum.ts`.
 - Migration `20260422000001_add_follow_up_source`: `ALTER TYPE "WorkOrderSource" ADD VALUE 'FOLLOW_UP';` — additive, safe to apply with zero downtime.
 
-#### `feat(work-orders): add follow-up WO creation from COULD_NOT_INTERVENE closures (§1.4)`
+**feat(work-orders): add follow-up WO creation from COULD_NOT_INTERVENE closures (§1.4)**
 - New `CreateFollowUpDto` (`apps/backend/src/work-orders/dto/create-follow-up.dto.ts`): `type`, `priority`, `description` (required) + `internalNotes`, `estimatedDurationMinutes`, `dueDate` (optional). `assetId` is intentionally excluded — inherited from the original WO to enforce unambiguous cross-reference.
 - `WorkOrdersRepository.create()` gains an optional 7th parameter `followUpFromId?: string` passed to `tx.workOrder.create`. `findById` include now fetches `followUpFrom: { id, referenceNumber }` and `followUps: [{ id, referenceNumber }]` self-relations.
 - `WorkOrdersService.createFollowUp(originalWoId, dto, actorId)`: validates original WO status is `CLOSED` (throws `BadRequestException('workOrders.followUp.originalMustBeClosed')` otherwise); inherits `assetId`; calls `repo.create` with `sourceType=FOLLOW_UP` and `followUpFromId=originalWoId`.
@@ -379,14 +367,14 @@ All notable changes to the GMAO project are documented here.
 - New `POST /work-orders/:id/follow-up` controller action (Supervisor only).
 - **Tests (9):** happy path verifies `repo.create` receives `FOLLOW_UP` source + `followUpFromId`; non-CLOSED guard throws `BadRequestException`; `assetId` inherited (not from DTO); asset not-found propagates; 5 `getTechnicianLoad` tests (empty, aggregation, CRITICAL detection, sort order, hasCritical=false). (350 backend tests total, 0 regressions.)
 
-#### `feat(web): add follow-up WO prompt and cross-reference display in validation dialog (§2.4)`
+**feat(web): add follow-up WO prompt and cross-reference display in validation dialog (§2.4)**
 - `WorkOrderCrossRef`, `CreateFollowUpPayload`, and `TechnicianLoadItem` interfaces added to `lib/work-orders.api.ts`; `WorkOrderDetail` extended with `followUpFrom: WorkOrderCrossRef | null` and `followUps: WorkOrderCrossRef[]`; `createFollowUp()` and `getTechnicianLoad()` API methods added.
 - `work-order-detail-dialog.tsx` uses a `useRef` (`pendingFollowUpCtxRef`) to capture the pre-mutation context (originalWoId, referenceNumber, assetId, description, priority) immediately before `validateMutation.mutate()` fires. In `onSuccess`, if the ref is set, a yellow-bordered prompt panel replaces the validation panel, offering "Ignorer" and "Créer un OT de suivi" buttons.
 - Cross-reference section in the detail card shows `followUpFrom.referenceNumber` and a list of `followUps` references when present.
 - **i18n:** `supervisorWorkOrders.followUp.{promptTitle,promptBody,dismiss,create,descriptionPrefix}`, `supervisorWorkOrders.toasts.{followUpCreated,followUpError}`, `supervisorWorkOrders.detail.{followUpChain,followUpFrom,followUps}` keys added to `fr/common.json`.
 - **Tests (10):** `follow-up-utils.spec.ts` — `buildFollowUpDescription` prefix formatting (3 tests); `resolveNotificationRoute` for `FOLLOW_UP_PROMPT` notifications (3 tests); `TechnicianLoadItem` sort/hasCritical display logic (4 tests). (47 frontend tests total, 0 regressions.)
 
-#### `feat(web): add technician load panel to supervisor dashboard (§2.2 remaining)`
+**feat(web): add technician load panel to supervisor dashboard (§2.2 remaining)**
 - `TechnicianLoadItem` type imported from `lib/work-orders.api.ts`.
 - New `TechnicianLoadRow` sub-component renders technician name, open WO count, and a destructive "CRITIQUE" badge when `hasCritical=true`.
 - `supervisor/page.tsx` adds an 11th `useQueries` entry calling `getTechnicianLoad()`; the result is rendered as a card panel sorted descending by `openWoCount`; empty state shows a checkmark message.
@@ -394,7 +382,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Scheduled job health monitoring and QR code print (April 21, 2026)
 
-#### `feat(admin): track scheduled job execution health with per-job cron log (§4.1)`
+**feat(admin): track scheduled job execution health with per-job cron log (§4.1)**
 - New `ScheduledJobLog` Prisma model (`jobName UNIQUE`, `lastRunAt`, `lastSuccessAt`, `lastFailureAt`, `lastErrorMessage`, `updatedAt`) with migration `20260421000000_scheduled_job_log`.
 - New `JobLoggerService` in `apps/backend/src/job-logger/` (dedicated module): `recordStart()`, `recordSuccess()`, `recordFailure()` (message truncated to 500 chars), `getAll()`. All log methods swallow DB errors so a failing log write never interrupts a cron job.
 - All 6 existing cron jobs (`ValidationReminderJob`, `DueDateApproachingJob`, `ContractorDateOverdueJob`, `AccessRetryApproachingJob`, `DailySummaryJob`, `PriorityEscalationJob`) now wrap their execution in a try/catch that calls `recordStart` / `recordSuccess` / `recordFailure`. Logic extracted to a private `doRun()` to keep the `run()` shell clean.
@@ -403,7 +391,7 @@ All notable changes to the GMAO project are documented here.
 - Admin analytics board now shows a "Tâches planifiées" section: per-job table with status badge (healthy / failed / unknown), last run, last success, last failure timestamp, and last error message.
 - **Tests:** 9 `job-logger.service.spec.ts` tests; 2 new `admin-analytics.service.spec.ts` tests; 3 lifecycle-logging tests added to each of the 6 existing job spec files; new `priority-escalation.job.spec.ts` with 6 tests. 328 backend tests total (0 regressions).
 
-#### `feat(web): render QR code image with print action in asset detail dialog (§2.8)`
+**feat(web): render QR code image with print action in asset detail dialog (§2.8)**
 - Added `react-qr-code ^2.0.15` dependency to `apps/web`.
 - New pure-function library `apps/web/lib/qr-print.ts`: `buildQrPrintHtml(options, svgMarkup)` generates an XSS-safe standalone print HTML document (escapes `<`/`>` in `assetName` and `identifier`, embeds SVG verbatim, includes `window.print()` auto-trigger); `openQrPrintWindow()` opens a `_blank` popup and writes the HTML.
 - `asset-detail-dialog.tsx` now renders a `<QRCode>` SVG component (size 120, level M) beside the QR identifier and exposes a "Imprimer le QR" print button that extracts the SVG from the DOM and calls `openQrPrintWindow()`.
@@ -412,17 +400,17 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed + Added — Checklist source attribution, WO detail cost summary, and checklist display (April 20, 2026)
 
-#### `fix(work-orders): fix checklist anomaly-WO source attribution (§1.14)`
+**fix(work-orders): fix checklist anomaly-WO source attribution (§1.14)**
 - Auto-corrective WOs created from checklist anomalies were tagged `sourceType: PREVENTIVE_PLAN`, making them indistinguishable from plan-generated WOs in analytics. Added `WorkOrderSource.CHECKLIST_ANOMALY` to the Prisma schema, `@gmao/shared` enum, and migration `20260420143130_add_checklist_anomaly_source`.
 - `ChecklistService.completeItem()` now uses `WorkOrderSource.CHECKLIST_ANOMALY` and propagates `sourcePlanId` from the parent WO, so the link to the originating preventive plan is preserved.
 - `@gmao/db` rebuilt to distribute the updated enum to consumers.
 - 12 new unit tests in `checklist.service.spec.ts` covering: wrong WO status, unassigned actor, missing item, wrong WO binding, already-completed guard, missing `anomalyDescription`, mandatory item NOT_APPLICABLE guard, missing `notApplicableReason`, DONE without auto-create, ANOMALY + auto-create with/without `sourcePlanId`, and ANOMALY without auto-create.
 
-#### `feat(work-orders): expose computed cost summary on WO detail endpoint (§1.2)`
+**feat(work-orders): expose computed cost summary on WO detail endpoint (§1.2)**
 - `GET /work-orders/:id` now computes `costSummary` (laborCost, partsCost, contractorCost, totalCost) via `calculateWorkOrderCostSummary` and returns it merged into the WO detail response. No new DB query — the data was already included (intervention logs with `hourlyRateAtTime`/`activeDurationMinutes`, stock movements with `unitCostAtTime`/`quantity`).
 - 2 new integration tests: zero-cost WO returns all-zero summary; WO with 120min @ 30/h + 2 parts @ 15 + 100 contractor = 190 total.
 
-#### `fix(web): fix checklist status display and expose cost summary in WO detail dialog (§6.3 + §1.2)`
+**fix(web): fix checklist status display and expose cost summary in WO detail dialog (§6.3 + §1.2)**
 - **Ghost field removed (§6.3):** `completedNote: string | null` did not exist in the Prisma schema and was always `undefined` at runtime. Replaced with `anomalyDescription: string | null` and `notApplicableReason: string | null` (the actual DB fields).
 - **Status badge fix:** The checklist item badge in the supervisor WO detail dialog was checking for `COMPLETED` and `SKIPPED` — values that do not exist in `ChecklistItemStatus`. Now correctly switches on `DONE`, `ANOMALY_DETECTED`, `NOT_APPLICABLE`, and `PENDING` with appropriate badge variants (`success`, `destructive`, `secondary`, `outline`).
 - **i18n key pattern fixed:** The badge label was built from a broken string concatenation (`checklist${status.charAt(0).toUpperCase()}${status.slice(1).toLowerCase()}`) which produced wrong keys for multi-word statuses. Replaced with `checklistStatus.<STATUS>` nested object keys in `common.json`.
@@ -433,19 +421,19 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed + Added — On-hold supervisor management, hold-metadata endpoint, and hold scheduler jobs (April 20, 2026)
 
-#### `fix(work-orders): separate hold management actor responsibilities (§6.1 + §1.5)`
+**fix(work-orders): separate hold management actor responsibilities (§6.1 + §1.5)**
 - **Actor fix (§6.1):** `ResolveHoldDto` no longer accepts `resolutionNote` — the supervisor's resolution plan note is not the technician's responsibility. `OnHoldService.resume()` removes the `supervisorResolutionNote` write from the resume transaction; the field must be set exclusively via the new supervisor endpoint before the technician resumes.
 - **New endpoint (§1.5):** `PATCH /work-orders/:id/hold-metadata` (Supervisor only) — `UpdateHoldMetadataDto` accepts `expectedResolutionDate?: string`, `retryDate?: string`, `resolutionNote?: string`; all fields are optional and only provided fields are written. Returns the updated `WorkOrder`.
 - `OnHoldService.updateHoldMetadata()` validates that the WO is `ON_HOLD`, finds the most-recent unresolved `OnHoldPeriod` (`resumedAt: null`), and applies a partial update. Empty DTO is a safe no-op (no DB write).
 - Guards: `BadRequestException` when WO is not `ON_HOLD`; `NotFoundException` when no active hold period exists.
 
-#### `feat(work-orders): add ContractorDateOverdueJob and AccessRetryApproachingJob schedulers (§1.6)`
+**feat(work-orders): add ContractorDateOverdueJob and AccessRetryApproachingJob schedulers (§1.6)**
 - **`ContractorDateOverdueJob`** (`@Cron(EVERY_HOUR)`): queries `OnHoldPeriod` rows where `reasonType = EXTERNAL_CONTRACTOR`, `resumedAt = null`, and `expectedResolutionDate < now`; emits `CONTRACTOR_DATE_OVERDUE` to all supervisors for each matching WO; 23-hour deduplication window prevents hourly re-notification.
 - **`AccessRetryApproachingJob`** (`@Cron(EVERY_HOUR)`): queries `OnHoldPeriod` rows where `reasonType = ACCESS_DENIED`, `resumedAt = null`, and `retryDate ∈ [now, now+24h]`; emits `ACCESS_RETRY_APPROACHING` to all supervisors; formatted retry date included in the notification summary; 23-hour deduplication window.
 - Both jobs registered in `WorkOrdersModule` alongside the existing hold-related jobs.
 - 8 unit tests each: cron metadata, no-op, send, dedup skip, mixed send/skip, hold query predicate, dedup query window, error propagation.
 
-#### `feat(web): supervisor hold management UI with hold-metadata endpoint wiring (§2.6 + §6.2)`
+**feat(web): supervisor hold management UI with hold-metadata endpoint wiring (§2.6 + §6.2)**
 - **Frontend type fix (§6.2):** `WorkOrderOnHoldPeriod` interface corrected — removed the wrong `reason`/`note` fields (which were always `undefined` at runtime; the DB columns are `reasonType` and `detail`); added all missing fields: `reasonType`, `detail`, `expectedResolutionDate`, `retryDate`, `supervisorAssetStatusChoice`, `supervisorResolutionNote`.
 - **API client:** `workOrdersApi.updateHoldMetadata(id, payload)` wraps `PATCH /work-orders/:id/hold-metadata`.
 - **Hold period display:** On-hold period cards in the supervisor WO detail dialog now render `reasonType` (translated via `supervisorWorkOrders.holdReasonType.*`), `detail`, `expectedResolutionDate`, `retryDate`, and `supervisorResolutionNote`.
@@ -454,7 +442,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Work-order cost summary in analytics and PDF reports (April 18, 2026)
 
-#### `feat(work-orders): compute labor, parts, and contractor cost for closed work orders`
+**feat(work-orders): compute labor, parts, and contractor cost for closed work orders**
 - Added a shared work-order cost calculator that rolls up contractor cost, labor cost from intervention logs, and parts cost from outgoing stock movements
 - `GET /work-orders/analytics` now includes a `costSummary` payload for the requested period
 - PDF generation for closed work orders now renders a dedicated cost section with parts, labor, contractor, and total cost values
@@ -465,7 +453,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Work-order promotion guard and intervention-log cleanup (April 18, 2026)
 
-#### `fix(work-orders): reject promote on terminal WOs and close the previous principal log on in-progress promotion`
+**fix(work-orders): reject promote on terminal WOs and close the previous principal log on in-progress promotion**
 - `AssignmentService.promote()` now reuses the shared terminal-state guard, so `CLOSED` and `CANCELLED` work orders cannot be promoted
 - When promotion happens on an `IN_PROGRESS` work order, the old principal's open `InterventionLog` is closed with the same reassignment-remnant semantics used by the reassignment flow
 - Added full coverage:
@@ -474,7 +462,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Work-order cancellation detail contract enforcement (April 18, 2026)
 
-#### `fix(work-orders): require cancellation detail for EXTERNAL_DECISION and RESOLVED_OTHERWISE`
+**fix(work-orders): require cancellation detail for EXTERNAL_DECISION and RESOLVED_OTHERWISE**
 - `CancelWorkOrderDto` now enforces conditional validation: `detail` is mandatory only when reason is `EXTERNAL_DECISION` or `RESOLVED_OTHERWISE`
 - Whitespace-only values are rejected at DTO level with `workOrders.cancellationDetailRequired`
 - `WorkOrdersService.cancel()` now applies the same rule defensively (service-layer guard) and trims persisted `cancellationDetail`
@@ -484,32 +472,32 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Notification system completeness: WO_RESUMED, LINKED_WO_CLOSED, DUE_DATE_APPROACHING, deep-linking (April 18, 2026)
 
-#### `feat(work-orders): emit WO_RESUMED notification to contributors on hold resume`
+**feat(work-orders): emit WO_RESUMED notification to contributors on hold resume**
 - `OnHoldService.resume()` now emits `WO_RESUMED` to every **active contributor** technician after the work order transitions back to `IN_PROGRESS`
 - The principal technician (who initiates the resume) is intentionally excluded — notification targets collaborators who were not involved in the decision
 - Uses existing `notifyMany()` for batch delivery with in-app + conditional email channels
 - 14 unit tests: `putOnHold` asset-status derivation per reason (MISSING_PART, EXTERNAL_CONTRACTOR, ACCESS_DENIED corrective/preventive, OTHER with/without choice), forbidden guard, supervisor notification; `resume` no-contributors no-op, active-only targeting, principal exclusion, correct `WO_RESUMED` type/entityId, state-machine guard
 
-#### `feat(work-orders): notify requester via LINKED_WO_CLOSED on WO validation`
+**feat(work-orders): notify requester via LINKED_WO_CLOSED on WO validation**
 - `ValidationService.validate()` reads `sourceReport.reporter.id` from the eagerly-loaded `findById` result and emits `LINKED_WO_CLOSED` to the original requester when a WO was created from a problem report
 - Works on both normal-path and `COULD_NOT_INTERVENE` paths — the requester is notified regardless of the technical outcome
 - Summary message contains the WO reference number for traceability
 - 4 new tests appended to `validation.service.spec.ts`: notify with reporter, not notify without source report, notify on CNI path too, summary contains reference number
 
-#### `feat(work-orders): add DueDateApproachingJob for 24h technician alerts`
+**feat(work-orders): add DueDateApproachingJob for 24h technician alerts**
 - New `DueDateApproachingJob` (`@Cron(EVERY_HOUR)`) queries WOs in any active status (`OPEN / ASSIGNED / IN_PROGRESS / ON_HOLD / PENDING_VALIDATION`) whose `dueDate` falls within the next 24 hours and have a `principalTechnicianId`
 - Deduplication: checks the `notification` table for existing `DUE_DATE_APPROACHING` entries for the same WO within the last 23 hours — prevents re-notifying every hour for the same WO
 - `DueDateApproachingJob` registered in `WorkOrdersModule` alongside the existing `PriorityEscalationJob` and `DailySummaryJob`
 - 15 unit tests: cron decorator metadata, empty-case no-op, single WO notification, dedup skip, mixed new/already-notified, all three get notified, 23h dedup window boundary, workOrder query predicate (status filter, time window, principalTechnicianId not null)
 
-#### `feat(work-orders): add ValidationReminderJob for stale pending validations`
+**feat(work-orders): add ValidationReminderJob for stale pending validations**
 - New `ValidationReminderJob` (`@Cron(EVERY_HOUR)`) queries work orders in `PENDING_VALIDATION` for at least 24 hours (`updatedAt <= now - 24h`)
 - Deduplication: checks the `notification` table for existing `VALIDATION_REMINDER_24H` entries for the same WO within the last 23 hours — prevents hourly re-notification spam
 - Uses existing `NotificationsService.notifySupervisors()` path to alert active supervisors with `entityType='WorkOrder'` and `entityId=<woId>`
 - `ValidationReminderJob` registered in `WorkOrdersModule` with the other scheduled work-order jobs
 - 8 unit tests: cron metadata, empty-case no-op, send path, dedup skip, mixed send/skip, 23h dedup query window, 24h stale threshold query, and error propagation on notification failure
 
-#### `feat(web): implement notification deep-linking with entity routing`
+**feat(web): implement notification deep-linking with entity routing**
 - New pure-function module `apps/web/lib/notification-routing.ts`: `resolveNotificationRoute(notification, roles)` maps `entityType + user roles → URL string | null`; `WorkOrder` → `/supervisor/work-orders?id=X`; `ProblemReport` → `/supervisor/reports?id=X`; `PartRequest` → `/storekeeper/part-requests?id=X`; `Asset` + `ComplianceCertificate` → `/supervisor/assets?id=X`
 - `notification-menu.tsx`: clicking a notification now calls `resolveNotificationRoute`, closes the dropdown, marks the notification read, and navigates via `useRouter`; notifications without a resolvable route still mark read only (backward-compatible)
 - `work-order-detail-dialog.tsx`: prop type widened from `WorkOrderListItem | null` to `WorkOrderListItem | { id: string } | null` — accepts a minimal object for deep-link open; header fields guarded with `'referenceNumber' in workOrder` checks; internal `getById` query still fetches full details
@@ -520,7 +508,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Real-time WebSocket notifications (April 18, 2026)
 
-#### `feat(notifications): add Socket.io WebSocket gateway and real-time push`
+**feat(notifications): add Socket.io WebSocket gateway and real-time push**
 - `NotificationsGateway` (`@WebSocketGateway`) validates JWT on connect and assigns each client to a personal `user:<id>` room
 - `NotificationsService.notify()` calls `gateway.emitToUser()` after persisting the notification to DB, so every in-app notification is also pushed live without polling
 - `IoAdapter` (from `@nestjs/platform-socket.io`) registered in `main.ts`
@@ -529,7 +517,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Three-tier deferred report aging (April 18, 2026)
 
-#### `feat(reports): implement three-tier deferred report aging with windowed queries`
+**feat(reports): implement three-tier deferred report aging with windowed queries**
 - Replaced the single 7-day aging threshold with three tiers: 48h (warning), 7d (escalation), 14d (critical)
 - `findReportsDeferredInWindow(minHours, maxHours)`: queries `deferredAt ∈ [now-maxHours, now-minHours)` — half-open window ensures each deferred report receives exactly one notification per tier, never repeated
 - `DeferredReportReminderJob` iterates a TIERS constant array and dispatches tier-specific French notification titles/summaries to all supervisors
@@ -538,7 +526,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Compliance certificate soft-archive (April 18, 2026)
 
-#### `feat(assets): soft-archive compliance certificates instead of hard delete`
+**feat(assets): soft-archive compliance certificates instead of hard delete**
 - Schema: added `isArchived Boolean @default(false)`, `archivedAt DateTime?`, `archivedById String?` to `ComplianceCertificate`; named relations `CreatedCertificates` / `ArchivedCertificates`
 - Migration: `20260418000000_soft_archive_compliance_certificate`
 - All `findMany` queries filter `isArchived: false` (`findByAsset`, `findExpiringSoon`, `refreshStatuses`)
@@ -547,7 +535,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Duplicate active WO guard with supervisor override (April 18, 2026)
 
-#### `feat(work-orders): duplicate active WO guard with supervisor override`
+**feat(work-orders): duplicate active WO guard with supervisor override**
 - `create()` checks for any existing WO in a non-terminal status (`ACTIVE_WO_STATUSES` constant) and throws `ConflictException` with `{ message, existingWorkOrder }` payload
 - `forceCreate?: boolean` DTO field (IsBoolean, optional) allows supervisors to bypass the guard
 - Frontend: 409 responses intercepted by `isDuplicateConflict()` type guard; amber warning panel displays the conflicting WO reference and a "Créer quand même" button that resubmits with `forceCreate: true`
@@ -555,19 +543,19 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Source report panel in WO detail (April 18, 2026)
 
-#### `feat(work-orders): expose source report in WO detail view`
+**feat(work-orders): expose source report in WO detail view**
 - `work-orders.repository.ts findById` now includes `sourceReport` (reference, description, urgencyPerception, reporter, createdAt)
 - Supervisor WO detail dialog renders a muted source report card when `sourceReport` is non-null
 
 ### Added — Overdue row highlighting in supervisor board (April 18, 2026)
 
-#### `feat(work-orders): highlight overdue rows in supervisor board`
+**feat(work-orders): highlight overdue rows in supervisor board**
 - Rows with `dueDate < now` and non-terminal status receive a red background (`bg-red-50 dark:bg-red-950/20`)
 - Due date cell renders an "En retard" label in destructive color
 
 ### Fixed — Admin audit-log endpoint rate limiting (April 17, 2026)
 
-#### `fix(admin): add dedicated throttle on GET /admin/audit-log`
+**fix(admin): add dedicated throttle on GET /admin/audit-log**
 - Added endpoint-level throttling on `GET /admin/audit-log` with `@Throttle({ default: { limit: 10, ttl: 60000 } })`
 - Keeps existing auth/role guards intact while reducing high-volume audit-log scraping risk via page iteration
 - Added backend coverage:
@@ -576,7 +564,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Backend TypeScript editor diagnostics cleanup (April 17, 2026)
 
-#### `fix(backend): resolve persistent VS Code Problems without runtime behavior changes`
+**fix(backend): resolve persistent VS Code Problems without runtime behavior changes**
 - Switched backend bootstrap cookie parser import to CommonJS call-compatible syntax in `apps/backend/src/main.ts`
 - Added explicit `rootDir` to `apps/backend/tsconfig.json` to stabilize source/output layout diagnostics
 - Removed deprecated `baseUrl` from `apps/backend/tsconfig.json`
@@ -585,7 +573,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Auth session inactivity timeout enforcement (April 17, 2026)
 
-#### `fix(auth): enforce SESSION_IDLE_TIMEOUT_HOURS for refresh token lifecycle`
+**fix(auth): enforce SESSION_IDLE_TIMEOUT_HOURS for refresh token lifecycle**
 - `AuthService` no longer uses a hardcoded 7-day refresh-session lifetime for active sessions.
 - Refresh-token TTL is now sourced from `SystemConfig` key `SESSION_IDLE_TIMEOUT_HOURS` and applied consistently to:
   - refresh JWT `expiresIn`
@@ -599,7 +587,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Certificate expiry scheduling architecture compliance (April 17, 2026)
 
-#### `fix(assets): migrate certificate expiry job from setInterval to @nestjs/schedule`
+**fix(assets): migrate certificate expiry job from setInterval to @nestjs/schedule**
 - Replaced manual lifecycle scheduling (`OnModuleInit` + `setInterval`) in `CertificateExpiryJob` with framework-managed decorators:
   - `@Timeout(0)` for immediate startup execution
   - `@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)` for daily recurring execution
@@ -614,7 +602,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Admin analytics dashboard (April 17, 2026)
 
-#### `feat(admin): add admin analytics endpoints and dashboard (§6.3)`
+**feat(admin): add admin analytics endpoints and dashboard (§6.3)**
 - **Problem:** `AdminController` exposed only system-config CRUD and the audit log. No user-activity analytics (inactive accounts, login frequency) and no system-health view (BullMQ queue statuses, failed notification counts) existed anywhere in the application.
 - **Backend — `AdminAnalyticsService`:**
   - `GET /admin/analytics/users` — user activity stats: total/active/inactive user counts, accounts that have never logged in, accounts inactive for 30 + and 90 + days, breakdown by role (one count per `Role` enum value), and a five-bucket login-recency distribution (< 7 d, 7–30 d, 30–90 d, > 90 d, never); all ten base counts run inside a single `$transaction` for consistency
@@ -635,7 +623,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Daily supervisor summary email (April 17, 2026)
 
-#### `feat(work-orders): implement daily supervisor summary email (§12.3)`
+**feat(work-orders): implement daily supervisor summary email (§12.3)**
 - **Problem:** `SystemConfig` stored the `DAILY_SUMMARY_HOUR` key but nothing consumed it; no cron job or email existed to send the daily digest required by spec §12.3.
 - **`DailySummaryJob`** (`@Cron(EVERY_HOUR)`):
   - Reads `DAILY_SUMMARY_HOUR` from `SystemConfig` (default 17; validated to 0–23 range, falls back to 17 on invalid value)
@@ -651,20 +639,20 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Next.js 15 auth redirect compatibility (April 16, 2026)
 
-#### `fix(web): align legacy auth redirect pages with Next 15 PageProps`
+**fix(web): align legacy auth redirect pages with Next 15 PageProps**
 - Updated `app/auth/setup/page.tsx` and `app/auth/reset-password/page.tsx` to use the Next 15 `searchParams` Promise signature
 - Both legacy redirect pages are now `async`, await `searchParams`, and preserve token forwarding to `/setup` and `/reset-password`
 - Removes TypeScript build failures generated from `.next/types` (`TS2344` PageProps mismatch)
 
 ### Changed — Repository hygiene for local build caches (April 16, 2026)
 
-#### `chore(repo): untrack remaining tsbuildinfo cache artifacts`
+**chore(repo): untrack remaining tsbuildinfo cache artifacts**
 - Removed tracked `tsconfig.tsbuildinfo` files from git index so local incremental TypeScript caches no longer pollute `git status`
 - `.gitignore` already contains `*.tsbuildinfo`; this change makes the ignore rule effective for all previously tracked cache artifacts
 
 ### Added — Simultaneous maintenance authorization (April 16, 2026)
 
-#### `feat(work-orders): add authorize-simultaneous endpoint and supervisor UI`
+**feat(work-orders): add authorize-simultaneous endpoint and supervisor UI**
 - **Problem:** `InterventionService.start()` correctly blocks a second work order from starting when an asset already has an `IN_PROGRESS` WO and `simultaneousMaintenanceAuthorized` is `false`. However, no mechanism existed for the supervisor to lift that block — the technician was permanently stuck.
 - **Backend:** New `PATCH /work-orders/:id/authorize-simultaneous` endpoint (Supervisor only)
   - Guards: `400` if WO is already terminal (CLOSED/CANCELLED); `400` if simultaneous maintenance is already authorized (idempotency)
@@ -680,7 +668,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — COULD_NOT_INTERVENE validation data integrity (April 16, 2026)
 
-#### `fix(work-orders): enforce assetStatusOverride when technician could not intervene`
+**fix(work-orders): enforce assetStatusOverride when technician could not intervene**
 - `ValidationService.validate()` previously set the asset to `OPERATIONAL` unconditionally, even when the technician submitted `result: COULD_NOT_INTERVENE` — marking an unrepaired asset as back in service
 - The service now reads the most recent **completed** intervention log (i.e. with `endedAt IS NOT NULL` and `result IS NOT NULL`) before deciding the post-validation asset status:
   - **Normal results** (RESOLVED, PARTIALLY_RESOLVED, NEEDS_FOLLOW_UP, or no log): asset → `OPERATIONAL` as before
@@ -693,35 +681,35 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Inventory part creation conflict handling (April 16, 2026)
 
-#### `fix(inventory): return 409 on duplicate part reference codes`
+**fix(inventory): return 409 on duplicate part reference codes**
 - `POST /parts` now maps both the repository precheck and Prisma unique-constraint failures to `409 Conflict`
 - Duplicate `referenceCode` values no longer surface as opaque 500 errors during concurrent or repeated creates
 - Added backend unit coverage for the repository conflict paths and an HTTP integration test for the controller response
 
 ### Fixed — Stability and seed reliability hardening (April 16, 2026)
 
-#### `fix(web): gate supervisor dashboard queries on auth initialization`
+**fix(web): gate supervisor dashboard queries on auth initialization**
 - Added `enabled: isInitialized` on all supervisor dashboard summary queries
 - Prevents early unauthenticated requests, refresh-token race conditions, and dashboard bootstrap failures after full page reloads
 
-#### `fix(i18n): restore French accents in supervisor dashboard copy`
+**fix(i18n): restore French accents in supervisor dashboard copy**
 - Restored missing accent marks in `supervisorDashboard` French translations (subtitle, error state, and card labels)
 
-#### `fix(backend): cast advisory lock arguments for PostgreSQL overload resolution`
+**fix(backend): cast advisory lock arguments for PostgreSQL overload resolution**
 - Explicitly cast advisory lock parameters to `int` in reference-number generation queries
 - Prevents `pg_advisory_xact_lock(bigint, bigint)` resolution errors that could fail WO/PR creation under runtime bindings
 
-#### `fix(db): make seed execution robust with generated Prisma client mapping`
+**fix(db): make seed execution robust with generated Prisma client mapping**
 - Updated `packages/db/tsconfig.seed.json` with `baseUrl` and `paths` so `@prisma/client` resolves to `packages/db/src/generated/client` during seed compilation
 - Seed data now includes a broader baseline fixture set (users, assets, plans, reports, work orders, inventory movements, notifications) while remaining idempotent
 
-#### `chore(repo): stop tracking TypeScript incremental cache artifacts`
+**chore(repo): stop tracking TypeScript incremental cache artifacts**
 - Added `*.tsbuildinfo` to `.gitignore`
 - Removed tracked `apps/web/tsconfig.tsbuildinfo` from version control
 
 ### Added — Automatic PDF report generation for closed work orders (April 16, 2026)
 
-#### `feat(work-orders): generate and store PDF reports on validation`
+**feat(work-orders): generate and store PDF reports on validation**
 - Added `WorkOrder.reportPdfKey` to persist the generated PDF storage key
 - Introduced a dedicated PDF generation service, BullMQ queue, and processor for closed work orders
 - Validation now enqueues PDF generation asynchronously after a successful closure
@@ -729,14 +717,14 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Supervisor work-order loading and equipment selection (April 16, 2026)
 
-#### `fix(web-supervisor): wait for auth init before loading work orders`
+**fix(web-supervisor): wait for auth init before loading work orders**
 - Supervisor work-order list now waits for auth initialization before firing its query
 - Create work-order equipment selection now uses a backend-valid asset query limit and waits for auth initialization
 - Prevents premature request failures and empty equipment dropdowns during app startup
 
 ### Added — Automatic work order priority escalation (April 16, 2026)
 
-#### `feat(work-orders): add automatic priority escalation job scheduler`
+**feat(work-orders): add automatic priority escalation job scheduler**
 - New hourly Cron job (`PriorityEscalationJob`) evaluates and escalates overdue work orders
 - Escalation follows strict priority chain: LOW → MEDIUM → HIGH → CRITICAL
 - Escalation is scoped to OPEN and ASSIGNED statuses only — IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION are excluded (corrected by §4.3 fix above)
@@ -747,7 +735,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Fixed — Reference number integrity under concurrency (April 13, 2026)
 
-#### `fix(backend): eliminate WO/PR reference race conditions with tx-level locks`
+**fix(backend): eliminate WO/PR reference race conditions with tx-level locks**
 - Replaced all `count + 1` reference generation patterns that could produce duplicate references under parallel writes
 - Added shared utility: `apps/backend/src/common/reference-number.util.ts`
 - New generators use PostgreSQL transaction advisory locks (`pg_advisory_xact_lock`) and last-reference lookup per year:
@@ -763,7 +751,7 @@ All notable changes to the GMAO project are documented here.
 
 ### Added — Role-scope audit: asset certificate/document CRUD + part-return UI (April 9, 2026)
 
-#### `feat(web-supervisor): asset certificate full CRUD in asset-detail-dialog`
+**feat(web-supervisor): asset certificate full CRUD in asset-detail-dialog**
 - Asset certificates were displayed read-only despite the backend fully supporting create/update/delete
 - Added **Add certificate** button (header of Certificates section) opening a new `CertificateFormDialog`
 - Each certificate row now has inline **Edit** (pencil) and **Delete** (trash) icon buttons
@@ -772,7 +760,7 @@ All notable changes to the GMAO project are documented here.
 - File upload sends multipart/form-data via `FormData`; axios omits Content-Type so the browser sets the boundary automatically
 - All certificate action buttons hidden when asset is DECOMMISSIONED
 
-#### `feat(web-supervisor): asset document upload + delete in asset-detail-dialog`
+**feat(web-supervisor): asset document upload + delete in asset-detail-dialog**
 - Asset documents were displayed read-only despite backend supporting upload and delete
 - Added **Upload** button (header of Documents section) opening a new `DocumentUploadDialog`
 - Each document row now has a **Delete** icon button with a loading spinner while in-flight
@@ -780,82 +768,74 @@ All notable changes to the GMAO project are documented here.
 - Document type label is now translated in the document row (was previously showing the raw enum value)
 - Upload and delete buttons hidden when asset is DECOMMISSIONED
 
-#### `feat(web-storekeeper): part-return dialog wired into inventory catalog`
+**feat(web-storekeeper): part-return dialog wired into inventory catalog**
 - `POST /stock/returns` existed in the backend and in the API client but had zero UI entry point
 - Added **Return** (↩) icon button per catalog row, opening a new `StockReturnDialog`
 - Dialog shows current stock + projected stock after return, quantity field (min 1), and a searchable dropdown of cancelled work orders (fetched via `workOrdersApi.list({ status: CANCELLED })`)
 - Live text filter narrows the WO list by reference number or asset name
 - On success, invalidates `storekeeper.inventory` and `storekeeper.low-stock` query caches
 
-#### `fix(web): add missing API client methods to assetsApi`
+**fix(web): add missing API client methods to assetsApi**
 - `assetsApi` lacked five methods that the backend fully supports:
   `createCertificate`, `updateCertificate`, `deleteCertificate`, `uploadDocument`, `deleteDocument`
 - All multipart methods build `FormData` internally; callers pass plain objects + optional `File`
 
-#### `feat(web-i18n): add all French translations for new dialogs`
+**feat(web-i18n): add all French translations for new dialogs**
 - New keys: `supervisorAssets.certificate.*` (form, validation, toasts)
 - New keys: `supervisorAssets.document.*` (form, validation, toasts)
 - New keys: `supervisorAssets.documentType.*` (all 8 DocumentType enum values)
 - New key: `storekeeperInventory.actions.returnStock`
 - New section: `storekeeperInventory.return.*` (dialog, form, validation, toasts)
 
----
+### Added + Fixed — Admin audit & i18n hardening (April 9, 2026)
 
-### Added / Fixed — Admin audit & i18n hardening (April 9, 2026)
-
-#### `feat(backend): add actionType filter to GET /admin/audit-log`
+**feat(backend): add actionType filter to GET /admin/audit-log**
 - Endpoint previously accepted only `targetType` as a query filter
 - Added `@Query('actionType')` parameter; both filters are spread into the Prisma `where` clause and are independently optional
 - Swagger `@ApiQuery` decorator added for `actionType`
 - Admins can now query e.g. `?actionType=USER_DEACTIVATED` to isolate specific audit events
 
-#### `feat(web-admin): add actionType filter dropdown to AuditLogTable`
+**feat(web-admin): add actionType filter dropdown to AuditLogTable**
 - Second filter select added alongside the existing "target type" dropdown
 - Dropdown lists all 15 known action types with human-readable French labels sourced from i18n (`admin.auditLog.actionTypes.*`)
 - Selecting either filter resets pagination to page 1 to avoid stale offsets
 - `adminApi.getAuditLog` updated to forward the new `actionType` param
 
-#### `fix(web-admin): convert AuditLogTable to full i18n`
+**fix(web-admin): convert AuditLogTable to full i18n**
 - All hardcoded French strings removed: column headers, "Avant"/"Après" diff labels, empty state, total count, filter placeholders
 - `AuditChangeDetail` now receives labels as props so the component has no hardcoded locale
 - New i18n keys added: `admin.auditLog.columns.*`, `admin.auditLog.filters.*`, `admin.auditLog.detail.*`, `admin.auditLog.states.*`, `admin.auditLog.actionTypes.*`, `admin.auditLog.total`
 
-#### `fix(web-admin): convert UsersTable and UserFormDialog to full i18n`
+**fix(web-admin): convert UsersTable and UserFormDialog to full i18n**
 - Both components previously bypassed the i18n system entirely despite `categories-table` and `locations-table` using `useTranslation` throughout
 - All hardcoded strings replaced: role labels (driven by `t('admin.users.roles.ROLE')`), column headers, filter selects, status badges, toast messages, confirm-dialog text, form field labels/placeholders/errors
 - New i18n keys added: `admin.users.filters.*`, `admin.users.columns.*`, `admin.users.status.*`, `admin.users.roles.*`, `admin.users.states.*`, `admin.users.actions.*`, `admin.users.toasts.*`, `admin.users.deactivateDialog.*`, `admin.users.form.*`
 
----
+### Fixed — Admin UI audit & hardening (April 9, 2026)
 
-### Fixed - Admin UI audit & hardening (April 9, 2026)
-
-#### `fix(web-admin): replace window.confirm with ConfirmDialog in LocationsTable`
+**fix(web-admin): replace window.confirm with ConfirmDialog in LocationsTable**
 - Removed `window.confirm` (blocking, inconsistent with app UI)
 - Introduced reusable `components/ui/confirm-dialog.tsx` built on the existing `Dialog` primitive
 - Supports: title, description, destructive/default variant, loading state (blocks close while pending), cancel/confirm labels
 - LocationsTable now uses `ConfirmDialog` for delete — shows location name and context in the modal
 
-#### `fix(web-admin): add deactivate confirmation dialog in UsersTable`
+**fix(web-admin): add deactivate confirmation dialog in UsersTable**
 - Deactivating a user now opens a `ConfirmDialog` warning that all active sessions will be revoked
 - Previously the mutation fired immediately on button click with no confirmation
 - Dialog shows the user's full name and blocks closure while the mutation is in-flight
 
-#### `fix(web-admin): repair AuditLog targetType filter`
+**fix(web-admin): repair AuditLog targetType filter**
 - Filter dropdown was built via `useMemo` from the **current page's data only** — if page 1 had only `SystemConfig` entries, `User` and `Asset` were invisible options
 - Replaced with a hardcoded `KNOWN_TARGET_TYPES` constant derived from the actual backend services that write to the audit log (`UsersService`, `SystemConfigService`, `AssetsService`)
 - Removed unused `useMemo` import
 
-#### `fix(backend+web): clear hourlyRate when TECHNICIAN role is removed`
+**fix(backend+web): clear hourlyRate when TECHNICIAN role is removed**
 - Editing a Technician user, unchecking the TECHNICIAN role, and saving silently preserved `hourlyRate` in the database
 - `UserFormDialog.onSubmit` now derives `effectiveHourlyRate: null` when TECHNICIAN is not in the selected roles
 - `UpdateUserDto` updated with `@ValidateIf((_, value) => value !== null)` so `null` is accepted and treated as a clear operation
 - `UpdateUserPayload` shared type already typed `number | null` — backend DTO now matches
 
----
-
-### Added - Admin Master Data UI Complete
-
-#### Admin locations/categories rollout (April 8, 2026)
+### Added — Admin master data UI: locations and categories (April 8, 2026)
 
 **New Pages:**
 - `/admin/locations` — Admin location hierarchy management
@@ -877,12 +857,10 @@ All notable changes to the GMAO project are documented here.
 - User edit flow now refreshes data through `GET /users/:id` before opening edit form
 
 **Testing/quality:**
-- `pnpm --filter web lint` ✅
-- `pnpm --filter web type-check` ✅
+- `pnpm --filter web lint`
+- `pnpm --filter web type-check`
 
-### Added - Web Authentication Complete
-
-#### Account Setup & Password Recovery (April 8, 2025)
+### Added — Web authentication: account setup and password recovery (April 8, 2026)
 
 **New Pages:**
 - `/auth/setup?token=...` — New user account activation with password setup
@@ -900,13 +878,13 @@ All notable changes to the GMAO project are documented here.
 - i18n translations — 15+ French labels for all auth flows and messages
 
 **Features:**
-- ✅ Password confirmation validation (client-side)
-- ✅ Invalid/expired token error handling with clear UX
-- ✅ Suspense boundaries for dynamic `useSearchParams()` (Next.js 15 compatibility)
-- ✅ Loading states and success feedback with auto-redirect
-- ✅ Backend password policy validation integration
-- ✅ Full French i18n support (no hardcoded text)
-- ✅ Production build verified (zero errors)
+- Password confirmation validation (client-side)
+- Invalid/expired token error handling with clear UX
+- Suspense boundaries for dynamic `useSearchParams()` (Next.js 15 compatibility)
+- Loading states and success feedback with auto-redirect
+- Backend password policy validation integration
+- Full French i18n support (no hardcoded text)
+- Production build verified (zero errors)
 
 **Testing:**
 - Setup flow: Admin invites user → user sets password → account active
@@ -914,16 +892,9 @@ All notable changes to the GMAO project are documented here.
 - Forgot flow: User clicks "Oublié ?" → enters email → receives reset email
 - Edge cases: Invalid tokens, password mismatch, missing params
 
-**Documentation:**
-- Updated README.md with authentication flows section
-- Updated CONTEXT.md with web auth module status and testing instructions
-- Updated CONTRIBUTING.md with web auth patterns and best practices
-
----
-
 ## Previous Releases
 
-### [Completed Backend - March 2025]
+### [Completed Backend — March 2025]
 
 **All 12 backend modules complete:**
 - AuthModule: login/refresh/logout, JWT rotation, setup/reset token flows
@@ -940,60 +911,14 @@ All notable changes to the GMAO project are documented here.
 - MailModule: BullMQ queue, Nodemailer, Handlebars templates
 
 **Backend verification:**
-- ✅ Smoke test covers auth, work orders, preventive plans, reports
-- ✅ Swagger API docs available
-- ✅ PostgreSQL + Redis + MinIO + MailHog infrastructure verified
+- Smoke test covers auth, work orders, preventive plans, reports
+- Swagger API docs available
+- PostgreSQL + Redis + MinIO + MailHog infrastructure verified
 
-### [Web Frontend - Partial, March 2025]
+### [Completed Web Frontend — March 2025]
 
-**Implemented Modules:**
-- Admin: users management, system config, audit log
+**Modules shipped:**
+- Admin: users management, system config, audit log, analytics dashboard
 - Storekeeper: inventory catalog, stock operations, part requests, analytics
-- Supervisor: reports, work orders, preventive plans, assets
-- Top bar: notifications with unread badge
-
-**Remaining (Not in scope):**
-- Technician/Requester role UI (backend endpoints exist but no navigation/flows)
-- Admin master data (categories/locations CRUD pages not implemented)
-- Asset compliance (certificate/document tabs on asset detail not implemented)
-
----
-
-## Audit Status
-
-**Latest Audit:** April 8, 2025
-**Gap Identified:** Backend/Frontend capability gap (audit_report.md)
-**Items Addressed:** Item 7 - Account Setup and Password Recovery ✅
-
-**Remaining Audit Items** (not yet implemented):
-1. Asset compliance (certificates/documents workflows)
-2. Work-order technician execution lifecycle
-3. Part-request technician flow
-4. Stock return endpoint integration
-5. Problem report submission by requester/technician
-6. Frontend methods defined but unused
-7. Role-surface mismatch (technician/requester routes)
-8. Deeper architectural decision needed for role expansion
-
----
-
-## Technical Details
-
-**Stack:**
-- Backend: NestJS + TypeScript
-- Web: Next.js 15 + App Router + TypeScript
-- Database: PostgreSQL via Prisma ORM
-- Cache/Queue: Redis + BullMQ
-- Storage: MinIO (S3-compatible)
-- Mail: MailHog + Nodemailer + Handlebars
-- Monorepo: Turborepo + pnpm workspaces
-
-**Development:**
-- Node.js v22+
-- pnpm v10+
-- Docker Compose (postgres, redis, minio, mailhog)
-
-**Git Conventions:**
-- Branch naming: `feat/`, `fix/`, `chore/`, `docs/`
-- Commits: Conventional Commits format
-- Push strategy: Atomic commits, one concern per commit
+- Supervisor: reports, work orders, preventive plans, assets, dashboard
+- Notifications: top bar with unread badge, live push, deep-linking

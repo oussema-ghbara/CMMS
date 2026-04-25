@@ -5,13 +5,115 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, MapPin, Pencil, Trash2, Plus } from 'lucide-react';
-import { locationsApi, type LocationItem } from '@/lib/locations.api';
+import { Loader2, MapPin, Pencil, Trash2, Plus, Settings2 } from 'lucide-react';
+import { locationsApi, type LocationItem, type LevelNameItem } from '@/lib/locations.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LocationFormDialog } from './location-form-dialog';
+
+const SUPPORTED_LEVELS = [1, 2, 3, 4, 5] as const;
+
+function LevelNamesCard() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<number, string>>({});
+
+  const { data: levelNames = [], isLoading } = useQuery({
+    queryKey: ['admin', 'locations', 'level-names'],
+    queryFn: () => locationsApi.getLevelNames(),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (items: LevelNameItem[]) => locationsApi.setLevelNames(items),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['admin', 'locations', 'level-names'], updated);
+      toast.success(t('admin.locations.levelNames.toasts.saveSuccess'));
+      setEditing(false);
+    },
+    onError: () => toast.error(t('admin.locations.levelNames.toasts.saveError')),
+  });
+
+  const nameForLevel = (level: number): string => {
+    return levelNames.find((n) => n.level === level)?.name ?? `Niveau ${level}`;
+  };
+
+  const handleEdit = () => {
+    const initial: Record<number, string> = {};
+    for (const level of SUPPORTED_LEVELS) {
+      initial[level] = nameForLevel(level);
+    }
+    setDraft(initial);
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    const items: LevelNameItem[] = SUPPORTED_LEVELS.map((level) => ({
+      level,
+      name: (draft[level] ?? nameForLevel(level)).trim() || nameForLevel(level),
+    }));
+    saveMutation.mutate(items);
+  };
+
+  return (
+    <div className="rounded-md border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium text-sm">{t('admin.locations.levelNames.title')}</span>
+        </div>
+        {!editing && (
+          <Button variant="outline" size="sm" onClick={handleEdit} disabled={isLoading}>
+            <Pencil className="h-3.5 w-3.5 mr-1" />
+            {t('common.edit')}
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">{t('admin.locations.levelNames.subtitle')}</p>
+
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : editing ? (
+        <div className="space-y-2">
+          {SUPPORTED_LEVELS.map((level) => (
+            <div key={level} className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-16 shrink-0">
+                {t('admin.locations.levelNames.levelLabel', { level })}
+              </span>
+              <Input
+                value={draft[level] ?? ''}
+                onChange={(e) => setDraft((prev) => ({ ...prev, [level]: e.target.value }))}
+                maxLength={50}
+                className="h-7 text-sm"
+              />
+            </div>
+          ))}
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              {t('common.save')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditing(false)} disabled={saveMutation.isPending}>
+              {t('common.cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {SUPPORTED_LEVELS.map((level) => (
+            <Badge key={level} variant="secondary" className="text-xs gap-1">
+              <span className="text-muted-foreground">{level}:</span>
+              {nameForLevel(level)}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
@@ -33,6 +135,14 @@ export function LocationsTable() {
     queryKey: ['admin', 'locations'],
     queryFn: () => locationsApi.list(),
   });
+
+  const { data: levelNames = [] } = useQuery({
+    queryKey: ['admin', 'locations', 'level-names'],
+    queryFn: () => locationsApi.getLevelNames(),
+  });
+
+  const levelLabel = (level: number): string =>
+    levelNames.find((n) => n.level === level)?.name ?? `Niveau ${level}`;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => locationsApi.delete(id),
@@ -63,6 +173,7 @@ export function LocationsTable() {
 
   return (
     <div className="space-y-4">
+      <LevelNamesCard />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <span className="text-sm text-muted-foreground">
           {t('admin.locations.total', { count: locations.length })}
@@ -116,7 +227,7 @@ export function LocationsTable() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{location.fullPath}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{t('admin.locations.levelBadge', { level: location.level })}</Badge>
+                    <Badge variant="secondary">{levelLabel(location.level)}</Badge>
                   </TableCell>
                   <TableCell>{location.code || '—'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-[280px] truncate">

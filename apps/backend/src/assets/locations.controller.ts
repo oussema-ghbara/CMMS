@@ -7,6 +7,7 @@ import { Role } from '@gmao/shared';
 import { LocationsService } from './locations.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
+import { UpdateLevelNamesDto } from './dto/update-level-names.dto';
 import type { AccessTokenPayload } from '../auth/types/jwt-payload.type';
 import type { Request as ExpressRequest } from 'express';
 
@@ -24,6 +25,23 @@ export class LocationsController {
   @ApiOperation({ summary: 'List all locations (all roles)' })
   findAll() {
     return this.service.findAll();
+  }
+
+  // §4.1, §6.2: Must be declared BEFORE :id to avoid route shadowing.
+  @Get('level-names')
+  @ApiOperation({ summary: 'Get configured level names (all roles)' })
+  getLevelNames() {
+    return this.service.getLevelNames();
+  }
+
+  @Patch('level-names')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update level names (Admin)' })
+  setLevelNames(
+    @Body() dto: UpdateLevelNamesDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.service.setLevelNames(dto, req.user.sub);
   }
 
   @Get(':id')

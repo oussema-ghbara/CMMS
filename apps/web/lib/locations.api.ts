@@ -26,6 +26,11 @@ export interface UpdateLocationPayload {
   parentId?: string;
 }
 
+export interface LevelNameItem {
+  level: number;
+  name: string;
+}
+
 export const locationsApi = {
   list: () => api.get<LocationItem[]>('/locations').then((r) => r.data),
   create: (payload: CreateLocationPayload) =>
@@ -33,4 +38,8 @@ export const locationsApi = {
   update: (id: string, payload: UpdateLocationPayload) =>
     api.patch<LocationItem>(`/locations/${id}`, payload).then((r) => r.data),
   delete: (id: string) => api.delete(`/locations/${id}`),
+  getLevelNames: () =>
+    api.get<LevelNameItem[]>('/locations/level-names').then((r) => r.data),
+  setLevelNames: (items: LevelNameItem[]) =>
+    api.patch<LevelNameItem[]>('/locations/level-names', { items }).then((r) => r.data),
 };

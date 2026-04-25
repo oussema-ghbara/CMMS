@@ -1,8 +1,28 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { LocationsRepository } from './locations.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { SystemConfigService } from '../system-config/system-config.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
+import { UpdateLevelNamesDto } from './dto/update-level-names.dto';
+
+export interface LevelNameItem {
+  level: number;
+  name: string;
+}
+
+const SUPPORTED_LEVELS = [1, 2, 3, 4, 5] as const;
+const DEFAULT_LEVEL_NAMES: Record<number, string> = {
+  1: 'Bâtiment',
+  2: 'Étage',
+  3: 'Zone',
+  4: 'Salle',
+  5: 'Sous-zone',
+};
+
+function levelConfigKey(level: number): string {
+  return `LOCATION_LEVEL_${level}_NAME`;
+}
 
 @Injectable()
 export class LocationsService {
@@ -11,6 +31,7 @@ export class LocationsService {
   constructor(
     private readonly repo: LocationsRepository,
     private readonly prisma: PrismaService,
+    private readonly systemConfig: SystemConfigService,
   ) {}
 
   findAll() {
@@ -76,6 +97,27 @@ export class LocationsService {
 
     this.logger.log(`Location updated: ${id} by user ${actorId}`);
     return location;
+  }
+
+  // §4.1, §6.2: Read configured level names, falling back to French defaults.
+  async getLevelNames(): Promise<LevelNameItem[]> {
+    const results = await Promise.all(
+      SUPPORTED_LEVELS.map(async (level) => {
+        const stored = await this.systemConfig.get(levelConfigKey(level));
+        return { level, name: stored ?? DEFAULT_LEVEL_NAMES[level]! };
+      }),
+    );
+    return results;
+  }
+
+  async setLevelNames(dto: UpdateLevelNamesDto, actorId: string): Promise<LevelNameItem[]> {
+    await Promise.all(
+      dto.items.map((item) =>
+        this.systemConfig.set(levelConfigKey(item.level), item.name, actorId),
+      ),
+    );
+    this.logger.log(`Location level names updated by user ${actorId}`);
+    return this.getLevelNames();
   }
 
   async delete(id: string, actorId: string) {

@@ -262,3 +262,201 @@ describe('InventoryRepository.getLongWaitingOnHoldRequests', () => {
     expect(result.waitingHours).toBe(26);
   });
 });
+
+// ── getConsumptionBreakdown ────────────────────────────────────────────────────
+
+describe('InventoryRepository.getConsumptionBreakdown', () => {
+  const createRepository = () => {
+    const prisma = { $queryRaw: jest.fn() };
+    return { prisma, repository: new InventoryRepository(prisma as never) };
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns an empty array when no OUTGOING movements exist in the period', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const result = await repository.getConsumptionBreakdown(30);
+
+    expect(result).toEqual([]);
+  });
+
+  it('maps a single raw row to the correct nested structure', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Hydraulic seal',
+        part_reference: 'SEAL-001',
+        category_id: 'cat-1',
+        category_name: 'Pompes',
+        wo_type: 'CORRECTIVE',
+        total_quantity: BigInt(10),
+        total_cost: '150.00',
+      },
+    ]);
+
+    const result = await repository.getConsumptionBreakdown(30);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      partId: 'part-1',
+      partName: 'Hydraulic seal',
+      partReference: 'SEAL-001',
+      totalQuantity: 10,
+      totalCost: 150,
+    });
+    expect(result[0].byAssetCategory).toHaveLength(1);
+    expect(result[0].byAssetCategory[0]).toMatchObject({
+      categoryId: 'cat-1',
+      categoryName: 'Pompes',
+      quantity: 10,
+      cost: 150,
+    });
+    expect(result[0].byAssetCategory[0].byWoType).toEqual([
+      { woType: 'CORRECTIVE', quantity: 10, cost: 150 },
+    ]);
+  });
+
+  it('aggregates CORRECTIVE and PREVENTIVE rows for the same part+category pair', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Filter',
+        part_reference: 'FLT-001',
+        category_id: 'cat-1',
+        category_name: 'Compresseurs',
+        wo_type: 'CORRECTIVE',
+        total_quantity: BigInt(6),
+        total_cost: '60.00',
+      },
+      {
+        part_id: 'part-1',
+        part_name: 'Filter',
+        part_reference: 'FLT-001',
+        category_id: 'cat-1',
+        category_name: 'Compresseurs',
+        wo_type: 'PREVENTIVE',
+        total_quantity: BigInt(4),
+        total_cost: '40.00',
+      },
+    ]);
+
+    const result = await repository.getConsumptionBreakdown(30);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].totalQuantity).toBe(10);
+    expect(result[0].totalCost).toBeCloseTo(100);
+    expect(result[0].byAssetCategory).toHaveLength(1);
+    expect(result[0].byAssetCategory[0].quantity).toBe(10);
+    expect(result[0].byAssetCategory[0].byWoType).toHaveLength(2);
+    expect(result[0].byAssetCategory[0].byWoType).toEqual(
+      expect.arrayContaining([
+        { woType: 'CORRECTIVE', quantity: 6, cost: 60 },
+        { woType: 'PREVENTIVE', quantity: 4, cost: 40 },
+      ]),
+    );
+  });
+
+  it('groups rows across two distinct asset categories for the same part', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Bearing',
+        part_reference: 'BRG-001',
+        category_id: 'cat-1',
+        category_name: 'Moteurs',
+        wo_type: 'CORRECTIVE',
+        total_quantity: BigInt(5),
+        total_cost: '50.00',
+      },
+      {
+        part_id: 'part-1',
+        part_name: 'Bearing',
+        part_reference: 'BRG-001',
+        category_id: 'cat-2',
+        category_name: 'Pompes',
+        wo_type: 'CORRECTIVE',
+        total_quantity: BigInt(3),
+        total_cost: '30.00',
+      },
+    ]);
+
+    const result = await repository.getConsumptionBreakdown(30);
+
+    expect(result[0].byAssetCategory).toHaveLength(2);
+    expect(result[0].totalQuantity).toBe(8);
+    const categoryNames = result[0].byAssetCategory.map((c) => c.categoryName);
+    expect(categoryNames).toContain('Moteurs');
+    expect(categoryNames).toContain('Pompes');
+  });
+
+  it('handles movements with no linked WO (null category and wo_type)', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Gasket',
+        part_reference: 'GSK-001',
+        category_id: null,
+        category_name: null,
+        wo_type: null,
+        total_quantity: BigInt(7),
+        total_cost: '35.00',
+      },
+    ]);
+
+    const result = await repository.getConsumptionBreakdown(30);
+
+    expect(result[0].byAssetCategory[0].categoryId).toBeNull();
+    expect(result[0].byAssetCategory[0].categoryName).toBeNull();
+    expect(result[0].byAssetCategory[0].byWoType[0].woType).toBeNull();
+  });
+
+  it('sorts returned parts by totalQuantity descending', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-A',
+        part_name: 'Part A',
+        part_reference: 'A-001',
+        category_id: 'cat-1',
+        category_name: 'Cat1',
+        wo_type: 'CORRECTIVE',
+        total_quantity: BigInt(3),
+        total_cost: '30.00',
+      },
+      {
+        part_id: 'part-B',
+        part_name: 'Part B',
+        part_reference: 'B-001',
+        category_id: 'cat-1',
+        category_name: 'Cat1',
+        wo_type: 'CORRECTIVE',
+        total_quantity: BigInt(15),
+        total_cost: '150.00',
+      },
+    ]);
+
+    const result = await repository.getConsumptionBreakdown(30);
+
+    expect(result[0].partId).toBe('part-B');
+    expect(result[1].partId).toBe('part-A');
+  });
+
+  it('passes a since date derived from periodDays to the raw query', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const before = Date.now();
+    await repository.getConsumptionBreakdown(30);
+    const after = Date.now();
+
+    const [, sinceArg] = prisma.$queryRaw.mock.calls[0];
+    expect(sinceArg.getTime()).toBeGreaterThanOrEqual(before - 30 * 24 * 60 * 60 * 1000);
+    expect(sinceArg.getTime()).toBeLessThanOrEqual(after - 30 * 24 * 60 * 60 * 1000 + 100);
+  });
+});

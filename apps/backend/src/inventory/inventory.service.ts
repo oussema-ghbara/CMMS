@@ -145,8 +145,9 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
   // ── Analytics ──────────────────────────────────────────────────────
 
   async getAnalytics(periodDays = 30, deadStockDays = 90, longWaitingThresholdHours = 24): Promise<Record<string, unknown>> {
-    const [consumption, replenishment, deadStock, requests, costTrend, longWaitingRequests] = await Promise.all([
+    const [consumption, consumptionBreakdown, replenishment, deadStock, requests, costTrend, longWaitingRequests] = await Promise.all([
       this.repo.getConsumptionAnalytics(periodDays),
+      this.repo.getConsumptionBreakdown(periodDays),
       this.repo.getReplenishmentAnalytics(90),
       this.repo.getDeadStockParts(deadStockDays),
       this.repo.getRequestProcessingMetrics(periodDays),
@@ -154,7 +155,7 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
       this.repo.getLongWaitingOnHoldRequests(longWaitingThresholdHours),
     ]);
 
-    return { periodDays, consumption, replenishment, deadStock, requests, costTrend, longWaitingRequests, longWaitingThresholdHours };
+    return { periodDays, consumption, consumptionBreakdown, replenishment, deadStock, requests, costTrend, longWaitingRequests, longWaitingThresholdHours };
   }
 
   // ── Low-stock alert — called after every outgoing movement ─────────

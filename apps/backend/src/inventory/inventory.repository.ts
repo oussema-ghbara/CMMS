@@ -586,4 +586,124 @@ export class InventoryRepository {
       waitingHours: Math.round(Number(r.waiting_hours)),
     }));
   }
+
+  // §10.6: Per-part consumption broken down by asset category and WO type
+  // (CORRECTIVE vs PREVENTIVE). Restricted to the top-20 parts by outgoing
+  // quantity so the payload stays bounded.
+  async getConsumptionBreakdown(periodDays: number) {
+    const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+
+    type RawRow = {
+      part_id: string;
+      part_name: string;
+      part_reference: string;
+      category_id: string | null;
+      category_name: string | null;
+      wo_type: string | null;
+      total_quantity: bigint;
+      total_cost: string;
+    };
+
+    const rows = await this.prisma.$queryRaw<RawRow[]>`
+      SELECT
+        sm."partId"                                                                AS part_id,
+        p.name                                                                     AS part_name,
+        p."referenceCode"                                                          AS part_reference,
+        ac.id                                                                      AS category_id,
+        ac.name                                                                    AS category_name,
+        wo.type                                                                    AS wo_type,
+        SUM(sm.quantity)                                                           AS total_quantity,
+        SUM(sm.quantity::numeric * COALESCE(sm."unitCostAtTime", p."unitCost", 0)) AS total_cost
+      FROM "StockMovement" sm
+      JOIN "Part" p ON p.id = sm."partId"
+      LEFT JOIN "WorkOrder" wo ON wo.id = sm."workOrderId"
+      LEFT JOIN "Asset" a       ON a.id  = wo."assetId"
+      LEFT JOIN "AssetCategory" ac ON ac.id = a."categoryId"
+      WHERE sm.type = 'OUTGOING'
+        AND sm."createdAt" >= ${since}
+        AND sm."partId" IN (
+          SELECT "partId"
+          FROM "StockMovement"
+          WHERE type = 'OUTGOING' AND "createdAt" >= ${since}
+          GROUP BY "partId"
+          ORDER BY SUM(quantity) DESC
+          LIMIT 20
+        )
+      GROUP BY sm."partId", p.name, p."referenceCode", ac.id, ac.name, wo.type
+      ORDER BY sm."partId", ac.name NULLS LAST, wo.type NULLS LAST
+    `;
+
+    // Build nested structure: part → categories → wo types
+    const partMap = new Map<
+      string,
+      {
+        partId: string;
+        partName: string;
+        partReference: string;
+        totalQuantity: number;
+        totalCost: number;
+        byAssetCategory: Map<
+          string,
+          {
+            categoryId: string | null;
+            categoryName: string | null;
+            quantity: number;
+            cost: number;
+            byWoType: Array<{ woType: string | null; quantity: number; cost: number }>;
+          }
+        >;
+      }
+    >();
+
+    for (const row of rows) {
+      const qty = Number(row.total_quantity);
+      const cost = Number(row.total_cost ?? 0);
+      const catKey = row.category_id ?? '__none__';
+
+      if (!partMap.has(row.part_id)) {
+        partMap.set(row.part_id, {
+          partId: row.part_id,
+          partName: row.part_name,
+          partReference: row.part_reference,
+          totalQuantity: 0,
+          totalCost: 0,
+          byAssetCategory: new Map(),
+        });
+      }
+      const part = partMap.get(row.part_id)!;
+      part.totalQuantity += qty;
+      part.totalCost += cost;
+
+      if (!part.byAssetCategory.has(catKey)) {
+        part.byAssetCategory.set(catKey, {
+          categoryId: row.category_id,
+          categoryName: row.category_name,
+          quantity: 0,
+          cost: 0,
+          byWoType: [],
+        });
+      }
+      const cat = part.byAssetCategory.get(catKey)!;
+      cat.quantity += qty;
+      cat.cost += cost;
+      cat.byWoType.push({ woType: row.wo_type, quantity: qty, cost });
+    }
+
+    return [...partMap.values()]
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .map((part) => ({
+        partId: part.partId,
+        partName: part.partName,
+        partReference: part.partReference,
+        totalQuantity: part.totalQuantity,
+        totalCost: part.totalCost,
+        byAssetCategory: [...part.byAssetCategory.values()].map((cat) => ({
+          categoryId: cat.categoryId,
+          categoryName: cat.categoryName,
+          quantity: cat.quantity,
+          cost: cat.cost,
+          byWoType: cat.byWoType,
+        })),
+      }));
+  }
 }

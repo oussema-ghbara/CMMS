@@ -8,7 +8,7 @@
  * - Config fallback: defaults to 17 when value is out-of-range or non-numeric
  * - No supervisors: skips mail enqueue and logs a warning
  * - Supervisors present: enqueues one mail job per supervisor
- * - Mail context: template name, supervisor fields, date, all 11 metric fields
+ * - Mail context: template name, supervisor fields, date, all metric fields
  * - Metrics: each count maps to the correct Prisma query predicate
  * - Overdue predicate: uses dueDate < now + active statuses
  * - Critical predicate: uses priority CRITICAL + active statuses
@@ -24,10 +24,9 @@
 import {
   DailySummaryJob,
   DailySummaryMetrics,
-  DailySummaryOverdueItem,
   DailySummaryOnHoldItem,
 } from './daily-summary.job';
-import { WorkOrderStatus, WorkOrderPriority, ProblemReportStatus } from '@gmao/db';
+import { WorkOrderStatus, WorkOrderPriority, ProblemReportStatus, Role } from '@gmao/db';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +35,7 @@ function buildSupervisors(count = 2) {
     id: `sup-${i + 1}`,
     email: `supervisor${i + 1}@example.com`,
     name: `Supervisor ${i + 1}`,
+    roles: [Role.SUPERVISOR],
   }));
 }
 
@@ -49,9 +49,12 @@ function buildMetrics(overrides: Partial<DailySummaryMetrics> = {}): DailySummar
     criticalCount: 1,
     closedTodayCount: 7,
     deferredReportCount: 2,
+    criticalDeferredCount: 1,
     lowStockCount: 3,
     overdueList: [],
     onHoldItems: [],
+    lowStockItems: [],
+    criticalDeferredItems: [],
     ...overrides,
   };
 }
@@ -64,7 +67,7 @@ function buildMocks() {
 
   const prisma = {
     workOrder: { count: prismaCountMock, findMany: prismaFindManyMock },
-    problemReport: { count: prismaCountMock },
+    problemReport: { count: prismaCountMock, findMany: jest.fn().mockResolvedValue([]) },
     part: { findMany: jest.fn().mockResolvedValue([]) },
     user: { findMany: jest.fn() },
     $transaction: jest.fn().mockImplementation((queries: Promise<number>[]) =>
@@ -318,6 +321,70 @@ describe('DailySummaryJob', () => {
     });
   });
 
+  describe('Mail context by role', () => {
+    it('includes low stock details for supervisors with STOREKEEPER role', async () => {
+      const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
+      systemConfig.get.mockResolvedValue('17');
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      prisma.part.findMany.mockResolvedValue([
+        {
+          name: 'Bearing',
+          referenceCode: 'BRG-01',
+          currentStock: 0,
+          minimumStockThreshold: 3,
+        },
+      ]);
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: 'sup-storekeeper',
+          email: 'sup-storekeeper@example.com',
+          name: 'Sup Storekeeper',
+          roles: [Role.SUPERVISOR, Role.STOREKEEPER],
+        },
+      ]);
+
+      const restore = freezeHour(17);
+      await job.run();
+      restore();
+
+      const context = mail.enqueue.mock.calls[0][0].context;
+      expect(context.hasStorekeeperRole).toBe(true);
+      expect(context.lowStockCount).toBe(1);
+      expect(context.lowStockItems).toHaveLength(1);
+    });
+
+    it('hides low stock details for supervisors without STOREKEEPER role', async () => {
+      const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
+      systemConfig.get.mockResolvedValue('17');
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      prisma.part.findMany.mockResolvedValue([
+        {
+          name: 'Bearing',
+          referenceCode: 'BRG-01',
+          currentStock: 0,
+          minimumStockThreshold: 3,
+        },
+      ]);
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: 'sup-only',
+          email: 'sup-only@example.com',
+          name: 'Sup Only',
+          roles: [Role.SUPERVISOR],
+        },
+      ]);
+
+      const restore = freezeHour(17);
+      await job.run();
+      restore();
+
+      const context = mail.enqueue.mock.calls[0][0].context;
+      expect(context.hasStorekeeperRole).toBe(false);
+      expect(context.lowStockCount).toBe(0);
+      expect(context.lowStockItems).toEqual([]);
+    });
+  });
+
   // ── Metrics content ─────────────────────────────────────────────────────────
 
   describe('Metrics in mail context', () => {
@@ -376,7 +443,7 @@ describe('DailySummaryJob', () => {
       expect(ctx.deferredReportCount).toBe(6);
     });
 
-    it('passes all 11 metric fields in context', async () => {
+    it('passes all metric fields in context', async () => {
       const ctx = await runAndGetContext([1, 2, 3, 4, 5, 6, 7, 8]);
       const metricKeys: (keyof DailySummaryMetrics)[] = [
         'openCount',
@@ -387,9 +454,12 @@ describe('DailySummaryJob', () => {
         'criticalCount',
         'closedTodayCount',
         'deferredReportCount',
+        'criticalDeferredCount',
         'lowStockCount',
         'overdueList',
         'onHoldItems',
+        'lowStockItems',
+        'criticalDeferredItems',
       ];
       for (const key of metricKeys) {
         expect(ctx).toHaveProperty(key);
@@ -515,7 +585,29 @@ describe('DailySummaryJob', () => {
       expect(calls[7].where).toMatchObject({ status: ProblemReportStatus.DEFERRED });
     });
 
-    it('wraps all 8 count queries in a single $transaction', async () => {
+    it('criticalDeferredCount query uses DEFERRED status with deferredAt <= 14-day cutoff', async () => {
+      const { job, prismaCountMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+      const before = new Date();
+      await job.collectMetrics();
+      const after = new Date();
+
+      const calls: Array<{ where: { status?: string; deferredAt?: { lte?: Date; not?: null } } }> =
+        prismaCountMock.mock.calls.map((c) => c[0]);
+      const criticalDeferredQuery = calls[8];
+
+      expect(criticalDeferredQuery.where.status).toBe(ProblemReportStatus.DEFERRED);
+      expect(criticalDeferredQuery.where.deferredAt?.not).toBeNull();
+      const lte = criticalDeferredQuery.where.deferredAt?.lte;
+      expect(lte).toBeDefined();
+      const minExpected = new Date(before.getTime() - 14 * 24 * 60 * 60 * 1000);
+      const maxExpected = new Date(after.getTime() - 14 * 24 * 60 * 60 * 1000);
+      expect(lte!.getTime()).toBeGreaterThanOrEqual(minExpected.getTime() - 1_000);
+      expect(lte!.getTime()).toBeLessThanOrEqual(maxExpected.getTime() + 1_000);
+    });
+
+    it('wraps all count queries in a single $transaction', async () => {
       const { job, prismaCountMock, prisma } = buildMocks();
       setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
@@ -523,7 +615,7 @@ describe('DailySummaryJob', () => {
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       const txArg: unknown[] = (prisma.$transaction as jest.Mock).mock.calls[0][0];
-      expect(txArg).toHaveLength(8);
+      expect(txArg).toHaveLength(9);
     });
   });
 
@@ -568,6 +660,56 @@ describe('DailySummaryJob', () => {
           where: { minimumStockThreshold: { gt: 0 } },
         }),
       );
+    });
+
+    it('maps lowStockItems with part detail rows', async () => {
+      const { job, prismaCountMock, prisma } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      prisma.part.findMany.mockResolvedValue([
+        {
+          name: 'Filter A',
+          referenceCode: 'FLT-A',
+          currentStock: 1,
+          minimumStockThreshold: 5,
+        },
+      ]);
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.lowStockItems).toEqual([
+        {
+          name: 'Filter A',
+          referenceCode: 'FLT-A',
+          currentStock: 1,
+          minimumStockThreshold: 5,
+        },
+      ]);
+    });
+  });
+
+  describe('collectMetrics() — critical deferred reports', () => {
+    it('maps criticalDeferredItems with age in days', async () => {
+      const { job, prismaCountMock, prisma } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0, 1]);
+      const deferredAt = new Date(Date.now() - 16 * 24 * 60 * 60 * 1000);
+      prisma.problemReport.findMany = jest.fn().mockResolvedValue([
+        {
+          referenceNumber: 'PR-001',
+          deferredAt,
+          asset: { name: 'Compresseur C-12' },
+        },
+      ]);
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.criticalDeferredCount).toBe(1);
+      expect(metrics.criticalDeferredItems).toHaveLength(1);
+      expect(metrics.criticalDeferredItems[0]).toMatchObject({
+        referenceNumber: 'PR-001',
+        assetName: 'Compresseur C-12',
+        deferredAt: deferredAt.toISOString(),
+      });
+      expect(metrics.criticalDeferredItems[0].daysDeferred).toBeGreaterThanOrEqual(16);
     });
   });
 
@@ -700,7 +842,7 @@ describe('DailySummaryJob', () => {
       );
     });
 
-    it('selects id, email, and name fields', async () => {
+    it('selects id, email, name, and roles fields', async () => {
       const { job, prisma } = buildMocks();
       prisma.user.findMany.mockResolvedValue([]);
 
@@ -708,7 +850,7 @@ describe('DailySummaryJob', () => {
 
       expect(prisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          select: { id: true, email: true, name: true },
+          select: { id: true, email: true, name: true, roles: true },
         }),
       );
     });

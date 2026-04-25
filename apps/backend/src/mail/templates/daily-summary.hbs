@@ -61,9 +61,15 @@
         <td class="badge-info">{{deferredReportCount}}</td>
       </tr>
       <tr>
+        <td>Signalements différés critiques (14+ jours)</td>
+        <td class="badge-warn">{{criticalDeferredCount}}</td>
+      </tr>
+      {{#if hasStorekeeperRole}}
+      <tr>
         <td>Pièces en rupture de stock</td>
         <td class="{{#if lowStockCount}}badge-warn{{/if}}">{{lowStockCount}}</td>
       </tr>
+      {{/if}}
     </tbody>
   </table>
 
@@ -117,6 +123,62 @@
   {{else}}
   <h2>Ordres en pause</h2>
   <p class="section-none">Aucun ordre en pause.</p>
+  {{/if}}
+
+  {{#if criticalDeferredItems.length}}
+  <h2>Signalements différés critiques (14+ jours)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Référence</th>
+        <th>Équipement</th>
+        <th>Différé le</th>
+        <th>Durée du report</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each criticalDeferredItems}}
+      <tr>
+        <td>{{this.referenceNumber}}</td>
+        <td>{{this.assetName}}</td>
+        <td>{{this.deferredAt}}</td>
+        <td>{{this.daysDeferred}} jours</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <h2>Signalements différés critiques (14+ jours)</h2>
+  <p class="section-none">Aucun signalement différé critique.</p>
+  {{/if}}
+
+  {{#if hasStorekeeperRole}}
+    {{#if lowStockItems.length}}
+    <h2>Pièces sous seuil minimum</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Pièce</th>
+          <th>Référence</th>
+          <th>Stock actuel</th>
+          <th>Seuil minimum</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each lowStockItems}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td>{{this.referenceCode}}</td>
+          <td>{{this.currentStock}}</td>
+          <td>{{this.minimumStockThreshold}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <h2>Pièces sous seuil minimum</h2>
+    <p class="section-none">Aucune pièce sous seuil minimum.</p>
+    {{/if}}
   {{/if}}
 
   <p class="footer">— Système GMAO · Ce message est généré automatiquement, merci de ne pas y répondre.</p>

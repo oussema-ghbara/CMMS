@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { SystemConfigService } from '../../system-config/system-config.service';
-import { WorkOrderStatus, WorkOrderPriority, ProblemReportStatus } from '@gmao/db';
+import { WorkOrderStatus, WorkOrderPriority, ProblemReportStatus, Role } from '@gmao/db';
 import { JobLoggerService } from '../../job-logger/job-logger.service';
 
 const ACTIVE_STATUSES = [
@@ -16,6 +16,9 @@ const ACTIVE_STATUSES = [
 
 const MAX_OVERDUE_LIST = 10;
 const MAX_ON_HOLD_LIST = 10;
+const MAX_LOW_STOCK_LIST = 10;
+const MAX_CRITICAL_DEFERRED_LIST = 10;
+const CRITICAL_DEFERRED_DAYS = 14;
 
 const JOB_NAME = 'daily-summary';
 
@@ -32,6 +35,20 @@ export interface DailySummaryOnHoldItem {
   assetName: string;
 }
 
+export interface DailySummaryLowStockItem {
+  name: string;
+  referenceCode: string;
+  currentStock: number;
+  minimumStockThreshold: number;
+}
+
+export interface DailySummaryCriticalDeferredItem {
+  referenceNumber: string;
+  assetName: string;
+  deferredAt: string;
+  daysDeferred: number;
+}
+
 export interface DailySummaryMetrics {
   openCount: number;
   inProgressCount: number;
@@ -41,9 +58,12 @@ export interface DailySummaryMetrics {
   criticalCount: number;
   closedTodayCount: number;
   deferredReportCount: number;
+  criticalDeferredCount: number;
   lowStockCount: number;
   overdueList: DailySummaryOverdueItem[];
   onHoldItems: DailySummaryOnHoldItem[];
+  lowStockItems: DailySummaryLowStockItem[];
+  criticalDeferredItems: DailySummaryCriticalDeferredItem[];
 }
 
 @Injectable()
@@ -108,7 +128,7 @@ export class DailySummaryJob {
           context: {
             supervisorName: supervisor.name,
             date,
-            ...metrics,
+            ...this.buildContextForSupervisor(metrics, supervisor),
           },
         }),
       ),
@@ -118,8 +138,22 @@ export class DailySummaryJob {
       `Daily summary enqueued for ${supervisors.length} supervisor(s) — ` +
         `open=${metrics.openCount}, overdue=${metrics.overdueCount}, ` +
         `critical=${metrics.criticalCount}, pendingValidation=${metrics.pendingValidationCount}, ` +
-        `deferred=${metrics.deferredReportCount}, lowStock=${metrics.lowStockCount}`,
+        `deferred=${metrics.deferredReportCount}, criticalDeferred=${metrics.criticalDeferredCount}, ` +
+        `lowStock=${metrics.lowStockCount}`,
     );
+  }
+
+  private buildContextForSupervisor(
+    metrics: DailySummaryMetrics,
+    supervisor: { roles: Role[] },
+  ): DailySummaryMetrics & { hasStorekeeperRole: boolean } {
+    const hasStorekeeperRole = supervisor.roles.includes(Role.STOREKEEPER);
+    return {
+      ...metrics,
+      hasStorekeeperRole,
+      lowStockCount: hasStorekeeperRole ? metrics.lowStockCount : 0,
+      lowStockItems: hasStorekeeperRole ? metrics.lowStockItems : [],
+    };
   }
 
   async getConfiguredHour(): Promise<number> {
@@ -132,6 +166,7 @@ export class DailySummaryJob {
 
   async collectMetrics(): Promise<DailySummaryMetrics> {
     const now = new Date();
+    const criticalDeferredCutoff = new Date(now.getTime() - CRITICAL_DEFERRED_DAYS * 24 * 60 * 60 * 1000);
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 
     const [
@@ -143,6 +178,7 @@ export class DailySummaryJob {
       criticalCount,
       closedTodayCount,
       deferredReportCount,
+      criticalDeferredCount,
     ] = await this.prisma.$transaction([
       this.prisma.workOrder.count({
         where: { status: { in: [WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED] } },
@@ -177,10 +213,16 @@ export class DailySummaryJob {
       this.prisma.problemReport.count({
         where: { status: ProblemReportStatus.DEFERRED },
       }),
+      this.prisma.problemReport.count({
+        where: {
+          status: ProblemReportStatus.DEFERRED,
+          deferredAt: { not: null, lte: criticalDeferredCutoff },
+        },
+      }),
     ]);
 
     // Column-to-column comparison requires a separate query outside the transaction.
-    const [overdueRaw, onHoldRaw, lowStockParts] = await Promise.all([
+    const [overdueRaw, onHoldRaw, lowStockParts, criticalDeferredRaw] = await Promise.all([
       this.prisma.workOrder.findMany({
         where: {
           dueDate: { lt: now },
@@ -212,13 +254,42 @@ export class DailySummaryJob {
       }),
       this.prisma.part.findMany({
         where: { minimumStockThreshold: { gt: 0 } },
-        select: { currentStock: true, minimumStockThreshold: true },
+        orderBy: { currentStock: 'asc' },
+        take: MAX_LOW_STOCK_LIST,
+        select: {
+          name: true,
+          referenceCode: true,
+          currentStock: true,
+          minimumStockThreshold: true,
+        },
+      }),
+      this.prisma.problemReport.findMany({
+        where: {
+          status: ProblemReportStatus.DEFERRED,
+          deferredAt: { not: null, lte: criticalDeferredCutoff },
+        },
+        orderBy: { deferredAt: 'asc' },
+        take: MAX_CRITICAL_DEFERRED_LIST,
+        select: {
+          referenceNumber: true,
+          deferredAt: true,
+          asset: { select: { name: true } },
+        },
       }),
     ]);
 
     const lowStockCount = lowStockParts.filter(
       (p) => p.currentStock < p.minimumStockThreshold,
     ).length;
+
+    const lowStockItems: DailySummaryLowStockItem[] = lowStockParts
+      .filter((part) => part.currentStock < part.minimumStockThreshold)
+      .map((part) => ({
+        name: part.name,
+        referenceCode: part.referenceCode,
+        currentStock: part.currentStock,
+        minimumStockThreshold: part.minimumStockThreshold,
+      }));
 
     const overdueList: DailySummaryOverdueItem[] = overdueRaw.map((wo) => ({
       referenceNumber: wo.referenceNumber,
@@ -239,6 +310,17 @@ export class DailySummaryJob {
       };
     });
 
+    const criticalDeferredItems: DailySummaryCriticalDeferredItem[] = criticalDeferredRaw.map((report) => {
+      const deferredAt = report.deferredAt!;
+      const daysDeferred = Math.floor((now.getTime() - deferredAt.getTime()) / (24 * 60 * 60 * 1000));
+      return {
+        referenceNumber: report.referenceNumber,
+        assetName: report.asset.name,
+        deferredAt: deferredAt.toISOString(),
+        daysDeferred,
+      };
+    });
+
     return {
       openCount,
       inProgressCount,
@@ -248,16 +330,19 @@ export class DailySummaryJob {
       criticalCount,
       closedTodayCount,
       deferredReportCount,
+      criticalDeferredCount,
       lowStockCount,
       overdueList,
       onHoldItems,
+      lowStockItems,
+      criticalDeferredItems,
     };
   }
 
-  async getActiveSupervisors(): Promise<Array<{ id: string; email: string; name: string }>> {
+  async getActiveSupervisors(): Promise<Array<{ id: string; email: string; name: string; roles: Role[] }>> {
     return this.prisma.user.findMany({
       where: { roles: { has: 'SUPERVISOR' }, isActive: true },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, roles: true },
     });
   }
 }

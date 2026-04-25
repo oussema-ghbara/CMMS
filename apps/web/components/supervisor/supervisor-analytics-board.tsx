@@ -474,6 +474,16 @@ export function SupervisorAnalyticsBoard() {
                   value={data.requesterAnalytics.reportToActionAvgDays != null ? `${fmtDec(data.requesterAnalytics.reportToActionAvgDays)} j` : '—'}
                   sub={t('supervisorAnalytics.kpi.reportToActionDelayDesc')}
                 />
+                <KpiCard
+                  label={t('supervisorAnalytics.kpi.reportAccuracyRate')}
+                  value={data.requesterAnalytics.reportAccuracyRate != null ? fmtPct(data.requesterAnalytics.reportAccuracyRate) : '—'}
+                  sub={t('supervisorAnalytics.kpi.reportAccuracyRateDesc')}
+                />
+                <KpiCard
+                  label={t('supervisorAnalytics.kpi.duplicateSubmissionRate')}
+                  value={data.requesterAnalytics.duplicateSubmissionRate != null ? fmtPct(data.requesterAnalytics.duplicateSubmissionRate) : '—'}
+                  sub={t('supervisorAnalytics.kpi.duplicateSubmissionRateDesc')}
+                />
               </div>
             </div>
           )}

@@ -4,18 +4,22 @@
   <meta charset="UTF-8" />
   <style>
     body { font-family: Arial, sans-serif; color: #333; }
-    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    h2 { font-size: 16px; margin-top: 28px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
     th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
     th { background-color: #f5f5f5; font-weight: 600; }
     .badge-critical { color: #c0392b; font-weight: bold; }
     .badge-warn { color: #e67e22; font-weight: bold; }
+    .badge-info { color: #2980b9; font-weight: bold; }
     .footer { margin-top: 24px; font-size: 12px; color: #999; }
+    .section-none { color: #999; font-style: italic; font-size: 13px; margin: 4px 0; }
   </style>
 </head>
 <body>
   <p>Bonjour {{supervisorName}},</p>
   <p>Voici le résumé quotidien des ordres de travail pour le <strong>{{date}}</strong>.</p>
 
+  <h2>Tableau de bord</h2>
   <table>
     <thead>
       <tr>
@@ -52,8 +56,68 @@
         <td>Clôturés aujourd'hui</td>
         <td>{{closedTodayCount}}</td>
       </tr>
+      <tr>
+        <td>Signalements différés en attente</td>
+        <td class="badge-info">{{deferredReportCount}}</td>
+      </tr>
+      <tr>
+        <td>Pièces en rupture de stock</td>
+        <td class="{{#if lowStockCount}}badge-warn{{/if}}">{{lowStockCount}}</td>
+      </tr>
     </tbody>
   </table>
+
+  {{#if overdueList.length}}
+  <h2>Ordres en retard (top {{overdueList.length}})</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Référence</th>
+        <th>Équipement</th>
+        <th>Priorité</th>
+        <th>Échéance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each overdueList}}
+      <tr>
+        <td>{{this.referenceNumber}}</td>
+        <td>{{this.assetName}}</td>
+        <td class="{{#if (eq this.priority 'CRITICAL')}}badge-critical{{else}}badge-warn{{/if}}">{{this.priority}}</td>
+        <td>{{this.dueDate}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <h2>Ordres en retard</h2>
+  <p class="section-none">Aucun ordre en retard.</p>
+  {{/if}}
+
+  {{#if onHoldItems.length}}
+  <h2>Ordres en pause (top {{onHoldItems.length}})</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Référence</th>
+        <th>Équipement</th>
+        <th>Durée en pause</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each onHoldItems}}
+      <tr>
+        <td>{{this.referenceNumber}}</td>
+        <td>{{this.assetName}}</td>
+        <td>{{this.holdDurationMinutes}} min</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <h2>Ordres en pause</h2>
+  <p class="section-none">Aucun ordre en pause.</p>
+  {{/if}}
 
   <p class="footer">— Système GMAO · Ce message est généré automatiquement, merci de ne pas y répondre.</p>
 </body>

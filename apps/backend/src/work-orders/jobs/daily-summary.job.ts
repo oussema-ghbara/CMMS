@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { SystemConfigService } from '../../system-config/system-config.service';
-import { WorkOrderStatus, WorkOrderPriority } from '@gmao/db';
+import { WorkOrderStatus, WorkOrderPriority, ProblemReportStatus } from '@gmao/db';
 import { JobLoggerService } from '../../job-logger/job-logger.service';
 
 const ACTIVE_STATUSES = [
@@ -14,7 +14,23 @@ const ACTIVE_STATUSES = [
   WorkOrderStatus.PENDING_VALIDATION,
 ] as const;
 
+const MAX_OVERDUE_LIST = 10;
+const MAX_ON_HOLD_LIST = 10;
+
 const JOB_NAME = 'daily-summary';
+
+export interface DailySummaryOverdueItem {
+  referenceNumber: string;
+  priority: WorkOrderPriority;
+  dueDate: string;
+  assetName: string;
+}
+
+export interface DailySummaryOnHoldItem {
+  referenceNumber: string;
+  holdDurationMinutes: number;
+  assetName: string;
+}
 
 export interface DailySummaryMetrics {
   openCount: number;
@@ -24,6 +40,10 @@ export interface DailySummaryMetrics {
   overdueCount: number;
   criticalCount: number;
   closedTodayCount: number;
+  deferredReportCount: number;
+  lowStockCount: number;
+  overdueList: DailySummaryOverdueItem[];
+  onHoldItems: DailySummaryOnHoldItem[];
 }
 
 @Injectable()
@@ -97,7 +117,8 @@ export class DailySummaryJob {
     this.logger.log(
       `Daily summary enqueued for ${supervisors.length} supervisor(s) — ` +
         `open=${metrics.openCount}, overdue=${metrics.overdueCount}, ` +
-        `critical=${metrics.criticalCount}, pendingValidation=${metrics.pendingValidationCount}`,
+        `critical=${metrics.criticalCount}, pendingValidation=${metrics.pendingValidationCount}, ` +
+        `deferred=${metrics.deferredReportCount}, lowStock=${metrics.lowStockCount}`,
     );
   }
 
@@ -121,6 +142,7 @@ export class DailySummaryJob {
       overdueCount,
       criticalCount,
       closedTodayCount,
+      deferredReportCount,
     ] = await this.prisma.$transaction([
       this.prisma.workOrder.count({
         where: { status: { in: [WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED] } },
@@ -152,7 +174,70 @@ export class DailySummaryJob {
           closedAt: { gte: startOfToday },
         },
       }),
+      this.prisma.problemReport.count({
+        where: { status: ProblemReportStatus.DEFERRED },
+      }),
     ]);
+
+    // Column-to-column comparison requires a separate query outside the transaction.
+    const [overdueRaw, onHoldRaw, lowStockParts] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where: {
+          dueDate: { lt: now },
+          status: { in: [...ACTIVE_STATUSES] },
+        },
+        orderBy: { dueDate: 'asc' },
+        take: MAX_OVERDUE_LIST,
+        select: {
+          referenceNumber: true,
+          priority: true,
+          dueDate: true,
+          asset: { select: { name: true } },
+        },
+      }),
+      this.prisma.workOrder.findMany({
+        where: { status: WorkOrderStatus.ON_HOLD },
+        orderBy: { updatedAt: 'asc' },
+        take: MAX_ON_HOLD_LIST,
+        select: {
+          referenceNumber: true,
+          asset: { select: { name: true } },
+          onHoldPeriods: {
+            where: { resumedAt: null },
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+            select: { startedAt: true },
+          },
+        },
+      }),
+      this.prisma.part.findMany({
+        where: { minimumStockThreshold: { gt: 0 } },
+        select: { currentStock: true, minimumStockThreshold: true },
+      }),
+    ]);
+
+    const lowStockCount = lowStockParts.filter(
+      (p) => p.currentStock < p.minimumStockThreshold,
+    ).length;
+
+    const overdueList: DailySummaryOverdueItem[] = overdueRaw.map((wo) => ({
+      referenceNumber: wo.referenceNumber,
+      priority: wo.priority,
+      dueDate: wo.dueDate!.toISOString(),
+      assetName: wo.asset.name,
+    }));
+
+    const onHoldItems: DailySummaryOnHoldItem[] = onHoldRaw.map((wo) => {
+      const activePeriod = wo.onHoldPeriods[0] ?? null;
+      const holdDurationMinutes = activePeriod
+        ? Math.round((now.getTime() - activePeriod.startedAt.getTime()) / 60_000)
+        : 0;
+      return {
+        referenceNumber: wo.referenceNumber,
+        holdDurationMinutes,
+        assetName: wo.asset.name,
+      };
+    });
 
     return {
       openCount,
@@ -162,6 +247,10 @@ export class DailySummaryJob {
       overdueCount,
       criticalCount,
       closedTodayCount,
+      deferredReportCount,
+      lowStockCount,
+      overdueList,
+      onHoldItems,
     };
   }
 

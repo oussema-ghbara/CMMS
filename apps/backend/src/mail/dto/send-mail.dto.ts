@@ -8,5 +8,5 @@ export type MailTemplate =
 export interface SendMailDto {
   to: string;
   template: MailTemplate;
-  context: Record<string, string | number>;
+  context: Record<string, unknown>;
 }

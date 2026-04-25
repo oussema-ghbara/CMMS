@@ -8,18 +8,26 @@
  * - Config fallback: defaults to 17 when value is out-of-range or non-numeric
  * - No supervisors: skips mail enqueue and logs a warning
  * - Supervisors present: enqueues one mail job per supervisor
- * - Mail context: template name, supervisor fields, date, all 7 metric fields
+ * - Mail context: template name, supervisor fields, date, all 11 metric fields
  * - Metrics: each count maps to the correct Prisma query predicate
  * - Overdue predicate: uses dueDate < now + active statuses
  * - Critical predicate: uses priority CRITICAL + active statuses
  * - closedToday predicate: uses closedAt >= start of today
+ * - deferredReportCount: queries ProblemReport with DEFERRED status
+ * - lowStockCount: counts parts where currentStock < minimumStockThreshold
+ * - overdueList: returns top MAX_OVERDUE_LIST items ordered by dueDate asc
+ * - onHoldItems: computes holdDurationMinutes from active hold period
  * - Parallel enqueue: all mail jobs sent in one Promise.all, not sequentially
- * - Idempotency: two calls in the same hour only enqueue once (real-world
- *   guard — the @Cron fires once per hour, but we verify the hour check)
+ * - Idempotency: two calls in the same hour only enqueue once
  */
 
-import { DailySummaryJob, DailySummaryMetrics } from './daily-summary.job';
-import { WorkOrderStatus, WorkOrderPriority } from '@gmao/db';
+import {
+  DailySummaryJob,
+  DailySummaryMetrics,
+  DailySummaryOverdueItem,
+  DailySummaryOnHoldItem,
+} from './daily-summary.job';
+import { WorkOrderStatus, WorkOrderPriority, ProblemReportStatus } from '@gmao/db';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -40,6 +48,10 @@ function buildMetrics(overrides: Partial<DailySummaryMetrics> = {}): DailySummar
     overdueCount: 4,
     criticalCount: 1,
     closedTodayCount: 7,
+    deferredReportCount: 2,
+    lowStockCount: 3,
+    overdueList: [],
+    onHoldItems: [],
     ...overrides,
   };
 }
@@ -48,10 +60,12 @@ function buildMetrics(overrides: Partial<DailySummaryMetrics> = {}): DailySummar
 
 function buildMocks() {
   const prismaCountMock = jest.fn();
+  const prismaFindManyMock = jest.fn().mockResolvedValue([]);
 
-  // $transaction receives an array of promises; resolve them all
   const prisma = {
-    workOrder: { count: prismaCountMock },
+    workOrder: { count: prismaCountMock, findMany: prismaFindManyMock },
+    problemReport: { count: prismaCountMock },
+    part: { findMany: jest.fn().mockResolvedValue([]) },
     user: { findMany: jest.fn() },
     $transaction: jest.fn().mockImplementation((queries: Promise<number>[]) =>
       Promise.all(queries),
@@ -79,11 +93,11 @@ function buildMocks() {
     jobLogger as never,
   );
 
-  return { job, prisma, mail, systemConfig, prismaCountMock, jobLogger };
+  return { job, prisma, mail, systemConfig, prismaCountMock, prismaFindManyMock, jobLogger };
 }
 
-// Returns a mock implementation for prisma.workOrder.count that emits values
-// positionally: first call → values[0], second → values[1], …
+// Returns a mock implementation for prisma.workOrder.count / problemReport.count
+// that emits values positionally across both mocks combined.
 function setupCountMock(
   prismaCountMock: jest.Mock,
   values: number[],
@@ -96,8 +110,6 @@ function setupCountMock(
   });
 }
 
-// Spy on getHours so hour-gate checks return a deterministic value.
-// Using spyOn(Date.prototype) is safe and does not require overriding the Date constructor.
 function freezeHour(hour: number): () => void {
   const spy = jest.spyOn(Date.prototype, 'getHours').mockReturnValue(hour);
   return () => spy.mockRestore();
@@ -114,7 +126,7 @@ describe('DailySummaryJob', () => {
     it('does NOT enqueue any mail when current hour !== configured hour', async () => {
       const { job, mail, systemConfig } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      const restore = freezeHour(10); // current hour is 10, configured is 17
+      const restore = freezeHour(10);
 
       await job.run();
 
@@ -125,7 +137,7 @@ describe('DailySummaryJob', () => {
     it('proceeds when current hour === configured hour', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(buildSupervisors(1));
 
       const restore = freezeHour(17);
@@ -138,7 +150,7 @@ describe('DailySummaryJob', () => {
     it('uses hour 0 when configured to midnight', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('0');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(buildSupervisors(1));
 
       const restore = freezeHour(0);
@@ -213,7 +225,7 @@ describe('DailySummaryJob', () => {
     it('does NOT enqueue any mail when there are no active supervisors', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('8');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue([]);
 
       const restore = freezeHour(8);
@@ -230,7 +242,7 @@ describe('DailySummaryJob', () => {
     it('enqueues exactly one mail per supervisor', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(buildSupervisors(3));
 
       const restore = freezeHour(17);
@@ -243,7 +255,7 @@ describe('DailySummaryJob', () => {
     it('uses the "daily-summary" template for every mail', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(buildSupervisors(2));
 
       const restore = freezeHour(17);
@@ -259,7 +271,7 @@ describe('DailySummaryJob', () => {
       const supervisors = buildSupervisors(2);
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(supervisors);
 
       const restore = freezeHour(17);
@@ -274,7 +286,7 @@ describe('DailySummaryJob', () => {
       const supervisors = buildSupervisors(1);
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(supervisors);
 
       const restore = freezeHour(17);
@@ -293,7 +305,7 @@ describe('DailySummaryJob', () => {
     it('includes a non-empty date string in mail context', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(buildSupervisors(1));
 
       const restore = freezeHour(17);
@@ -325,42 +337,47 @@ describe('DailySummaryJob', () => {
     }
 
     it('maps openCount correctly', async () => {
-      const ctx = await runAndGetContext([42, 0, 0, 0, 0, 0, 0]);
+      const ctx = await runAndGetContext([42, 0, 0, 0, 0, 0, 0, 0]);
       expect(ctx.openCount).toBe(42);
     });
 
     it('maps inProgressCount correctly', async () => {
-      const ctx = await runAndGetContext([0, 11, 0, 0, 0, 0, 0]);
+      const ctx = await runAndGetContext([0, 11, 0, 0, 0, 0, 0, 0]);
       expect(ctx.inProgressCount).toBe(11);
     });
 
     it('maps pendingValidationCount correctly', async () => {
-      const ctx = await runAndGetContext([0, 0, 7, 0, 0, 0, 0]);
+      const ctx = await runAndGetContext([0, 0, 7, 0, 0, 0, 0, 0]);
       expect(ctx.pendingValidationCount).toBe(7);
     });
 
     it('maps onHoldCount correctly', async () => {
-      const ctx = await runAndGetContext([0, 0, 0, 3, 0, 0, 0]);
+      const ctx = await runAndGetContext([0, 0, 0, 3, 0, 0, 0, 0]);
       expect(ctx.onHoldCount).toBe(3);
     });
 
     it('maps overdueCount correctly', async () => {
-      const ctx = await runAndGetContext([0, 0, 0, 0, 9, 0, 0]);
+      const ctx = await runAndGetContext([0, 0, 0, 0, 9, 0, 0, 0]);
       expect(ctx.overdueCount).toBe(9);
     });
 
     it('maps criticalCount correctly', async () => {
-      const ctx = await runAndGetContext([0, 0, 0, 0, 0, 2, 0]);
+      const ctx = await runAndGetContext([0, 0, 0, 0, 0, 2, 0, 0]);
       expect(ctx.criticalCount).toBe(2);
     });
 
     it('maps closedTodayCount correctly', async () => {
-      const ctx = await runAndGetContext([0, 0, 0, 0, 0, 0, 15]);
+      const ctx = await runAndGetContext([0, 0, 0, 0, 0, 0, 15, 0]);
       expect(ctx.closedTodayCount).toBe(15);
     });
 
-    it('passes all 7 metric fields in context', async () => {
-      const ctx = await runAndGetContext([1, 2, 3, 4, 5, 6, 7]);
+    it('maps deferredReportCount correctly', async () => {
+      const ctx = await runAndGetContext([0, 0, 0, 0, 0, 0, 0, 6]);
+      expect(ctx.deferredReportCount).toBe(6);
+    });
+
+    it('passes all 11 metric fields in context', async () => {
+      const ctx = await runAndGetContext([1, 2, 3, 4, 5, 6, 7, 8]);
       const metricKeys: (keyof DailySummaryMetrics)[] = [
         'openCount',
         'inProgressCount',
@@ -369,6 +386,10 @@ describe('DailySummaryJob', () => {
         'overdueCount',
         'criticalCount',
         'closedTodayCount',
+        'deferredReportCount',
+        'lowStockCount',
+        'overdueList',
+        'onHoldItems',
       ];
       for (const key of metricKeys) {
         expect(ctx).toHaveProperty(key);
@@ -381,7 +402,7 @@ describe('DailySummaryJob', () => {
   describe('collectMetrics() — Prisma query predicates', () => {
     it('queries OPEN and ASSIGNED statuses for openCount', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -394,7 +415,7 @@ describe('DailySummaryJob', () => {
 
     it('queries IN_PROGRESS status for inProgressCount', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -404,7 +425,7 @@ describe('DailySummaryJob', () => {
 
     it('queries PENDING_VALIDATION status for pendingValidationCount', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -414,7 +435,7 @@ describe('DailySummaryJob', () => {
 
     it('queries ON_HOLD status for onHoldCount', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -424,7 +445,7 @@ describe('DailySummaryJob', () => {
 
     it('overdueCount query uses dueDate lt now', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       const before = new Date();
       await job.collectMetrics();
@@ -442,7 +463,7 @@ describe('DailySummaryJob', () => {
 
     it('overdueCount query excludes CLOSED and CANCELLED statuses', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -456,7 +477,7 @@ describe('DailySummaryJob', () => {
 
     it('criticalCount query uses CRITICAL priority with active statuses', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -466,7 +487,7 @@ describe('DailySummaryJob', () => {
 
     it('closedTodayCount query uses CLOSED status with closedAt >= start of today', async () => {
       const { job, prismaCountMock } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
@@ -477,23 +498,186 @@ describe('DailySummaryJob', () => {
       expect(closedQuery.where.status).toBe(WorkOrderStatus.CLOSED);
       expect(closedQuery.where.closedAt).toBeDefined();
 
-      // gte should be midnight (hours=0, minutes=0, seconds=0) of today
       const gteDate = closedQuery.where.closedAt!.gte;
       expect(gteDate.getHours()).toBe(0);
       expect(gteDate.getMinutes()).toBe(0);
       expect(gteDate.getSeconds()).toBe(0);
     });
 
-    it('wraps all 7 count queries in a single $transaction', async () => {
+    it('deferredReportCount query uses ProblemReport.DEFERRED status', async () => {
+      const { job, prismaCountMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+      await job.collectMetrics();
+
+      const calls: Array<{ where: unknown }> = prismaCountMock.mock.calls.map((c) => c[0]);
+      // 8th count query (index 7)
+      expect(calls[7].where).toMatchObject({ status: ProblemReportStatus.DEFERRED });
+    });
+
+    it('wraps all 8 count queries in a single $transaction', async () => {
       const { job, prismaCountMock, prisma } = buildMocks();
-      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0]);
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
 
       await job.collectMetrics();
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-      // The transaction receives an array of 7 promises
       const txArg: unknown[] = (prisma.$transaction as jest.Mock).mock.calls[0][0];
-      expect(txArg).toHaveLength(7);
+      expect(txArg).toHaveLength(8);
+    });
+  });
+
+  // ── lowStockCount ───────────────────────────────────────────────────────────
+
+  describe('collectMetrics() — lowStockCount', () => {
+    it('counts parts where currentStock < minimumStockThreshold', async () => {
+      const { job, prismaCountMock, prisma } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+      prisma.part.findMany.mockResolvedValue([
+        { currentStock: 2, minimumStockThreshold: 5 },
+        { currentStock: 5, minimumStockThreshold: 5 },
+        { currentStock: 0, minimumStockThreshold: 10 },
+      ]);
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.lowStockCount).toBe(2);
+    });
+
+    it('returns 0 when all parts are adequately stocked', async () => {
+      const { job, prismaCountMock, prisma } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+      prisma.part.findMany.mockResolvedValue([
+        { currentStock: 10, minimumStockThreshold: 5 },
+        { currentStock: 5, minimumStockThreshold: 5 },
+      ]);
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.lowStockCount).toBe(0);
+    });
+
+    it('queries parts with minimumStockThreshold > 0', async () => {
+      const { job, prismaCountMock, prisma } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+      await job.collectMetrics();
+
+      expect(prisma.part.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { minimumStockThreshold: { gt: 0 } },
+        }),
+      );
+    });
+  });
+
+  // ── overdueList ─────────────────────────────────────────────────────────────
+
+  describe('collectMetrics() — overdueList', () => {
+    it('returns mapped overdueList items from findMany', async () => {
+      const { job, prismaCountMock, prismaFindManyMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+      const dueDate = new Date('2026-04-01T10:00:00Z');
+      prismaFindManyMock.mockImplementation((args: { where?: { dueDate?: unknown } }) => {
+        if (args?.where && 'dueDate' in args.where) {
+          return Promise.resolve([
+            {
+              referenceNumber: 'WO-001',
+              priority: WorkOrderPriority.HIGH,
+              dueDate,
+              asset: { name: 'Pompe A' },
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.overdueList).toHaveLength(1);
+      expect(metrics.overdueList[0]).toMatchObject({
+        referenceNumber: 'WO-001',
+        priority: WorkOrderPriority.HIGH,
+        dueDate: dueDate.toISOString(),
+        assetName: 'Pompe A',
+      });
+    });
+
+    it('returns an empty overdueList when no overdue WOs exist', async () => {
+      const { job, prismaCountMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.overdueList).toEqual([]);
+    });
+  });
+
+  // ── onHoldItems ─────────────────────────────────────────────────────────────
+
+  describe('collectMetrics() — onHoldItems', () => {
+    it('computes holdDurationMinutes from active hold period startedAt', async () => {
+      const { job, prismaCountMock, prismaFindManyMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+      const holdStarted = new Date(Date.now() - 120 * 60_000); // 120 minutes ago
+
+      prismaFindManyMock.mockImplementation((args: { where?: { status?: unknown } }) => {
+        if (args?.where && 'status' in args.where && args.where.status === WorkOrderStatus.ON_HOLD) {
+          return Promise.resolve([
+            {
+              referenceNumber: 'WO-002',
+              asset: { name: 'Convoyeur B' },
+              onHoldPeriods: [{ startedAt: holdStarted }],
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const before = new Date();
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.onHoldItems).toHaveLength(1);
+      const item: DailySummaryOnHoldItem = metrics.onHoldItems[0];
+      expect(item.referenceNumber).toBe('WO-002');
+      expect(item.assetName).toBe('Convoyeur B');
+      // Duration should be approximately 120 minutes (allow ±2 for timing)
+      expect(item.holdDurationMinutes).toBeGreaterThanOrEqual(118);
+      expect(item.holdDurationMinutes).toBeLessThanOrEqual(
+        Math.round((new Date().getTime() - holdStarted.getTime()) / 60_000) + 2,
+      );
+      void before;
+    });
+
+    it('uses holdDurationMinutes = 0 when no active onHoldPeriod found', async () => {
+      const { job, prismaCountMock, prismaFindManyMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+      prismaFindManyMock.mockImplementation((args: { where?: { status?: unknown } }) => {
+        if (args?.where && 'status' in args.where && args.where.status === WorkOrderStatus.ON_HOLD) {
+          return Promise.resolve([
+            {
+              referenceNumber: 'WO-003',
+              asset: { name: 'Moteur C' },
+              onHoldPeriods: [], // no active period
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.onHoldItems[0].holdDurationMinutes).toBe(0);
+    });
+
+    it('returns an empty onHoldItems when no ON_HOLD WOs exist', async () => {
+      const { job, prismaCountMock } = buildMocks();
+      setupCountMock(prismaCountMock, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+      const metrics = await job.collectMetrics();
+
+      expect(metrics.onHoldItems).toEqual([]);
     });
   });
 
@@ -536,19 +720,17 @@ describe('DailySummaryJob', () => {
     it('does not double-send if run() is called a second time outside the configured hour', async () => {
       const { job, mail, systemConfig, prismaCountMock, prisma } = buildMocks();
       systemConfig.get.mockResolvedValue('17');
-      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 5, 3, 2, 1, 4, 1, 7]);
+      setupCountMock(prismaCountMock, [5, 3, 2, 1, 4, 1, 7, 2, 5, 3, 2, 1, 4, 1, 7, 2]);
       prisma.user.findMany.mockResolvedValue(buildSupervisors(1));
 
       const restore17 = freezeHour(17);
       await job.run();
       restore17();
 
-      // Second call at a different hour
       const restore18 = freezeHour(18);
       await job.run();
       restore18();
 
-      // Only the first call should have enqueued mail
       expect(mail.enqueue).toHaveBeenCalledTimes(1);
     });
   });
@@ -556,7 +738,7 @@ describe('DailySummaryJob', () => {
   describe('job lifecycle logging (§4.1)', () => {
     it('calls recordStart with "daily-summary"', async () => {
       const { job, systemConfig, jobLogger } = buildMocks();
-      systemConfig.get.mockResolvedValue(String(new Date().getHours() + 1)); // non-matching hour → early return
+      systemConfig.get.mockResolvedValue(String(new Date().getHours() + 1));
       await job.run();
       expect(jobLogger.recordStart).toHaveBeenCalledWith('daily-summary');
     });

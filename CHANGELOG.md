@@ -4,6 +4,33 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Configurable location hierarchy level names (§4.1, §6.2) (April 25, 2026)
+
+**feat(locations): configurable level names stored in SystemConfig (§4.1, §6.2)**
+- Spec §4.1 and §6.2 require that the names assigned to each level of the location hierarchy (e.g. "Étage" renamed to "Niveau") are configurable by an administrator.
+- The `Location` model `level` field is an integer (1–5). Previously the frontend hardcoded the display label as "Niveau {{level}}" with no way to override it.
+- Level names are now stored in `SystemConfig` using keys `LOCATION_LEVEL_1_NAME` through `LOCATION_LEVEL_5_NAME`. Existing `SystemConfigService` (globally injected) is reused — no schema change required.
+- French defaults are applied when a key has never been set: Level 1 = "Bâtiment", Level 2 = "Étage", Level 3 = "Zone", Level 4 = "Salle", Level 5 = "Sous-zone".
+- `LocationsService.getLevelNames()`: reads all five keys via `Promise.all`, substitutes the default for any key that returns `null`. Returns `LevelNameItem[]` (`{ level, name }`).
+- `LocationsService.setLevelNames(dto, actorId)`: writes only the levels present in `dto.items` — levels not included retain their current stored value. Each write is audit-logged via `SystemConfigService.set()`.
+- `UpdateLevelNamesDto`: `items: LevelNameItemDto[]` array with `@ValidateNested` + `@Type`; each item validated with `@IsInt @Min(1) @Max(5)` and `@IsString @MaxLength(50)`.
+- `GET /locations/level-names` (all authenticated roles) — used by admin UI, and available to any frontend component that needs to render a level label.
+- `PATCH /locations/level-names` (Admin only) — writes the supplied items and returns the full refreshed list.
+- Both routes declared before the `/:id` catch-all to prevent route shadowing.
+
+**feat(web): location level names configuration UI in admin locations board (§4.1, §6.2)**
+- `LevelNameItem` interface added to `locations.api.ts`; `locationsApi.getLevelNames()` and `locationsApi.setLevelNames()` API methods added.
+- `LevelNamesCard` component added to `locations-table.tsx`: displays all five level names as `Badge` components in read mode; switches to an inline edit form (one `Input` per level) when the admin clicks the edit button; submits via `PATCH /locations/level-names`; success/error toasts in French.
+- The `LocationsTable` renders `LevelNamesCard` above the existing location table and also uses the fetched `levelNames` to resolve the badge label per row, replacing the previously hardcoded `t('admin.locations.levelBadge', { level })` call with `levelLabel(level)` derived from the live config.
+- `admin.locations.levelNames.{title,subtitle,levelLabel,toasts.{saveSuccess,saveError}}` i18n keys added to `apps/web/public/locales/fr/common.json`.
+
+**tests: 7 backend + 4 frontend — all branches covered (§4.1, §6.2)**
+- Backend (`locations-level-names.service.spec.ts`): null config → French defaults for all 5 levels; partial config → configured value overrides default for the given level only; correct `SystemConfig` key derivation per level; `setLevelNames` with a full 5-item list writes 5 keys; partial `items` writes only supplied levels without touching others; post-write `getLevelNames` returns the refreshed combined state.
+- Frontend (`lib/locations-level-names.spec.ts`): `getLevelNames` calls `GET /locations/level-names`; `setLevelNames` calls `PATCH /locations/level-names` with `{ items }` wrapper; both propagate network errors correctly.
+- 536 backend tests / 124 frontend tests total, 0 regressions.
+
+---
+
 ### Added — Requester analytics: report accuracy rate and duplicate submission rate (§9.8) (April 25, 2026)
 
 **feat(db): add submittedDespiteWarning field to ProblemReport (§9.8)**

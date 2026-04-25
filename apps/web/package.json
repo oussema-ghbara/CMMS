@@ -61,17 +61,18 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "testRegex": ".*\\.spec\\.ts$",
+    "testRegex": ".*\\.spec\\.(ts|tsx)$",
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1",
       "^@gmao/shared$": "<rootDir>/../../packages/shared/src/index.ts"
     },
     "transform": {
-      "^.+\\.ts$": [
+      "^.+\\.(ts|tsx)$": [
         "ts-jest",
         {
           "tsconfig": {
-            "module": "commonjs"
+            "module": "commonjs",
+            "jsx": "react-jsx"
           }
         }
       ]

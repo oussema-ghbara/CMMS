@@ -174,6 +174,24 @@ Current coverage: ~507 backend unit tests, ~120 frontend unit tests.
 
 **TypeScript:** Strict mode throughout. No `any` without a comment explaining why.
 
+**Failure paths:** Every error path must be explicit. No silent catch blocks.
+
+## Adding a backend module
+
+1. Create `apps/backend/src/<module>/` with `<module>.module.ts`, `<module>.controller.ts`, `<module>.service.ts`, `<module>.repository.ts`
+2. Add DTOs in `<module>/dto/`
+3. Register the module in `app.module.ts`
+4. Export services that other modules need to inject
+
+## Adding a web feature
+
+1. New pages go under `apps/web/app/(protected)/` or `apps/web/app/(auth)/`
+2. Use existing UI components from `apps/web/components/ui/` (shadcn/ui)
+3. Create API wrappers in `apps/web/lib/` following existing patterns (e.g. `users.api.ts`)
+4. All strings must use i18n keys from `apps/web/public/locales/fr/common.json` — no hardcoded labels
+5. Wrap any component that uses `useSearchParams` in a `<Suspense>` boundary (Next.js 15 requirement)
+6. State: Zustand for auth, React Query for server data
+
 ## Git conventions
 
 Commit format (Conventional Commits):

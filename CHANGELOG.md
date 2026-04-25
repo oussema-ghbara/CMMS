@@ -4,6 +4,42 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Audit gap fixes: promote reason, report enrichment, daily summary, technician filter (April 25, 2026)
+
+#### `fix(work-orders): allow caller-supplied reason when promoting contributor to principal`
+- `PromoteTechnicianDto` gains optional `reason?: WOReassignmentReason` and `reasonDetail?: string`.
+- `assignmentService.promoteTechnician()` passes caller-supplied values to the reassignment log; falls back to `TECHNICIAN_ABSENT` / `null` only when fields are omitted — removing the hardcoded strings.
+- Frontend: `PromoteTechnicianPayload` updated; promote panel in WO detail dialog gains a reason select and optional free-text detail field.
+- Tests: 2 new unit tests in `assignment.service.spec.ts`.
+
+#### `feat(work-orders): surface isReassignmentRemnant label on intervention logs (§5.3)`
+- `WorkOrderInterventionLog` frontend type gains `isReassignmentRemnant: boolean`.
+- WO detail dialog renders an amber pill "incomplet — réassigné" inline with the technician name for force-closed log entries.
+
+#### `feat(web): navigate to filtered WO list from technician load panel`
+- Technician load rows on the supervisor dashboard are now Next.js Links appending `?technicianId=<id>` to `/supervisor/work-orders`.
+- `WorkOrdersBoard` reads `technicianId` from URL params, passes it to the list query, and shows a dismissible amber filter chip.
+- `WorkOrderListQuery` frontend type gains optional `technicianId`; no backend changes needed.
+- Tests: `technician-filter.spec.ts` (4 tests); `work-orders.api.spec.ts` updated.
+
+#### `feat(reports): enrich report detail with asset context data`
+- `ReportsRepository.findById()` includes `asset.workOrders` (non-terminal), `asset.certificates` (EXPIRING_SOON/EXPIRED, non-archived), and `assetInterventionHistory` (last 5 closed WOs, newest first — separate query to avoid Prisma relation-filter limitation).
+- Tests: 7 unit tests in new `reports.repository.spec.ts`.
+
+#### `feat(web): show asset context and duplicate WO warning in report detail`
+- `reports-board.tsx`: amber duplicate-WO banner when active WOs exist on the same asset; asset context card with certificate-alert badges and intervention history.
+- `ReportDetailItem` gains `asset.workOrders`, `asset.certificates`, `assetInterventionHistory`; three new interfaces.
+- Tests: `reports-detail-enrichment.spec.ts` (5 tests).
+
+#### `feat(work-orders): extend daily summary email with overdue list, on-hold durations, and inventory alerts`
+- `DailySummaryMetrics` gains `deferredReportCount`, `lowStockCount`, `overdueList` (top 10), and `onHoldItems` (top 10 with computed `holdDurationMinutes`).
+- `$transaction` expanded to 8 queries; low-stock count uses a separate `findMany` + in-memory filter (Prisma column-to-column comparison limitation).
+- `daily-summary.hbs` updated with detailed sections for each new data set; empty fallback messages included.
+- `SendMailDto.context` broadened to `Record<string,unknown>` to support array values.
+- Tests: 48 unit tests (up from 30).
+
+---
+
 ### Added — Public setup email resend flow (April 24, 2026)
 
 #### `feat(auth): add public resend-setup endpoint for expired onboarding links`

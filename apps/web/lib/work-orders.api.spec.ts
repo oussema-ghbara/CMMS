@@ -109,3 +109,92 @@ describe('workOrdersApi.list — technicianId filter', () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §9.8 — workOrdersApi.getAnalytics: technicianKpis.rejectionRateByCategory
+// ─────────────────────────────────────────────────────────────────────────────
+describe('workOrdersApi.getAnalytics — rejectionRateByCategory (§9.8)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  function makeAnalyticsPayload(technicianKpis: unknown[]) {
+    return {
+      periodDays: 30,
+      categoryId: null,
+      summary: { total: 0, open: 0, overdue: 0, closedThisPeriod: 0, cancelledThisPeriod: 0, resolutionRate: null },
+      byStatus: {}, byType: {}, byPriority: {},
+      avgResolutionDays: null,
+      costSummary: { laborCost: 0, partsCost: 0, contractorCost: 0, totalCost: 0 },
+      assetKpis: { globalMtbfDays: null, globalMttrHours: null, topByFailureFrequency: [], topByCost: [], preventiveComplianceRate: null, totalMaintenanceCost: 0 },
+      technicianKpis,
+      requesterAnalytics: { totalReportsSubmitted: 0, totalConverted: 0, conversionRate: null, reportToActionAvgDays: null },
+      preventivePlanEfficiency: { complianceRate: null, anomalyRate: null, totalPreventiveWOs: 0, closedPreventiveWOs: 0 },
+      operationalOverview: { sourceDistribution: {}, rejectionReasonDistribution: {}, reassignmentCount: 0, avgHoldPeriodsPerWo: null },
+    };
+  }
+
+  it('returns technicianKpis with rejectionCount, rejectionRate, and rejectionRateByCategory', async () => {
+    const payload = makeAnalyticsPayload([
+      {
+        technicianId: 'tech-1',
+        name: 'Alice',
+        closedCount: 4,
+        rejectionCount: 2,
+        rejectionRate: 0.5,
+        rejectionRateByCategory: {
+          INSUFFICIENT_DESCRIPTION: { count: 1, rate: 0.25 },
+          PARTS_USED_MISMATCH: { count: 1, rate: 0.25 },
+        },
+        avgActiveDurationMinutes: 90,
+        firstPassRate: 0.5,
+        avgHoldPerWo: 0.5,
+        avgResponseTimeHours: 2.5,
+      },
+    ]);
+    (api.get as jest.Mock).mockResolvedValue({ data: payload });
+
+    const result = await workOrdersApi.getAnalytics({ periodDays: 30 });
+
+    expect(api.get).toHaveBeenCalledWith('/work-orders/analytics', { params: { periodDays: 30 } });
+    const tech = result.technicianKpis[0];
+    expect(tech.rejectionCount).toBe(2);
+    expect(tech.rejectionRate).toBe(0.5);
+    expect(tech.rejectionRateByCategory).toEqual({
+      INSUFFICIENT_DESCRIPTION: { count: 1, rate: 0.25 },
+      PARTS_USED_MISMATCH: { count: 1, rate: 0.25 },
+    });
+  });
+
+  it('returns empty rejectionRateByCategory when technician has no rejections', async () => {
+    const payload = makeAnalyticsPayload([
+      {
+        technicianId: 'tech-2',
+        name: 'Bob',
+        closedCount: 3,
+        rejectionCount: 0,
+        rejectionRate: 0,
+        rejectionRateByCategory: {},
+        avgActiveDurationMinutes: null,
+        firstPassRate: 1,
+        avgHoldPerWo: 0,
+        avgResponseTimeHours: null,
+      },
+    ]);
+    (api.get as jest.Mock).mockResolvedValue({ data: payload });
+
+    const result = await workOrdersApi.getAnalytics({ periodDays: 30 });
+
+    const tech = result.technicianKpis[0];
+    expect(tech.rejectionCount).toBe(0);
+    expect(tech.rejectionRate).toBe(0);
+    expect(tech.rejectionRateByCategory).toEqual({});
+  });
+
+  it('handles empty technicianKpis array', async () => {
+    const payload = makeAnalyticsPayload([]);
+    (api.get as jest.Mock).mockResolvedValue({ data: payload });
+
+    const result = await workOrdersApi.getAnalytics({ periodDays: 30 });
+
+    expect(result.technicianKpis).toHaveLength(0);
+  });
+});

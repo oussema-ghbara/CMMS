@@ -309,6 +309,8 @@
       "topCostAssetsDesc": "Top 10 par coût total (main-d'œuvre + pièces + sous-traitance)",
       "technicianPerformance": "Performance par technicien",
       "technicianPerformanceDesc": "OT clôturés sur la période avec technicien principal désigné",
+      "technicianRejectionBreakdown": "Détail des rejets par technicien",
+      "technicianRejectionBreakdownDesc": "Taux de rejet ventilé par catégorie de motif de rejet du superviseur",
       "sourceDistribution": "Distribution par source",
       "rejectionReasons": "Motifs de rejet de validation"
     },
@@ -320,6 +322,8 @@
       "technician": "Technicien",
       "closedWOs": "OT clôturés",
       "firstPassRate": "1er passage",
+      "rejectionRate": "Taux de rejet",
+      "rejectionCount": "Rejets",
       "avgActiveDuration": "Durée active moy.",
       "avgResponseTime": "Délai intervention",
       "avgHolds": "Blocages / OT"

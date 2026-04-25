@@ -67,15 +67,41 @@ function KpiCard({ label, value, sub }: { label: string; value: string | number 
 }
 
 function TechRow({ item }: { item: TechnicianKpiItem }) {
+  const { t } = useTranslation();
+  const hasRejections = item.rejectionCount > 0;
   return (
-    <tr className="border-b last:border-0">
-      <td className="py-2 pr-4 text-sm font-medium">{item.name}</td>
-      <td className="py-2 pr-4 text-sm text-center">{item.closedCount}</td>
-      <td className="py-2 pr-4 text-sm text-center">{item.firstPassRate !== null ? fmtPct(item.firstPassRate) : '—'}</td>
-      <td className="py-2 pr-4 text-sm text-center">{item.avgActiveDurationMinutes !== null ? `${fmtDec(item.avgActiveDurationMinutes)} min` : '—'}</td>
-      <td className="py-2 pr-4 text-sm text-center">{item.avgResponseTimeHours !== null ? `${fmtDec(item.avgResponseTimeHours)} h` : '—'}</td>
-      <td className="py-2 text-sm text-center">{item.avgHoldPerWo !== null ? fmtDec(item.avgHoldPerWo) : '—'}</td>
-    </tr>
+    <>
+      <tr className="border-b last:border-0">
+        <td className="py-2 pr-4 text-sm font-medium">{item.name}</td>
+        <td className="py-2 pr-4 text-sm text-center">{item.closedCount}</td>
+        <td className="py-2 pr-4 text-sm text-center">{item.firstPassRate !== null ? fmtPct(item.firstPassRate) : '—'}</td>
+        <td className="py-2 pr-4 text-sm text-center">
+          {item.rejectionRate !== null ? (
+            <span className={item.rejectionRate > 0 ? 'text-destructive font-medium' : ''}>
+              {fmtPct(item.rejectionRate)}
+            </span>
+          ) : '—'}
+        </td>
+        <td className="py-2 pr-4 text-sm text-center">{item.avgActiveDurationMinutes !== null ? `${fmtDec(item.avgActiveDurationMinutes)} min` : '—'}</td>
+        <td className="py-2 pr-4 text-sm text-center">{item.avgResponseTimeHours !== null ? `${fmtDec(item.avgResponseTimeHours)} h` : '—'}</td>
+        <td className="py-2 text-sm text-center">{item.avgHoldPerWo !== null ? fmtDec(item.avgHoldPerWo) : '—'}</td>
+      </tr>
+      {hasRejections && (
+        <tr className="border-b last:border-0 bg-muted/30">
+          <td colSpan={7} className="pb-2 pt-0 pl-4 pr-4">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(item.rejectionRateByCategory).map(([reason, entry]) => (
+                <span key={reason} className="inline-flex items-center gap-1 text-xs rounded-full bg-destructive/10 text-destructive px-2 py-0.5">
+                  <span>{t(`validationRejectionReason.${reason}`, { defaultValue: reason })}</span>
+                  <span className="font-semibold">×{entry.count}</span>
+                  <span className="opacity-70">({fmtPct(entry.rate)})</span>
+                </span>
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -356,11 +382,12 @@ export function SupervisorAnalyticsBoard() {
                   {data.technicianKpis.length === 0
                     ? <p className="text-sm text-muted-foreground">{t('supervisorAnalytics.states.noData')}</p>
                     : (
-                      <table className="w-full text-sm min-w-[600px]">
+                      <table className="w-full text-sm min-w-[700px]">
                         <thead><tr className="border-b">
                           <th className="pb-2 text-left font-medium text-muted-foreground">{t('supervisorAnalytics.columns.technician')}</th>
                           <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.closedWOs')}</th>
                           <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.firstPassRate')}</th>
+                          <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.rejectionRate')}</th>
                           <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.avgActiveDuration')}</th>
                           <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.avgResponseTime')}</th>
                           <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.avgHolds')}</th>
@@ -372,6 +399,37 @@ export function SupervisorAnalyticsBoard() {
                     )}
                 </CardContent>
               </Card>
+              {data.technicianKpis.some((t) => t.rejectionCount > 0) && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">{t('supervisorAnalytics.sections.technicianRejectionBreakdown')}</CardTitle>
+                    <CardDescription>{t('supervisorAnalytics.sections.technicianRejectionBreakdownDesc')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {data.technicianKpis.filter((item) => item.rejectionCount > 0).map((item) => (
+                        <div key={item.technicianId}>
+                          <p className="text-sm font-medium mb-1">
+                            {item.name}
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {t('supervisorAnalytics.columns.rejectionCount')}: {item.rejectionCount}
+                            </span>
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(item.rejectionRateByCategory).map(([reason, entry]) => (
+                              <span key={reason} className="inline-flex items-center gap-1 text-xs rounded-full border px-2 py-0.5 bg-destructive/5 text-destructive border-destructive/20">
+                                <span>{t(`validationRejectionReason.${reason}`, { defaultValue: reason })}</span>
+                                <span className="font-semibold">×{entry.count}</span>
+                                <span className="opacity-70">({fmtPct(entry.rate)})</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 

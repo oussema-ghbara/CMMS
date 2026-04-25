@@ -364,10 +364,19 @@ export interface AssetCostKpiItem {
   totalCost: number;
 }
 
+export interface TechnicianRejectionCategoryEntry {
+  count: number;
+  rate: number;
+}
+
 export interface TechnicianKpiItem {
   technicianId: string;
   name: string;
   closedCount: number;
+  rejectionCount: number;
+  rejectionRate: number | null;
+  /** §9.8: per-rejection-reason breakdown — key is ValidationRejectionReason enum value */
+  rejectionRateByCategory: Record<string, TechnicianRejectionCategoryEntry>;
   avgActiveDurationMinutes: number | null;
   firstPassRate: number | null;
   avgHoldPerWo: number | null;

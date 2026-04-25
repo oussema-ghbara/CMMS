@@ -13,8 +13,13 @@ const PLAN_INCLUDE = {
   checklistItems: { orderBy: { sortOrder: 'asc' as const } },
 } as const;
 
+type AssetSummary = { id: string; name: string; qrCodeIdentifier: string; status: string };
+type TechnicianSummary = { id: string; name: string; email: string };
+
 type PlanWithRelations = PreventivePlan & {
   checklistItems: PreventivePlanChecklistItem[];
+  asset: AssetSummary;
+  defaultTechnician: TechnicianSummary | null;
 };
 
 @Injectable()
@@ -104,6 +109,39 @@ export class PreventivePlansRepository {
       include: PLAN_INCLUDE,
     });
     return plans as unknown as PlanWithRelations[];
+  }
+
+  // §9.6: Detect when two or more due plans generate WOs for the same asset on the same day.
+  // Returns a map: assetId -> array of plan details.
+  async findSameDayAssetConflicts(
+    duePlans: PlanWithRelations[],
+  ): Promise<Map<string, Array<{ planId: string; planTitle: string; assetName: string }>>> {
+    const conflicts = new Map<string, Array<{ planId: string; planTitle: string; assetName: string }>>();
+
+    // Group by assetId
+    const byAsset = new Map<string, typeof duePlans>();
+    for (const plan of duePlans) {
+      if (!byAsset.has(plan.assetId)) {
+        byAsset.set(plan.assetId, []);
+      }
+      byAsset.get(plan.assetId)!.push(plan);
+    }
+
+    // If 2+ plans for the same asset, it's a conflict
+    for (const [assetId, plans] of byAsset.entries()) {
+      if (plans.length >= 2) {
+        conflicts.set(
+          assetId,
+          plans.map((p) => ({
+            planId: p.id,
+            planTitle: p.title,
+            assetName: p.asset.name,
+          })),
+        );
+      }
+    }
+
+    return conflicts;
   }
 
   // ── Checklist template items ───────────────────────────────────────

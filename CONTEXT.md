@@ -1,4 +1,4 @@
-# GMAO — Implementation Status
+# CMMS — Implementation Status
 
 ## What this is
 A GMAO (Computerized Maintenance Management System) built as a monorepo.

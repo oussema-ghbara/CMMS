@@ -1,4 +1,4 @@
-# GMAO
+# CMMS
 
 Computerized Maintenance Management System — PFE project.
 
@@ -13,8 +13,8 @@ Turborepo monorepo. TypeScript throughout. NestJS backend, Next.js web frontend,
 ## Setup
 
 ```bash
-git clone https://github.com/oussema-ghbara/gmao.git
-cd gmao
+git clone https://github.com/oussema-ghbara/CMMS.git
+cd CMMS
 cp .env.example .env
 # Fill in .env — see comments inside
 docker compose up -d
@@ -98,11 +98,11 @@ Never edit an applied migration. Always create a new one.
 
 | Email | Password | Roles |
 |---|---|---|
-| admin@gmao.local | Admin1234! | ADMIN |
-| supervisor@gmao.local | Admin1234! | SUPERVISOR, STOREKEEPER |
-| tech@gmao.local | Admin1234! | TECHNICIAN |
-| tech2@gmao.local | Admin1234! | TECHNICIAN |
-| requester@gmao.local | Admin1234! | REQUESTER |
+| admin@cmms.local | Admin1234! | ADMIN |
+| supervisor@cmms.local | Admin1234! | SUPERVISOR, STOREKEEPER |
+| tech@cmms.local | Admin1234! | TECHNICIAN |
+| tech2@cmms.local | Admin1234! | TECHNICIAN |
+| requester@cmms.local | Admin1234! | REQUESTER |
 
 ## Feature scope
 

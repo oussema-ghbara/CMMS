@@ -72,14 +72,14 @@ async function main(): Promise<void> {
   const passwordHash = await bcrypt.hash('Admin1234!', 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@gmao.local' },
+    where: { email: 'admin@cmms.local' },
     update: {
       name: 'Administrateur',
       roles: [Role.ADMIN],
       isActive: true,
     },
     create: {
-      email: 'admin@gmao.local',
+      email: 'admin@cmms.local',
       name: 'Administrateur',
       passwordHash,
       roles: [Role.ADMIN],
@@ -88,14 +88,14 @@ async function main(): Promise<void> {
   });
 
   const supervisor = await prisma.user.upsert({
-    where: { email: 'supervisor@gmao.local' },
+    where: { email: 'supervisor@cmms.local' },
     update: {
       name: 'Superviseur Test',
       roles: [Role.SUPERVISOR, Role.STOREKEEPER],
       isActive: true,
     },
     create: {
-      email: 'supervisor@gmao.local',
+      email: 'supervisor@cmms.local',
       name: 'Superviseur Test',
       passwordHash,
       roles: [Role.SUPERVISOR, Role.STOREKEEPER],
@@ -104,14 +104,14 @@ async function main(): Promise<void> {
   });
 
   const tech = await prisma.user.upsert({
-    where: { email: 'tech@gmao.local' },
+    where: { email: 'tech@cmms.local' },
     update: {
       name: 'Technicien Test',
       roles: [Role.TECHNICIAN],
       isActive: true,
     },
     create: {
-      email: 'tech@gmao.local',
+      email: 'tech@cmms.local',
       name: 'Technicien Test',
       passwordHash,
       roles: [Role.TECHNICIAN],
@@ -120,14 +120,14 @@ async function main(): Promise<void> {
   });
 
   const tech2 = await prisma.user.upsert({
-    where: { email: 'tech2@gmao.local' },
+    where: { email: 'tech2@cmms.local' },
     update: {
       name: 'Technicien Backup',
       roles: [Role.TECHNICIAN],
       isActive: true,
     },
     create: {
-      email: 'tech2@gmao.local',
+      email: 'tech2@cmms.local',
       name: 'Technicien Backup',
       passwordHash,
       roles: [Role.TECHNICIAN],
@@ -136,14 +136,14 @@ async function main(): Promise<void> {
   });
 
   const requester = await prisma.user.upsert({
-    where: { email: 'requester@gmao.local' },
+    where: { email: 'requester@cmms.local' },
     update: {
       name: 'Demandeur Test',
       roles: [Role.REQUESTER],
       isActive: true,
     },
     create: {
-      email: 'requester@gmao.local',
+      email: 'requester@cmms.local',
       name: 'Demandeur Test',
       passwordHash,
       roles: [Role.REQUESTER],

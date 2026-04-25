@@ -154,6 +154,81 @@ describe('WorkOrdersController integration', () => {
     await app.close();
   });
 
+  // ── GET /work-orders — isOverdue filter (§9.3) ──────────────────────────────
+
+  it('GET /work-orders?isOverdue=true passes isOverdue:true to the service', async () => {
+    workOrders.findAll.mockResolvedValue({ data: [], total: 0 });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders?isOverdue=true')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(workOrders.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isOverdue: true }),
+    );
+  });
+
+  it('GET /work-orders?isOverdue=false passes isOverdue:false to the service', async () => {
+    workOrders.findAll.mockResolvedValue({ data: [], total: 0 });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders?isOverdue=false')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(workOrders.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isOverdue: false }),
+    );
+  });
+
+  it('GET /work-orders without isOverdue does not include the property', async () => {
+    workOrders.findAll.mockResolvedValue({ data: [], total: 0 });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    const calledWith = workOrders.findAll.mock.calls[0][0] as Record<string, unknown>;
+    expect(calledWith.isOverdue).toBeUndefined();
+  });
+
+  it('GET /work-orders?isOverdue=notabool coerces to false (Transform converts non-"true" to false)', async () => {
+    // The @Transform decorator maps any value that is not the string "true" or boolean true
+    // to false — consistent with the isActive pattern in PartQueryDto. A non-"true" string
+    // is treated as isOverdue:false (no overdue filter applied) rather than a 400.
+    workOrders.findAll.mockResolvedValue({ data: [], total: 0 });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders?isOverdue=notabool')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(workOrders.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isOverdue: false }),
+    );
+  });
+
+  it('GET /work-orders?isOverdue=true is accessible to TECHNICIAN role', async () => {
+    workOrders.findAll.mockResolvedValue({ data: [], total: 0 });
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders?isOverdue=true')
+      .set('Authorization', 'Bearer TECHNICIAN');
+
+    expect(response.status).toBe(200);
+  });
+
+  it('GET /work-orders?isOverdue=true returns 401 without auth', async () => {
+    const response = await request(app.getHttpServer()).get('/work-orders?isOverdue=true');
+
+    expect(response.status).toBe(401);
+    expect(workOrders.findAll).not.toHaveBeenCalled();
+  });
+
+  // ── END isOverdue filter tests ───────────────────────────────────────────────
+
   it('PATCH /work-orders/:id/cancel returns 401 when authentication is missing', async () => {
     const response = await request(app.getHttpServer())
       .patch('/work-orders/wo-1/cancel')

@@ -4,6 +4,30 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Requester analytics: report accuracy rate and duplicate submission rate (§9.8) (April 25, 2026)
+
+**feat(db): add submittedDespiteWarning field to ProblemReport (§9.8)**
+- Spec §9.8 requires a "duplicate submission rate" KPI — the % of reports submitted despite the duplicate-WO warning banner. Computing this requires a persistent flag on each report recording whether the requester confirmed submission after seeing the warning.
+- `ProblemReport` schema gains `submittedDespiteWarning Boolean @default(false)`. Migration `20260425145202_add_submitted_despite_warning_to_problem_report` applies a non-destructive `ALTER TABLE ADD COLUMN` with default false, leaving all existing rows unaffected.
+
+**feat(reports): accept and persist submittedDespiteWarning on report submission (§9.8)**
+- `CreateReportDto` gains optional `submittedDespiteWarning?: boolean` with `@IsOptional @IsBoolean` validation and `@ApiPropertyOptional` annotation.
+- `ReportsRepository.create()` persists the flag with `?? false` default so callers that omit it (including all existing clients) receive correct behaviour without any contract break.
+
+**feat(analytics): compute reportAccuracyRate and duplicateSubmissionRate for requester KPIs (§9.8)**
+- Spec §9.8 requires two previously absent KPIs: "report accuracy" (% of converted reports resulting in a RÉSOLU closure) and "duplicate submission rate" (% of reports submitted despite the duplicate warning).
+- `getAnalytics()` `reportsInPeriod` query extended: `submittedDespiteWarning` selected on reports; `derivedWorkOrders` now selects `status` and `interventionLogs { result }` in addition to `id` — single additive query, no extra round-trip.
+- `reportAccuracyRate`: denominator is closed conversions only (open WOs have no closure result yet); a conversion is accurate when any derived CLOSED WO has at least one `InterventionLog` with `result = InterventionResult.RESOLVED`. Returns `null` when no closed conversions exist in the period.
+- `duplicateSubmissionRate`: `submittedDespiteWarning=true` count divided by total reports. Returns `null` when no reports exist in the period.
+- Both values exposed in the `requesterAnalytics` object returned by `GET /work-orders/analytics`.
+- Tests: 10 new unit tests covering null-denominators (no closed conversions, no reports), 0/0.5/1.0 accuracy values, non-RESOLVED closure, mixed open/closed WOs in the denominator exclusion, and a combined realistic scenario. 55/55 passing; 0 regressions.
+
+**feat(web): render report accuracy and duplicate submission rate KPIs in analytics board (§9.8)**
+- `SupervisorAnalyticsBoard` requester tab gains two new `KpiCard` components after the existing three: "Précision des signalements" (formatted as %) and "Taux de soumission doublon" (formatted as %). Both display '—' when the backend returns `null`.
+- i18n: `reportAccuracyRate`, `reportAccuracyRateDesc`, `duplicateSubmissionRate`, `duplicateSubmissionRateDesc` added to `apps/web/public/locales/fr/common.json` under `supervisorAnalytics.kpi`.
+
+---
+
 ### Added — Parts consumption breakdown by asset category and WO type (§10.6) (April 25, 2026)
 
 **feat(inventory): add getConsumptionBreakdown() with per-part breakdown by asset category and WO type (§10.6)**

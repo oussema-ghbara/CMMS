@@ -177,6 +177,8 @@ export function WorkOrderDetailDialog({
 
   // Promote form state
   const [promoteNewPrincipalId, setPromoteNewPrincipalId] = useState('');
+  const [promoteReason, setPromoteReason] = useState<WOReassignmentReason>(WOReassignmentReason.TECHNICIAN_ABSENT);
+  const [promoteReasonDetail, setPromoteReasonDetail] = useState('');
 
   // Cancel form state
   const { register: registerCancel, handleSubmit: handleCancelSubmit, reset: resetCancel } =
@@ -253,6 +255,8 @@ export function WorkOrderDetailDialog({
     setPrincipalId('');
     setContributorIds([]);
     setPromoteNewPrincipalId('');
+    setPromoteReason(WOReassignmentReason.TECHNICIAN_ABSENT);
+    setPromoteReasonDetail('');
     setValidateAssetStatusOverride('');
     setFollowUpPrompt(null);
     resetCancel();
@@ -998,6 +1002,32 @@ export function WorkOrderDetailDialog({
                 </select>
               </div>
 
+              <div className="space-y-1.5">
+                <Label>{t('supervisorWorkOrders.actions.promoteReason')}</Label>
+                <select
+                  className={selectClass}
+                  value={promoteReason}
+                  onChange={(e) => setPromoteReason(e.target.value as WOReassignmentReason)}
+                >
+                  {Object.values(WOReassignmentReason).map((r) => (
+                    <option key={r} value={r}>
+                      {t(`supervisorWorkOrders.reassignmentReason.${r}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t('supervisorWorkOrders.actions.promoteReasonDetail')}</Label>
+                <input
+                  type="text"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={promoteReasonDetail}
+                  onChange={(e) => setPromoteReasonDetail(e.target.value)}
+                  placeholder={t('supervisorWorkOrders.actions.promoteReasonDetailPlaceholder')}
+                />
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -1012,7 +1042,13 @@ export function WorkOrderDetailDialog({
                   type="button"
                   size="sm"
                   disabled={promoteMutation.isPending || !promoteNewPrincipalId}
-                  onClick={() => promoteMutation.mutate({ newPrincipalId: promoteNewPrincipalId })}
+                  onClick={() =>
+                    promoteMutation.mutate({
+                      newPrincipalId: promoteNewPrincipalId,
+                      reason: promoteReason,
+                      ...(promoteReasonDetail.trim() ? { reasonDetail: promoteReasonDetail.trim() } : {}),
+                    })
+                  }
                 >
                   {promoteMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                   {t('common.confirm')}
@@ -1514,7 +1550,14 @@ export function WorkOrderDetailDialog({
                         className="rounded-md border px-3 py-2 text-xs space-y-1"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="font-medium">{log.technician.name}</p>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className="font-medium">{log.technician.name}</p>
+                            {log.isReassignmentRemnant && (
+                              <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                {t('supervisorWorkOrders.detail.interventionRemnant')}
+                              </span>
+                            )}
+                          </div>
                           {log.activeDurationMinutes != null && (
                             <span className="text-muted-foreground shrink-0">
                               {t('supervisorWorkOrders.labels.interventionDurationValue', {

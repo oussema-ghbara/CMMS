@@ -122,6 +122,8 @@ export interface WorkOrderInterventionLog {
   result: string | null;
   resultExplanation: string | null;
   hourlyRateAtTime: number | null;
+  /** §5.3: True when this log was force-closed because the technician was promoted/replaced mid-intervention. */
+  isReassignmentRemnant: boolean;
   actions: WorkOrderInterventionAction[];
 }
 
@@ -286,6 +288,9 @@ export interface ReassignTechnicianPayload {
 
 export interface PromoteTechnicianPayload {
   newPrincipalId: string;
+  /** §5.3: Reason recorded in the reassignment log. Defaults to TECHNICIAN_ABSENT when omitted. */
+  reason?: WOReassignmentReason;
+  reasonDetail?: string;
 }
 
 export interface CancelWorkOrderPayload {

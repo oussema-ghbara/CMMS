@@ -10,7 +10,7 @@ Turborepo monorepo. TypeScript throughout. NestJS backend, Next.js web frontend,
 - pnpm v10+ — `npm install -g pnpm`
 - Docker + Docker Compose
 
-## First-time setup
+## Setup
 
 ```bash
 git clone https://github.com/oussema-ghbara/gmao.git
@@ -22,7 +22,7 @@ pnpm install
 cd packages/db && pnpm db:generate && pnpm db:migrate && npx prisma db seed && cd ../..
 ```
 
-Start the apps in separate terminals:
+Start the apps (two terminals):
 
 ```bash
 # terminal 1 — backend
@@ -34,17 +34,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
 
 Swagger: http://localhost:3000/api/docs
 
-## Resuming work
-
-```bash
-docker compose up -d
-
-# terminal 1
-PORT=3000 APP_URL=http://localhost:3001 pnpm --filter @gmao/backend dev
-
-# terminal 2
-NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
-```
+On subsequent sessions, skip the clone/install/seed steps — just run `docker compose up -d` and start the two apps.
 
 ## Monorepo structure
 

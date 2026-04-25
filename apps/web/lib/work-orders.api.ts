@@ -61,6 +61,8 @@ export interface WorkOrderListQuery {
   closedAfter?: string;
   /** ISO-8601 — return only WOs closed at or before this date */
   closedBefore?: string;
+  /** When true, return only non-terminal WOs whose dueDate is in the past (spec §9.3) */
+  isOverdue?: boolean;
 }
 
 export interface WorkOrderListResponse {

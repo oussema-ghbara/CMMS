@@ -9,13 +9,14 @@ import {
   AlertTriangle,
   ClipboardCheck,
   ClipboardList,
+  Clock,
   Loader2,
   ShieldAlert,
   User,
   Wrench,
   X,
 } from 'lucide-react';
-import { workOrdersApi, type TechnicianLoadItem, type AssetHealthItem } from '@/lib/work-orders.api';
+import { workOrdersApi, type TechnicianLoadItem, type AssetHealthItem, type WorkOrderListItem } from '@/lib/work-orders.api';
 import { reportsApi } from '@/lib/reports.api';
 import { assetsApi, type CertificateAlertItem } from '@/lib/assets.api';
 import { partRequestsApi } from '@/lib/part-requests.api';
@@ -100,6 +101,31 @@ function CertAlertRow({ item }: { item: CertificateAlertItem }) {
         {label}
       </Badge>
     </div>
+  );
+}
+
+function OverdueWorkOrderRow({ item }: { item: WorkOrderListItem }) {
+  const { t } = useTranslation();
+  const daysOverdue = item.dueDate
+    ? Math.floor((Date.now() - new Date(item.dueDate).getTime()) / 86_400_000)
+    : 0;
+  return (
+    <Link
+      href={`/supervisor/work-orders?id=${item.id}`}
+      className="flex items-center justify-between gap-2 rounded py-2 px-1 text-sm transition-colors hover:bg-muted/50"
+      title={t('supervisorDashboard.overduePanel.viewWo')}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <Clock className="h-3.5 w-3.5 shrink-0 text-destructive" />
+        <div className="min-w-0">
+          <span className="block truncate font-medium">{item.referenceNumber}</span>
+          <span className="block truncate text-xs text-muted-foreground">{item.asset.name}</span>
+        </div>
+      </div>
+      <Badge variant="destructive" className="shrink-0 text-[10px]">
+        {t('supervisorDashboard.overduePanel.daysOverdue', { count: daysOverdue })}
+      </Badge>
+    </Link>
   );
 }
 
@@ -205,6 +231,12 @@ export default function SupervisorDashboardPage() {
         queryFn: () => workOrdersApi.getAssetHealth({ thresholdCount: 3, periodDays: 90 }),
         enabled: isInitialized,
       },
+      // §9.3: dedicated overdue WO panel
+      {
+        queryKey: ['supervisor', 'dashboard', 'work-orders', 'overdue'],
+        queryFn: () => workOrdersApi.list({ page: 1, limit: 5, isOverdue: true }),
+        enabled: isInitialized,
+      },
     ],
   });
 
@@ -221,6 +253,7 @@ export default function SupervisorDashboardPage() {
     pendingPartRequests,
     technicianLoad,
     assetHealth,
+    overdueWorkOrders,
   ] = results;
 
   const hasError = results.some((result) => result.isError);
@@ -298,6 +331,44 @@ export default function SupervisorDashboardPage() {
           cta={t('supervisorDashboard.cards.pendingReports.cta')}
         />
       </div>
+
+      {/* §9.3: Overdue work orders panel */}
+      {((overdueWorkOrders.data?.total ?? 0) > 0 || overdueWorkOrders.isLoading) && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold tracking-tight text-destructive">
+              {t('supervisorDashboard.overduePanel.title', {
+                count: overdueWorkOrders.data?.total ?? 0,
+              })}
+            </h2>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/supervisor/work-orders?isOverdue=true">
+                {t('supervisorDashboard.overduePanel.viewAll')}
+              </Link>
+            </Button>
+          </div>
+          <Card className="border-destructive/50">
+            <CardContent className="pt-4">
+              {overdueWorkOrders.isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : !overdueWorkOrders.data?.data.length ? null : (
+                <div className="divide-y">
+                  {overdueWorkOrders.data.data.map((wo) => (
+                    <OverdueWorkOrderRow key={wo.id} item={wo} />
+                  ))}
+                  {(overdueWorkOrders.data?.total ?? 0) > 5 && (
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      {t('supervisorDashboard.overduePanel.more', {
+                        count: (overdueWorkOrders.data?.total ?? 0) - 5,
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Technician load panel (§9.3) */}
       <div>

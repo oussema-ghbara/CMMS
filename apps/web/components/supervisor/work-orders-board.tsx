@@ -111,6 +111,9 @@ export function WorkOrdersBoard() {
   // §9.3: Technician filter applied when navigating from the dashboard load panel (?technicianId=).
   const technicianId = searchParams.get('technicianId') ?? undefined;
 
+  // §9.3: Overdue filter applied when navigating from the dashboard overdue panel (?isOverdue=true).
+  const isOverdue = searchParams.get('isOverdue') === 'true' || undefined;
+
   // Priority change dialog (quick-access from row)
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [priorityDialogOpen, setPriorityDialogOpen] = useState(false);
@@ -142,8 +145,9 @@ export function WorkOrdersBoard() {
       ...(type ? { type } : {}),
       ...(priority ? { priority } : {}),
       ...(technicianId ? { technicianId } : {}),
+      ...(isOverdue ? { isOverdue } : {}),
     }),
-    [page, search, status, type, priority, technicianId],
+    [page, search, status, type, priority, technicianId, isOverdue],
   );
 
   const { data, isLoading, isError } = useQuery({

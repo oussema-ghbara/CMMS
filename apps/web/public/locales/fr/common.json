@@ -241,6 +241,13 @@
       "description": "{{count}} équipement(s) dépasse(nt) le seuil de pannes répétées (3 pannes en 90 jours)",
       "none": "Aucun équipement ne dépasse le seuil de pannes répétées",
       "lastFailure": "Dernière panne le {{date}}"
+    },
+    "overduePanel": {
+      "title": "OT en retard ({{count}})",
+      "viewAll": "Voir tous les OT en retard",
+      "viewWo": "Ouvrir l'ordre de travail",
+      "daysOverdue": "{{count}} j de retard",
+      "more": "+ {{count}} autre(s) OT en retard"
     }
   },
   "supervisorAnalytics": {

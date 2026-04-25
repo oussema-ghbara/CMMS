@@ -1213,3 +1213,267 @@ describe('WorkOrdersService.getRecurringFailureAssets', () => {
     expect(result[0].assetId).toBe('a2');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.getAnalytics — requesterAnalytics KPIs (§9.8)
+//   • reportAccuracyRate  – % of closed converted reports resolved with RESOLVED
+//   • duplicateSubmissionRate – % of reports where submittedDespiteWarning=true
+// ─────────────────────────────────────────────────────────────────────────────
+describe('WorkOrdersService.getAnalytics — requesterAnalytics §9.8', () => {
+  let service: WorkOrdersService;
+
+  function buildReport(overrides: {
+    derivedWorkOrders?: Array<{ id: string; status: string; interventionLogs: Array<{ result: string | null }> }>;
+    submittedDespiteWarning?: boolean;
+    processedAt?: Date | null;
+  } = {}) {
+    return {
+      status: 'PENDING',
+      processedAt: overrides.processedAt ?? null,
+      createdAt: new Date('2026-04-01T08:00:00Z'),
+      submittedDespiteWarning: overrides.submittedDespiteWarning ?? false,
+      derivedWorkOrders: overrides.derivedWorkOrders ?? [],
+    };
+  }
+
+  function setupMocks(prisma: any, reports: unknown[]) {
+    prisma.workOrder.groupBy
+      .mockResolvedValueOnce([]) // byStatus
+      .mockResolvedValueOnce([]) // byType
+      .mockResolvedValueOnce([]) // byPriority
+      .mockResolvedValueOnce([]); // sourceDistRaw
+    prisma.workOrder.count.mockResolvedValue(0);
+    prisma.workOrder.findMany
+      .mockResolvedValueOnce([]) // closedWOs
+      .mockResolvedValueOnce([]) // costWOs
+      .mockResolvedValueOnce([]) // correctiveWOs
+      .mockResolvedValueOnce([]) // techKpiWOs
+      .mockResolvedValueOnce([]); // preventiveWOsInPeriod
+    prisma.problemReport.findMany.mockResolvedValueOnce(reports);
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
+    prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+  }
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+            findOverdueCritical: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            workOrder: { groupBy: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+            problemReport: { findMany: jest.fn() },
+            workOrderChecklistItem: { findMany: jest.fn() },
+            workOrderValidation: { groupBy: jest.fn() },
+            workOrderReassignment: { count: jest.fn() },
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(WorkOrdersService);
+  });
+
+  // ── reportAccuracyRate ──────────────────────────────────────────────────────
+
+  it('returns null reportAccuracyRate when there are no closed converted reports', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      // Converted but WO still open — not yet a closed conversion
+      buildReport({
+        derivedWorkOrders: [{ id: 'wo-1', status: 'IN_PROGRESS', interventionLogs: [] }],
+      }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.reportAccuracyRate).toBeNull();
+  });
+
+  it('computes reportAccuracyRate=1 when all closed conversions have RESOLVED result', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-1', status: 'CLOSED', interventionLogs: [{ result: 'RESOLVED' }] },
+        ],
+      }),
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-2', status: 'CLOSED', interventionLogs: [{ result: 'RESOLVED' }] },
+        ],
+      }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.reportAccuracyRate).toBe(1);
+  });
+
+  it('computes reportAccuracyRate=0.5 when half of closed conversions are RESOLVED', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      // Report 1: closed with RESOLVED
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-1', status: 'CLOSED', interventionLogs: [{ result: 'RESOLVED' }] },
+        ],
+      }),
+      // Report 2: closed with PARTIALLY_RESOLVED (not RESOLVED)
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-2', status: 'CLOSED', interventionLogs: [{ result: 'PARTIALLY_RESOLVED' }] },
+        ],
+      }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.reportAccuracyRate).toBe(0.5);
+  });
+
+  it('computes reportAccuracyRate=0 when all closed conversions have non-RESOLVED result', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-1', status: 'CLOSED', interventionLogs: [{ result: 'COULD_NOT_INTERVENE' }] },
+        ],
+      }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.reportAccuracyRate).toBe(0);
+  });
+
+  it('counts only CLOSED derived WOs for accuracy denominator (ignores open/in-progress)', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      // Report has both an open and a closed WO; only the closed one counts
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-open', status: 'IN_PROGRESS', interventionLogs: [] },
+          { id: 'wo-closed', status: 'CLOSED', interventionLogs: [{ result: 'RESOLVED' }] },
+        ],
+      }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    // 1 closed conversion with RESOLVED → 1/1 = 1
+    expect(result.requesterAnalytics.reportAccuracyRate).toBe(1);
+  });
+
+  // ── duplicateSubmissionRate ─────────────────────────────────────────────────
+
+  it('returns null duplicateSubmissionRate when there are no reports', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, []);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.duplicateSubmissionRate).toBeNull();
+  });
+
+  it('computes duplicateSubmissionRate=0 when no report was submitted despite warning', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildReport({ submittedDespiteWarning: false }),
+      buildReport({ submittedDespiteWarning: false }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.duplicateSubmissionRate).toBe(0);
+  });
+
+  it('computes duplicateSubmissionRate=0.5 when half of reports had submittedDespiteWarning', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildReport({ submittedDespiteWarning: true }),
+      buildReport({ submittedDespiteWarning: false }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    // 1 with warning / 2 total = 0.5
+    expect(result.requesterAnalytics.duplicateSubmissionRate).toBe(0.5);
+  });
+
+  it('computes duplicateSubmissionRate=1 when all reports had submittedDespiteWarning', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildReport({ submittedDespiteWarning: true }),
+      buildReport({ submittedDespiteWarning: true }),
+      buildReport({ submittedDespiteWarning: true }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.requesterAnalytics.duplicateSubmissionRate).toBe(1);
+  });
+
+  // ── combined correctness check ──────────────────────────────────────────────
+
+  it('computes both KPIs correctly in a realistic mixed scenario', async () => {
+    const prisma = service['prisma'] as any;
+    // 4 reports:
+    //  R1: converted, closed RESOLVED, no warning
+    //  R2: converted, closed PARTIALLY_RESOLVED, with warning
+    //  R3: converted, still open (excluded from accuracy denominator), no warning
+    //  R4: not converted, with warning
+    setupMocks(prisma, [
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-r1', status: 'CLOSED', interventionLogs: [{ result: 'RESOLVED' }] },
+        ],
+        submittedDespiteWarning: false,
+      }),
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-r2', status: 'CLOSED', interventionLogs: [{ result: 'PARTIALLY_RESOLVED' }] },
+        ],
+        submittedDespiteWarning: true,
+      }),
+      buildReport({
+        derivedWorkOrders: [
+          { id: 'wo-r3', status: 'IN_PROGRESS', interventionLogs: [] },
+        ],
+        submittedDespiteWarning: false,
+      }),
+      buildReport({ derivedWorkOrders: [], submittedDespiteWarning: true }),
+    ]);
+
+    const result = await service.getAnalytics(30);
+    const ra = result.requesterAnalytics;
+
+    // Closed conversions: R1 and R2 only (R3 is open, R4 has no WO)
+    // Resolved among closed: R1 only → 1/2 = 0.5
+    expect(ra.reportAccuracyRate).toBe(0.5);
+    // Reports with warning: R2 and R4 → 2/4 = 0.5
+    expect(ra.duplicateSubmissionRate).toBe(0.5);
+  });
+});

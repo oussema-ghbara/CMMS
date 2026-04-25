@@ -13,7 +13,7 @@ import { CancelWorkOrderDto } from './dto/cancel-work-order.dto';
 import { ChangePriorityDto } from './dto/change-priority.dto';
 import {
   WorkOrderSource, WorkOrderStatus, AssetStatus, NotificationType, Role,
-  WorkOrderPriority, WorkOrderType,
+  WorkOrderPriority, WorkOrderType, InterventionResult,
 } from '@gmao/db';
 import { StockMovementType } from '@gmao/db';
 import { WOCancellationReason, ChecklistItemStatus } from '@gmao/shared';
@@ -485,14 +485,22 @@ export class WorkOrdersService {
           },
         },
       }),
-      // Problem reports in period
+      // Problem reports in period (§9.8: includes submittedDespiteWarning and
+      // closure result of derived WOs for reportAccuracyRate computation)
       this.prisma.problemReport.findMany({
         where: { createdAt: { gte: since } },
         select: {
           status: true,
           processedAt: true,
           createdAt: true,
-          derivedWorkOrders: { select: { id: true } },
+          submittedDespiteWarning: true,
+          derivedWorkOrders: {
+            select: {
+              id: true,
+              status: true,
+              interventionLogs: { select: { result: true } },
+            },
+          },
         },
       }),
       // Preventive WOs in period
@@ -727,6 +735,32 @@ export class WorkOrdersService {
       reportToActionAvgDays = Math.round(totalMs / processedReports.length / (1000 * 60 * 60 * 24) * 10) / 10;
     }
 
+    // §9.8 — report accuracy: % of converted reports whose derived WO was closed
+    // with InterventionResult.RESOLVED. Denominator is closed conversions only
+    // (pending WOs have not yet produced a closure result).
+    const closedConversions = reportsInPeriod.filter((r) =>
+      r.derivedWorkOrders.some((wo) => wo.status === WorkOrderStatus.CLOSED),
+    );
+    const resolvedConversions = closedConversions.filter((r) =>
+      r.derivedWorkOrders.some(
+        (wo) =>
+          wo.status === WorkOrderStatus.CLOSED &&
+          wo.interventionLogs.some((log) => log.result === InterventionResult.RESOLVED),
+      ),
+    ).length;
+    const reportAccuracyRate: number | null =
+      closedConversions.length > 0
+        ? Math.round((resolvedConversions / closedConversions.length) * 1000) / 1000
+        : null;
+
+    // §9.8 — duplicate submission rate: % of reports where the requester clicked
+    // "submit anyway" after seeing the duplicate-WO banner.
+    const reportsWithWarning = reportsInPeriod.filter((r) => r.submittedDespiteWarning).length;
+    const duplicateSubmissionRate: number | null =
+      totalReports > 0
+        ? Math.round((reportsWithWarning / totalReports) * 1000) / 1000
+        : null;
+
     // ── Preventive plan efficiency ────────────────────────────────────────────
     const anomalyItems = checklistItemsDone.filter((c) => c.status === ChecklistItemStatus.ANOMALY_DETECTED).length;
     const anomalyRate = checklistItemsDone.length > 0
@@ -767,6 +801,8 @@ export class WorkOrdersService {
         totalConverted: convertedReports,
         conversionRate,
         reportToActionAvgDays,
+        reportAccuracyRate,
+        duplicateSubmissionRate,
       },
       preventivePlanEfficiency: {
         complianceRate: preventiveComplianceRate,

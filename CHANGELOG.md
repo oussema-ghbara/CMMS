@@ -4,6 +4,40 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — pdfkit test mock CJS interop + §9.8 technician rejection rate by category (April 25, 2026)
+
+#### `fix(tests): correct pdfkit CommonJS mock in report-generation specs`
+- Both `report-generation.service.spec.ts` and `report-generation.e2e.spec.ts` returned `{ __esModule: true, default: MockPDFDocument }` from their `jest.mock` factory. With `module: "commonjs"` in tsconfig, `import * as PDFDocument from 'pdfkit'` compiles to `const PDFDocument = require('pdfkit')`, so the factory's return value IS `PDFDocument`. Returning a namespace object instead of the class caused `new PDFDocument()` to throw `TypeError: PDFDocument is not a constructor` at runtime in Jest.
+- Fix: return the class directly from the mock factory. Also switched `EventEmitter` to `require('events')` inside the factory to avoid any jest-hoisting reference edge cases.
+- Impact: 11 previously failing tests now pass; 29/29 report-generation tests green; 0 regressions.
+
+#### `fix(tests): add missing StorageService and ReportGenerationService mocks to work-orders.service.spec.ts`
+- All 8 `beforeEach` blocks in `work-orders.service.spec.ts` were missing `StorageService` and `ReportGenerationService` provider mocks. These dependencies were added to the `WorkOrdersService` constructor in a previous session but the spec file was never updated — causing all 45 tests to fail at module instantiation.
+- Added `{ provide: StorageService, useValue: { getSignedUrl: jest.fn() } }` and `{ provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } }` to every `beforeEach` block.
+- Added `import { StorageService }` and `import { ReportGenerationService }` at the top of the file.
+- Result: 45/45 tests passing.
+
+#### `feat(analytics): compute per-technician rejection rate by category (§9.8)`
+- Spec §9.8 requires "Taux de rejet : % de clôtures rejetées par le Superviseur, ventilé par catégorie de motif de rejet."
+- `work-orders.service.ts`: The `techKpiWOs` Prisma select was extended to include `rejectionReason` inside `validationActions`. The `techMap` accumulator gained `rejectionsByReason: Map<string, number>` to count each `REJECTED` validation action's `ValidationRejectionReason` per technician. Null reasons (e.g., validation records from before the field was required) are silently skipped.
+- Each technician KPI entry now exposes three new fields:
+  - `rejectionCount` — total REJECTED validation actions in the period.
+  - `rejectionRate` — `rejectionCount / closedCount` (0–1, rounded to 3 decimal places).
+  - `rejectionRateByCategory` — `Record<ValidationRejectionReason, { count: number; rate: number }>`.
+- Tests: 5 new unit tests in a dedicated `describe` block covering: no rejections → empty map, single reason, multi-reason accumulation (two technicians stay independent), and null-reason grace handling. 45/45 passing.
+
+#### `feat(web): display technician rejection rate by category in analytics board (§9.8)`
+- `work-orders.api.ts`: New `TechnicianRejectionCategoryEntry { count, rate }` interface; `TechnicianKpiItem` extended with `rejectionCount`, `rejectionRate`, and `rejectionRateByCategory: Record<string, TechnicianRejectionCategoryEntry>`.
+- `supervisor-analytics-board.tsx`:
+  - `TechRow` gains a 7th column **"Taux de rejet"**; non-zero values are rendered in `text-destructive font-medium`.
+  - When a technician has at least one rejection, a muted sub-row renders per-reason tags: reason label (via existing `validationRejectionReason.*` i18n keys, safe `defaultValue` fallback), count (×N), and percentage.
+  - A new **"Détail des rejets par technicien"** card appears below the performance table whenever any technician in the period has rejections. Lists each affected technician with full per-reason breakdown.
+  - Minimum table width raised to `min-w-[700px]` (was 600).
+- `fr/common.json`: 4 new keys added: `supervisorAnalytics.columns.{rejectionRate,rejectionCount}`, `supervisorAnalytics.sections.{technicianRejectionBreakdown,technicianRejectionBreakdownDesc}`.
+- Tests (`work-orders.api.spec.ts`): 3 new tests for `getAnalytics` — full payload with multi-reason breakdown, empty breakdown, and empty `technicianKpis` array. 9/9 passing; 120 frontend tests total, 0 regressions.
+
+---
+
 ### Added — Audit gap fixes: promote reason, report enrichment, daily summary, technician filter (April 25, 2026)
 
 #### `fix(work-orders): allow caller-supplied reason when promoting contributor to principal`

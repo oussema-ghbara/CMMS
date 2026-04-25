@@ -1,20 +1,10 @@
-# GMAO — Session Context
+# GMAO — Implementation Status
 
 ## What this is
 A GMAO (Computerized Maintenance Management System) built as a monorepo.
 Full functional spec: GMAO_Description_Fonctionnelle.pdf
 Data model: data_model.pdf
 Tech stack decisions: stack.pdf
-
-## Stack
-- Backend: NestJS (TypeScript)
-- Web: Next.js (App Router)
-- Mobile: Expo React Native (not started)
-- Database: PostgreSQL via Prisma ORM
-- Cache/Queue: Redis + BullMQ
-- File storage: MinIO
-- Dev email: MailHog + Nodemailer + Handlebars
-- Monorepo: Turborepo + pnpm workspaces
 
 ## Current state
 - [x] Monorepo scaffold (Turborepo + pnpm workspaces)
@@ -142,86 +132,3 @@ Tech stack decisions: stack.pdf
 - Infrastructure: docker-compose.yml
 - Env template: .env.example
 - Backend source: apps/backend/src/
-
-## Dev accounts (after seed)
-| Email | Password | Roles |
-|-------|----------|-------|
-| admin@gmao.local | Admin1234! | ADMIN |
-| supervisor@gmao.local | Admin1234! | SUPERVISOR, STOREKEEPER |
-| tech@gmao.local | Admin1234! | TECHNICIAN |
-| tech2@gmao.local | Admin1234! | TECHNICIAN |
-| requester@gmao.local | Admin1234! | REQUESTER |
-
-## API
-- Base URL (recommended split): http://localhost:3000/api/v1
-- Swagger (recommended split): http://localhost:3000/api/docs
-- Frontend: http://localhost:3001
-- MailHog: http://localhost:8025
-- MinIO: http://localhost:9001
-
-## Architecture rules (critical)
-- NestJS: Module → Controller → Service → Repository. No business logic in controllers.
-- Global guards: JwtAuthGuard + RolesGuard applied to everything. Use @Public() to opt out.
-- Global filter: AllExceptionsFilter on all routes.
-- Email: NEVER send synchronously. Always enqueue via MailService.enqueue().
-- PDF generation: always BullMQ job, never synchronous. Implemented for closed work-order report generation.
-- Offline queue (mobile): only checklist completions, log drafts, photo attachments.
-- Status transitions require connectivity — never queue them.
-- Prisma migrations: never edit applied. Always create new.
-- Audit log: append-only, INSERT+SELECT only at DB role level.
-
-## Environment
-- OS: Fedora KDE
-- Node: v22.x
-- pnpm: 10.6.3
-- Docker: Docker CE
-
-## How to resume work
-1. cd ~/gmao
-2. docker compose up -d
-3. PORT=3000 APP_URL=http://localhost:3001 pnpm --filter @gmao/backend dev
-4. NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 pnpm --filter @gmao/web dev
-5. Verify backend: pnpm smoke:backend
-6. Quick auth check: curl -s -X POST http://localhost:3000/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@gmao.local","password":"Admin1234!"}' | jq .accessToken
-
-## Notifications testing
-
-- Open http://localhost:3001/login and sign in with `supervisor@gmao.local` / `Admin1234!`
-- Verify the top bar on http://localhost:3001/supervisor and http://localhost:3001/supervisor/reports
-- Test notification endpoints with a bearer token:
-  - `GET /api/v1/notifications`
-  - `GET /api/v1/notifications/count/unread`
-  - `PATCH /api/v1/notifications/:id/read`
-  - `PATCH /api/v1/notifications/mark-all-read`
-
-## Authentication testing
-
-### Login
-- Navigate to http://localhost:3001/auth/login
-- Use credentials from dev accounts table
-- Verify: Access token issued, user redirected to dashboard (admin/supervisor/storekeeper)
-
-### Forgot Password (Password Recovery)
-- On login page, click **"Oublié ?"** link
-- Enter email of an active user
-- Verify: Success message shown, backend sends password reset email to MailHog (http://localhost:8025)
-- Email contains reset link: `http://localhost:3001/auth/reset-password?token=...`
-- Click link → set new password (with confirmation) → redirected to login
-- Login with new password to verify reset successful
-
-### Account Setup (New User Onboarding)
-- Admin creates new user via backend/API: `POST /users` with role (TECHNICIAN/REQUESTER, etc.)
-- Verify: Setup email sent to MailHog containing: `http://localhost:3001/auth/setup?token=...`
-- Click link → set password (with confirmation) → account activated and redirected to login
-- New user can now log in with credentials
-
-### Edge cases
-- Invalid/expired token → error message: "Ce lien n'existe plus ou a expiré..."
-- Missing query parameter → error message shown, "Retour à la connexion" button available
-- Password mismatch → validation error: "Les mots de passe ne correspondent pas"
-- Backend password policy violation → backend error displayed in form
-
-## Git conventions
-Branch: feat/short-description, fix/short-description, chore/short-description
-Commit: type(scope): description
-Scopes: backend, web, mobile, shared, infra

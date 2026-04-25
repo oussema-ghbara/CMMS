@@ -5,10 +5,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import {
+  AlertTriangle,
   Archive,
   ArrowRightLeft,
   Clock3,
   Eye,
+  History,
   Loader2,
   MessageSquare,
   PlusCircle,
@@ -25,7 +27,7 @@ import {
   WorkOrderPriority,
   WorkOrderStatus,
 } from '@gmao/shared';
-import { reportsApi, type ReportDetailItem, type ReportListItem } from '@/lib/reports.api';
+import { reportsApi, type ReportDetailItem, type ReportListItem, type ReportAssetActiveWO, type ReportAssetCertAlert, type ReportAssetInterventionHistoryItem } from '@/lib/reports.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -653,6 +655,33 @@ export function ReportsBoard() {
 
               return (
             <div className="space-y-6">
+
+              {/* §9.1: Duplicate active WO banner — shown when the asset already has active WOs */}
+              {(report as ReportDetailItem).asset?.workOrders?.length > 0 && (
+                <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700 dark:bg-amber-950/30">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="space-y-1.5">
+                    <p className="font-medium text-amber-800 dark:text-amber-300">
+                      {t('supervisorReports.detail.duplicateWoBannerTitle')}
+                    </p>
+                    <ul className="space-y-0.5 text-xs text-amber-700 dark:text-amber-400">
+                      {(report as ReportDetailItem).asset.workOrders.map((wo: ReportAssetActiveWO) => (
+                        <li key={wo.id} className="flex items-center gap-2">
+                          <Badge
+                            variant={getWorkOrderStatusVariant(wo.status as WorkOrderStatus)}
+                            className="text-[10px] py-0 px-1.5"
+                          >
+                            {wo.status}
+                          </Badge>
+                          <span className="font-mono">{wo.referenceNumber}</span>
+                          {wo.description && <span className="truncate text-muted-foreground">— {wo.description}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
                   <CardHeader className="space-y-3">
@@ -1001,6 +1030,78 @@ export function ReportsBoard() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* §9.1: Asset context sidebar — intervention history + certificate alerts */}
+              {(() => {
+                const detail = report as ReportDetailItem;
+                const history: ReportAssetInterventionHistoryItem[] = detail.assetInterventionHistory ?? [];
+                const certs: ReportAssetCertAlert[] = detail.asset?.certificates ?? [];
+                if (history.length === 0 && certs.length === 0) return null;
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <History className="h-4 w-4" />
+                        {t('supervisorReports.detail.assetSidebarTitle')}
+                      </CardTitle>
+                      <CardDescription>{t('supervisorReports.detail.assetSidebarDescription')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm">
+                      {certs.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {t('supervisorReports.detail.assetCertAlerts')}
+                          </p>
+                          <div className="space-y-1.5">
+                            {certs.map((cert: ReportAssetCertAlert) => (
+                              <div key={cert.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                                <div>
+                                  <p className="font-medium">
+                                    {cert.otherType ?? cert.certificateType}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {cert.issuingAuthority} · {t('supervisorReports.detail.certExpiry', { date: formatDateTime(cert.expirationDate) })}
+                                  </p>
+                                </div>
+                                <Badge variant={cert.status === 'EXPIRED' ? 'destructive' : 'warning'} className="shrink-0 text-[10px]">
+                                  {cert.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {history.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {t('supervisorReports.detail.assetInterventionHistory')}
+                          </p>
+                          <div className="space-y-1.5">
+                            {history.map((item: ReportAssetInterventionHistoryItem) => (
+                              <div key={item.id} className="rounded-md border px-3 py-2 space-y-0.5">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="font-medium">{item.referenceNumber}</p>
+                                  <Badge variant="secondary" className="shrink-0 text-[10px] py-0">
+                                    {item.type}
+                                  </Badge>
+                                </div>
+                                {item.description && (
+                                  <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {item.principalTechnician?.name && `${item.principalTechnician.name} · `}
+                                  {formatDateTime(item.closedAt)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
               );
             })()

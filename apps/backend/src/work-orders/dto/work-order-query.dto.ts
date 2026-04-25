@@ -1,5 +1,5 @@
-import { IsOptional, IsEnum, IsString, IsInt, Min, Max, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsEnum, IsString, IsInt, IsBoolean, Min, Max, IsDateString } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { WorkOrderStatus, WorkOrderType, WorkOrderPriority } from '@gmao/shared';
 
@@ -58,4 +58,10 @@ export class WorkOrderQueryDto {
   @IsOptional()
   @IsDateString()
   closedBefore?: string;
+
+  @ApiPropertyOptional({ description: 'When true, return only non-terminal WOs whose dueDate is in the past (spec §9.3)' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  isOverdue?: boolean;
 }

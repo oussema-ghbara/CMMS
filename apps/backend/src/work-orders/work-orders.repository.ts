@@ -17,7 +17,16 @@ export class WorkOrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: WorkOrderQueryDto): Promise<{ data: WorkOrder[]; total: number }> {
-    const { search, status, type, priority, assetId, technicianId, page = 1, limit = 20, closedAfter, closedBefore } = query;
+    const { search, status, type, priority, assetId, technicianId, page = 1, limit = 20, closedAfter, closedBefore, isOverdue } = query;
+
+    const NON_TERMINAL_STATUSES = [
+      WorkOrderStatus.DRAFT,
+      WorkOrderStatus.OPEN,
+      WorkOrderStatus.ASSIGNED,
+      WorkOrderStatus.IN_PROGRESS,
+      WorkOrderStatus.ON_HOLD,
+      WorkOrderStatus.PENDING_VALIDATION,
+    ];
 
     const where: Prisma.WorkOrderWhereInput = {
       ...(search && {
@@ -36,6 +45,10 @@ export class WorkOrdersRepository {
           ...(closedAfter && { gte: new Date(closedAfter) }),
           ...(closedBefore && { lte: new Date(closedBefore) }),
         },
+      }),
+      ...(isOverdue && {
+        dueDate: { not: null, lt: new Date() },
+        status: { in: NON_TERMINAL_STATUSES },
       }),
     };
 

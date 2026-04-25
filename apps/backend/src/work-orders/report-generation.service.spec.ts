@@ -1,8 +1,13 @@
-import { EventEmitter } from 'events';
-
+// createdDocuments must be declared before jest.mock so the factory closure can capture it.
 const createdDocuments: any[] = [];
 
+// pdfkit is a CommonJS module. The service imports it as `import * as PDFDocument from 'pdfkit'`,
+// which compiles to `const PDFDocument = require('pdfkit')` in CommonJS mode.
+// The mock factory must therefore return the class directly — not wrapped in { default: ... }.
+// EventEmitter is pulled from require() inside the factory to avoid jest-hoisting issues.
 jest.mock('pdfkit', () => {
+  const { EventEmitter } = require('events') as typeof import('events');
+
   class MockPDFDocument extends EventEmitter {
     public readonly textCalls: string[] = [];
 
@@ -33,7 +38,7 @@ jest.mock('pdfkit', () => {
     get currentY() { return 100; }
   }
 
-  return { __esModule: true, default: MockPDFDocument };
+  return MockPDFDocument;
 });
 
 import { ReportGenerationService } from './report-generation.service';

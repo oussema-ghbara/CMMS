@@ -1,6 +1,7 @@
-import { EventEmitter } from 'events';
-
+// Same CJS interop fix as report-generation.service.spec.ts: return class directly.
 jest.mock('pdfkit', () => {
+  const { EventEmitter } = require('events') as typeof import('events');
+
   class MockPDFDocument extends EventEmitter {
     constructor() {
       super();
@@ -25,7 +26,7 @@ jest.mock('pdfkit', () => {
     get currentY() { return 100; }
   }
 
-  return { __esModule: true, default: MockPDFDocument };
+  return MockPDFDocument;
 });
 
 import { Test, TestingModule } from '@nestjs/testing';

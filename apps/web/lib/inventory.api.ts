@@ -90,12 +90,36 @@ export interface LongWaitingPartRequest {
   waitingHours: number;
 }
 
+export interface ConsumptionBreakdownWoTypeEntry {
+  woType: 'CORRECTIVE' | 'PREVENTIVE' | null;
+  quantity: number;
+  cost: number;
+}
+
+export interface ConsumptionBreakdownCategoryEntry {
+  categoryId: string | null;
+  categoryName: string | null;
+  quantity: number;
+  cost: number;
+  byWoType: ConsumptionBreakdownWoTypeEntry[];
+}
+
+export interface PartConsumptionBreakdown {
+  partId: string;
+  partName: string;
+  partReference: string;
+  totalQuantity: number;
+  totalCost: number;
+  byAssetCategory: ConsumptionBreakdownCategoryEntry[];
+}
+
 export interface InventoryAnalyticsResponse {
   periodDays: number;
   consumption: {
     topByQuantity: InventoryAnalyticsTopByQuantityItem[];
     topByCost: InventoryAnalyticsTopByCostItem[];
   };
+  consumptionBreakdown: PartConsumptionBreakdown[];
   replenishment: Array<{
     partId: string;
     partName: string;

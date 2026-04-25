@@ -1664,7 +1664,9 @@
       "costTrend": "Évolution des dépenses en pièces",
       "costTrendDescription": "Dépenses totales mensuelles issues des mouvements sortants sur la période sélectionnée.",
       "longWaitingRequests": "Demandes en attente sur OT bloqués",
-      "longWaitingRequestsDescription": "Demandes de pièces en attente depuis plus de {{hours}} h sur des OT en pause."
+      "longWaitingRequestsDescription": "Demandes de pièces en attente depuis plus de {{hours}} h sur des OT en pause.",
+      "consumptionBreakdown": "Consommation par catégorie d'équipement et type d'OT",
+      "consumptionBreakdownDescription": "Répartition des sorties de stock par catégorie d'actif (correctif vs préventif), limitée aux 20 pièces les plus consommées."
     },
     "requests": {
       "fulfilled": "Traitées",
@@ -1685,7 +1687,9 @@
       "month": "Mois",
       "totalSpending": "Dépenses totales",
       "workOrder": "OT",
-      "waitingHours": "Attente (h)"
+      "waitingHours": "Attente (h)",
+      "assetCategory": "Catégorie d'équipement",
+      "woType": "Type d'OT"
     },
     "labels": {
       "windowSummary": "Période: {{periodDays}} j | Stock mort: {{deadStockDays}} j",
@@ -1693,7 +1697,14 @@
       "notAvailable": "Non disponible",
       "endpointNote": "Source: /stock/analytics (backend)",
       "offCatalog": "Hors catalogue",
-      "longWaitingWarning": "{{count}} demande(s) en attente depuis plus de {{hours}} h sur des OT en pause."
+      "longWaitingWarning": "{{count}} demande(s) en attente depuis plus de {{hours}} h sur des OT en pause.",
+      "noCategory": "Sans catégorie",
+      "total": "Total",
+      "woType": {
+        "CORRECTIVE": "Correctif",
+        "PREVENTIVE": "Préventif",
+        "NONE": "Sans OT"
+      }
     },
     "states": {
       "error": "Impossible de charger les analytiques d'inventaire",

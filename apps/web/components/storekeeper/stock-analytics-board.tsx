@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, ChevronRight, Clock, Loader2, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Clock, Layers, Loader2, TrendingUp } from 'lucide-react';
+import type { PartConsumptionBreakdown } from '@/lib/inventory.api';
 import { inventoryApi } from '@/lib/inventory.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ export function StockAnalyticsBoard() {
 
   const topByQuantity = data?.consumption.topByQuantity ?? [];
   const topByCost = data?.consumption.topByCost ?? [];
+  const consumptionBreakdown: PartConsumptionBreakdown[] = data?.consumptionBreakdown ?? [];
   const replenishment = data?.replenishment ?? [];
   const deadStock = data?.deadStock ?? [];
   const costTrend = data?.costTrend ?? [];
@@ -259,6 +261,72 @@ export function StockAnalyticsBoard() {
               </CardContent>
             </Card>
           </div>
+
+          {/* §10.6 — Consumption breakdown by asset category and WO type */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                {t('storekeeperAnalytics.sections.consumptionBreakdown')}
+              </CardTitle>
+              <CardDescription>{t('storekeeperAnalytics.sections.consumptionBreakdownDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {consumptionBreakdown.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('storekeeperAnalytics.states.empty')}</p>
+              ) : (
+                <div className="space-y-4">
+                  {consumptionBreakdown.map((part) => (
+                    <div key={part.partId} className="rounded-md border">
+                      <div className="flex items-center justify-between px-4 py-2 bg-muted/40 rounded-t-md">
+                        <span className="font-medium text-sm">{part.partName}</span>
+                        <span className="text-xs text-muted-foreground font-mono">{part.partReference}</span>
+                      </div>
+                      <div className="px-4 py-2">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{t('storekeeperAnalytics.columns.assetCategory')}</TableHead>
+                              <TableHead>{t('storekeeperAnalytics.columns.woType')}</TableHead>
+                              <TableHead className="text-right">{t('storekeeperAnalytics.columns.quantity')}</TableHead>
+                              <TableHead className="text-right">{t('storekeeperAnalytics.columns.cost')}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {part.byAssetCategory.flatMap((cat) =>
+                              cat.byWoType.map((entry, idx) => (
+                                <TableRow key={`${cat.categoryId ?? 'none'}-${entry.woType ?? 'none'}-${idx}`}>
+                                  {idx === 0 ? (
+                                    <TableCell rowSpan={cat.byWoType.length} className="align-top font-medium text-sm">
+                                      {cat.categoryName ?? t('storekeeperAnalytics.labels.noCategory')}
+                                    </TableCell>
+                                  ) : null}
+                                  <TableCell>
+                                    <Badge variant={entry.woType === 'CORRECTIVE' ? 'destructive' : entry.woType === 'PREVENTIVE' ? 'secondary' : 'outline'} className="text-xs">
+                                      {entry.woType
+                                        ? t(`storekeeperAnalytics.labels.woType.${entry.woType}`)
+                                        : t('storekeeperAnalytics.labels.woType.NONE')}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">{formatNumber(entry.quantity)}</TableCell>
+                                  <TableCell className="text-right">{formatCurrency(entry.cost)}</TableCell>
+                                </TableRow>
+                              )),
+                            )}
+                            <TableRow className="bg-muted/20 font-semibold">
+                              <TableCell colSpan={2}>{t('storekeeperAnalytics.labels.total')}</TableCell>
+                              <TableCell className="text-right">{formatNumber(part.totalQuantity)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(part.totalCost)}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>

@@ -477,7 +477,7 @@ export class WorkOrdersService {
           principalTechnicianId: true,
           principalTechnician: { select: { id: true, name: true } },
           createdAt: true,
-          validationActions: { select: { action: true } },
+          validationActions: { select: { action: true, rejectionReason: true } },
           onHoldPeriods: { select: { id: true } },
           interventionLogs: {
             select: { technicianId: true, activeDurationMinutes: true, startedAt: true },
@@ -637,6 +637,8 @@ export class WorkOrdersService {
       totalActiveMins: number; activeMinsCount: number;
       firstPassCount: number; totalHoldPeriods: number;
       totalResponseMs: number; responseCount: number;
+      // §9.8: track each REJECTED validation action's reason for per-technician breakdown
+      rejectionsByReason: Map<string, number>;
     }>();
 
     for (const wo of techKpiWOs) {
@@ -645,12 +647,23 @@ export class WorkOrdersService {
         id: techId, name: wo.principalTechnician?.name ?? techId,
         closedCount: 0, totalActiveMins: 0, activeMinsCount: 0,
         firstPassCount: 0, totalHoldPeriods: 0, totalResponseMs: 0, responseCount: 0,
+        rejectionsByReason: new Map<string, number>(),
       };
       entry.closedCount += 1;
       entry.totalHoldPeriods += wo.onHoldPeriods.length;
 
       const wasRejected = wo.validationActions.some((a) => a.action === 'REJECTED');
       if (!wasRejected) entry.firstPassCount += 1;
+
+      // §9.8: accumulate rejection reason counts per technician
+      for (const va of wo.validationActions) {
+        if (va.action === 'REJECTED' && va.rejectionReason) {
+          entry.rejectionsByReason.set(
+            va.rejectionReason,
+            (entry.rejectionsByReason.get(va.rejectionReason) ?? 0) + 1,
+          );
+        }
+      }
 
       for (const log of wo.interventionLogs) {
         if (log.activeDurationMinutes !== null) {
@@ -668,19 +681,37 @@ export class WorkOrdersService {
       techMap.set(techId, entry);
     }
 
-    const technicianKpis = [...techMap.values()].map((t) => ({
-      technicianId: t.id,
-      name: t.name,
-      closedCount: t.closedCount,
-      avgActiveDurationMinutes: t.activeMinsCount > 0
-        ? Math.round(t.totalActiveMins / t.activeMinsCount * 10) / 10 : null,
-      firstPassRate: t.closedCount > 0
-        ? Math.round(t.firstPassCount / t.closedCount * 1000) / 1000 : null,
-      avgHoldPerWo: t.closedCount > 0
-        ? Math.round(t.totalHoldPeriods / t.closedCount * 10) / 10 : null,
-      avgResponseTimeHours: t.responseCount > 0
-        ? Math.round(t.totalResponseMs / t.responseCount / (1000 * 60 * 60) * 10) / 10 : null,
-    })).sort((a, b) => b.closedCount - a.closedCount);
+    const technicianKpis = [...techMap.values()].map((t) => {
+      const rejectionCount = [...t.rejectionsByReason.values()].reduce((s, v) => s + v, 0);
+      const rejectionRate = t.closedCount > 0
+        ? Math.round(rejectionCount / t.closedCount * 1000) / 1000
+        : null;
+      const rejectionRateByCategory = Object.fromEntries(
+        [...t.rejectionsByReason.entries()].map(([reason, count]) => [
+          reason,
+          {
+            count,
+            rate: t.closedCount > 0 ? Math.round(count / t.closedCount * 1000) / 1000 : 0,
+          },
+        ]),
+      );
+      return {
+        technicianId: t.id,
+        name: t.name,
+        closedCount: t.closedCount,
+        rejectionCount,
+        rejectionRate,
+        rejectionRateByCategory,
+        avgActiveDurationMinutes: t.activeMinsCount > 0
+          ? Math.round(t.totalActiveMins / t.activeMinsCount * 10) / 10 : null,
+        firstPassRate: t.closedCount > 0
+          ? Math.round(t.firstPassCount / t.closedCount * 1000) / 1000 : null,
+        avgHoldPerWo: t.closedCount > 0
+          ? Math.round(t.totalHoldPeriods / t.closedCount * 10) / 10 : null,
+        avgResponseTimeHours: t.responseCount > 0
+          ? Math.round(t.totalResponseMs / t.responseCount / (1000 * 60 * 60) * 10) / 10 : null,
+      };
+    }).sort((a, b) => b.closedCount - a.closedCount);
 
     // ── Requester analytics ───────────────────────────────────────────────────
     const totalReports = reportsInPeriod.length;

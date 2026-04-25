@@ -12,6 +12,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WorkOrdersService } from './work-orders.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { ReportGenerationService } from './report-generation.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PartRequestsService } from '../inventory/part-requests.service';
 import { AssetStatus, WorkOrderStatus, NotificationType } from '@gmao/db';
@@ -92,6 +94,8 @@ describe('WorkOrdersService.create', () => {
           provide: PartRequestsService,
           useValue: { handleWorkOrderCancellation: jest.fn() },
         },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 
@@ -240,6 +244,8 @@ describe('WorkOrdersService.cancel', () => {
           provide: PartRequestsService,
           useValue: { handleWorkOrderCancellation: jest.fn().mockResolvedValue(undefined) },
         },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 
@@ -438,6 +444,8 @@ describe('WorkOrdersService.getAnalytics', () => {
           provide: PartRequestsService,
           useValue: { handleWorkOrderCancellation: jest.fn() },
         },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 
@@ -525,6 +533,204 @@ describe('WorkOrdersService.getAnalytics', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.getAnalytics — technician rejection rate by category (§9.8)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('WorkOrdersService.getAnalytics — technicianKpis.rejectionRateByCategory', () => {
+  let service: WorkOrdersService;
+
+  const TECH_ID = 'tech-1';
+  const TECH_NAME = 'Alice';
+
+  function buildTechKpiWO(validationActions: Array<{ action: string; rejectionReason: string | null }>) {
+    return {
+      principalTechnicianId: TECH_ID,
+      principalTechnician: { id: TECH_ID, name: TECH_NAME },
+      createdAt: new Date('2026-04-01T08:00:00Z'),
+      validationActions,
+      onHoldPeriods: [],
+      interventionLogs: [],
+    };
+  }
+
+  function setupMocks(prisma: any, techKpiWOs: unknown[]) {
+    prisma.workOrder.groupBy
+      .mockResolvedValueOnce([]) // byStatus
+      .mockResolvedValueOnce([]) // byType
+      .mockResolvedValueOnce([]) // byPriority
+      .mockResolvedValueOnce([]); // sourceDistRaw
+    prisma.workOrder.count
+      .mockResolvedValue(0);
+    prisma.workOrder.findMany
+      .mockResolvedValueOnce([]) // closedWOs (resolution days)
+      .mockResolvedValueOnce([]) // costWOs
+      .mockResolvedValueOnce([]) // correctiveWOs (MTBF/MTTR)
+      .mockResolvedValueOnce(techKpiWOs) // techKpiWOs
+      .mockResolvedValueOnce([]); // preventiveWOsInPeriod
+    prisma.problemReport.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
+    prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+  }
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+            findOverdueCritical: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            workOrder: { groupBy: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+            problemReport: { findMany: jest.fn() },
+            workOrderChecklistItem: { findMany: jest.fn() },
+            workOrderValidation: { groupBy: jest.fn() },
+            workOrderReassignment: { count: jest.fn() },
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(WorkOrdersService);
+  });
+
+  it('computes rejectionCount=0 and empty rejectionRateByCategory when no rejections', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildTechKpiWO([{ action: 'VALIDATED', rejectionReason: null }]),
+    ]);
+
+    const result = await service.getAnalytics(30);
+    const tech = result.technicianKpis[0];
+
+    expect(tech.technicianId).toBe(TECH_ID);
+    expect(tech.closedCount).toBe(1);
+    expect(tech.rejectionCount).toBe(0);
+    expect(tech.rejectionRate).toBe(0);
+    expect(tech.rejectionRateByCategory).toEqual({});
+  });
+
+  it('computes rejectionRate and breakdown for a single rejection reason', async () => {
+    const prisma = service['prisma'] as any;
+    // 2 WOs: one rejected with INCONSISTENT_TIME, one accepted
+    setupMocks(prisma, [
+      buildTechKpiWO([
+        { action: 'REJECTED', rejectionReason: 'INCONSISTENT_TIME' },
+        { action: 'VALIDATED', rejectionReason: null },
+      ]),
+      buildTechKpiWO([{ action: 'VALIDATED', rejectionReason: null }]),
+    ]);
+
+    const result = await service.getAnalytics(30);
+    const tech = result.technicianKpis[0];
+
+    expect(tech.closedCount).toBe(2);
+    expect(tech.rejectionCount).toBe(1);
+    // 1 rejection action / 2 WOs = 0.5 → stored as 0.5 (rounded to 3dp)
+    expect(tech.rejectionRate).toBe(0.5);
+    expect(tech.rejectionRateByCategory).toEqual({
+      INCONSISTENT_TIME: { count: 1, rate: 0.5 },
+    });
+  });
+
+  it('accumulates multiple rejection reasons across WOs for the same technician', async () => {
+    const prisma = service['prisma'] as any;
+    // 4 WOs: 3 rejected with different/same reasons, 1 accepted
+    setupMocks(prisma, [
+      buildTechKpiWO([{ action: 'REJECTED', rejectionReason: 'INSUFFICIENT_DESCRIPTION' }]),
+      buildTechKpiWO([{ action: 'REJECTED', rejectionReason: 'PARTS_USED_MISMATCH' }]),
+      buildTechKpiWO([{ action: 'REJECTED', rejectionReason: 'INSUFFICIENT_DESCRIPTION' }]),
+      buildTechKpiWO([{ action: 'VALIDATED', rejectionReason: null }]),
+    ]);
+
+    const result = await service.getAnalytics(30);
+    const tech = result.technicianKpis[0];
+
+    expect(tech.closedCount).toBe(4);
+    expect(tech.rejectionCount).toBe(3);
+    expect(tech.rejectionRate).toBe(0.75); // 3/4
+    expect(tech.rejectionRateByCategory['INSUFFICIENT_DESCRIPTION']).toEqual({
+      count: 2,
+      rate: 0.5, // 2/4
+    });
+    expect(tech.rejectionRateByCategory['PARTS_USED_MISMATCH']).toEqual({
+      count: 1,
+      rate: 0.25, // 1/4
+    });
+  });
+
+  it('tracks rejection reasons independently per technician when multiple techs exist', async () => {
+    const TECH2_ID = 'tech-2';
+    const TECH2_NAME = 'Bob';
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      // Alice: 1 rejection
+      {
+        principalTechnicianId: TECH_ID,
+        principalTechnician: { id: TECH_ID, name: TECH_NAME },
+        createdAt: new Date('2026-04-01T08:00:00Z'),
+        validationActions: [{ action: 'REJECTED', rejectionReason: 'INCOMPLETE_CHECKLIST' }],
+        onHoldPeriods: [],
+        interventionLogs: [],
+      },
+      // Bob: 0 rejections
+      {
+        principalTechnicianId: TECH2_ID,
+        principalTechnician: { id: TECH2_ID, name: TECH2_NAME },
+        createdAt: new Date('2026-04-02T08:00:00Z'),
+        validationActions: [{ action: 'VALIDATED', rejectionReason: null }],
+        onHoldPeriods: [],
+        interventionLogs: [],
+      },
+    ]);
+
+    const result = await service.getAnalytics(30);
+    const alice = result.technicianKpis.find((t) => t.technicianId === TECH_ID)!;
+    const bob = result.technicianKpis.find((t) => t.technicianId === TECH2_ID)!;
+
+    expect(alice.rejectionCount).toBe(1);
+    expect(alice.rejectionRateByCategory).toEqual({
+      INCOMPLETE_CHECKLIST: { count: 1, rate: 1 },
+    });
+    expect(bob.rejectionCount).toBe(0);
+    expect(bob.rejectionRateByCategory).toEqual({});
+  });
+
+  it('handles null rejectionReason on REJECTED actions gracefully', async () => {
+    const prisma = service['prisma'] as any;
+    setupMocks(prisma, [
+      buildTechKpiWO([{ action: 'REJECTED', rejectionReason: null }]),
+    ]);
+
+    const result = await service.getAnalytics(30);
+    const tech = result.technicianKpis[0];
+
+    // null reason is skipped — rejectionCount stays 0, category map stays empty
+    expect(tech.rejectionCount).toBe(0);
+    expect(tech.rejectionRateByCategory).toEqual({});
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // WorkOrdersService.createFollowUp
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -594,6 +800,8 @@ describe('WorkOrdersService.createFollowUp', () => {
           provide: PartRequestsService,
           useValue: { handleWorkOrderCancellation: jest.fn() },
         },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 
@@ -697,6 +905,8 @@ describe('WorkOrdersService.getTechnicianLoad', () => {
           provide: PartRequestsService,
           useValue: { handleWorkOrderCancellation: jest.fn() },
         },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 
@@ -837,6 +1047,8 @@ describe('WorkOrdersService.getDurationHints', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationsService, useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() } },
         { provide: PartRequestsService, useValue: { handleWorkOrderCancellation: jest.fn() } },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 
@@ -934,6 +1146,8 @@ describe('WorkOrdersService.getRecurringFailureAssets', () => {
           provide: PartRequestsService,
           useValue: { handleWorkOrderCancellation: jest.fn() },
         },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
       ],
     }).compile();
 

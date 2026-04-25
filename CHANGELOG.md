@@ -4,6 +4,28 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Same-asset same-day preventive plan conflict detection (§9.6) (April 25, 2026)
+
+#### `feat(preventive-plans): detect same-asset same-day plan conflicts (§9.6)`
+- `PreventivePlansRepository.findSameDayAssetConflicts()` new method groups due plans by `assetId` and identifies conflicts: 2+ plans due same day on the same asset.
+- Returns `Map<assetId, conflictDetails[]>` with `{ planId, planTitle, assetName }` for each conflict.
+- Added `AssetSummary` and `TechnicianSummary` type helpers for plan relation includes.
+- Updated `PlanWithRelations` type to include `asset` and `defaultTechnician` relations needed for conflict context.
+- 6 unit tests covering empty plans, single asset conflict, multiple independent asset conflicts, and data accuracy. All passing.
+
+#### `feat(preventive-plans): notify supervisors of same-asset plan conflicts`
+- `PlanSchedulerService.scheduleDuePlans()` calls `findSameDayAssetConflicts()` before enqueueing WO generation jobs.
+- When conflicts detected: supervisor notification sent with title "Conflit détecté : plusieurs plans préventifs" (French).
+- Message includes asset name, conflict count, and comma-separated plan titles.
+- Notification entity type: Asset (enables deep-linking to conflict source).
+- **Critical behavior**: All plans are still enqueued (both WOs created as specified). Notification is informational only — no WO generation is blocked.
+- 6 unit tests covering no conflicts, single asset conflict, multi-asset scenarios, and all-plans-enqueued verification. All passing.
+
+#### `fix(preventive-plans): wire NotificationsModule dependency`
+- `PreventivePlansModule` now imports `NotificationsModule` to support supervisor conflict notifications.
+- `PlanSchedulerService` can now inject `NotificationsService`.
+- Total test coverage: 12 new tests (6 repository + 6 scheduler), all passing; 0 regressions.
+
 ### Fixed — Daily summary role-aware stock visibility + critical deferred report section (§12.3) (April 25, 2026)
 
 #### `fix(work-orders): complete daily-summary payload and rendering for critical deferred + role-aware inventory`

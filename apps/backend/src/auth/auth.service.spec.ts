@@ -166,6 +166,7 @@ describe('AuthService session timeout enforcement', () => {
       roles: ['SUPERVISOR'],
       userId: 'user-1',
       name: 'Supervisor One',
+      idleTimeoutHours: 8,
     });
   });
 
@@ -209,7 +210,7 @@ describe('AuthService session timeout enforcement', () => {
     expect(result.accessToken).toBe('access-token-2');
   });
 
-  it('falls back to 7 days when SESSION_IDLE_TIMEOUT_HOURS is missing or invalid', async () => {
+  it('falls back to 8 hours (spec §3.4 default) when SESSION_IDLE_TIMEOUT_HOURS is invalid', async () => {
     const { service, jwt, pipelines, response, systemConfig } = createService('0');
     const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
 
@@ -217,24 +218,25 @@ describe('AuthService session timeout enforcement', () => {
       .mockResolvedValueOnce('access-token')
       .mockResolvedValueOnce('refresh-token');
 
-    await service.login(user, response);
+    const result = await service.login(user, response);
 
     expect(systemConfig.get).toHaveBeenCalledWith('SESSION_IDLE_TIMEOUT_HOURS');
     expect(jwt.signAsync).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ sub: 'user-1', jti: expect.any(String) }),
-      expect.objectContaining({ expiresIn: 7 * 24 * 60 * 60 }),
+      expect.objectContaining({ expiresIn: 8 * 60 * 60 }),
     );
     expect(pipelines[0].setex).toHaveBeenCalledWith(
       expect.stringMatching(/^rt:user-1:/),
-      7 * 24 * 60 * 60,
+      8 * 60 * 60,
       '1',
     );
     expect(response.cookie).toHaveBeenCalledWith(
       'refresh_token',
       'refresh-token',
-      expect.objectContaining({ maxAge: 7 * 24 * 60 * 60 * 1000 }),
+      expect.objectContaining({ maxAge: 8 * 60 * 60 * 1000 }),
     );
+    expect(result.idleTimeoutHours).toBe(8);
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -263,5 +265,42 @@ describe('AuthService session timeout enforcement', () => {
     await service.resendSetup('new.user@gmao.local');
 
     expect(usersService.resendSetupByEmail).toHaveBeenCalledWith('new.user@gmao.local');
+  });
+
+  // §3.4: idleTimeoutHours in auth responses
+  it('login() returns configured idleTimeoutHours in the response body', async () => {
+    const { service, jwt, response } = createService('12');
+    jwt.signAsync.mockResolvedValueOnce('at').mockResolvedValueOnce('rt');
+
+    const result = await service.login(user, response);
+
+    expect(result.idleTimeoutHours).toBe(12);
+  });
+
+  it('refresh() returns configured idleTimeoutHours in the response body', async () => {
+    const { service, jwt, redis, prisma, response } = createService('3');
+    jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', jti: 'j1' });
+    redis.get.mockResolvedValue('1');
+    prisma.user.findUnique.mockResolvedValue(user);
+    jwt.signAsync.mockResolvedValueOnce('at2').mockResolvedValueOnce('rt2');
+
+    const result = await service.refresh('old-rt', response);
+
+    expect(result.idleTimeoutHours).toBe(3);
+  });
+
+  it('idleTimeoutHours equals SESSION_IDLE_TIMEOUT_HOURS when configured to 24', async () => {
+    const { service, jwt, response } = createService('24');
+    jwt.signAsync.mockResolvedValueOnce('at').mockResolvedValueOnce('rt');
+
+    const result = await service.login(user, response);
+
+    expect(result.idleTimeoutHours).toBe(24);
+    // Refresh TTL aligns: 24h = 86400 s
+    expect(jwt.signAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ expiresIn: 24 * 60 * 60 }),
+    );
   });
 });

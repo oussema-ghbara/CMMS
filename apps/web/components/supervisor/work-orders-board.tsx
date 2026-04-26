@@ -114,6 +114,19 @@ export function WorkOrdersBoard() {
   // §9.3: Overdue filter applied when navigating from the dashboard overdue panel (?isOverdue=true).
   const isOverdue = searchParams.get('isOverdue') === 'true' || undefined;
 
+  // Active-status filter applied when navigating from the dashboard active WOs card (?isActive=true).
+  const isActive = searchParams.get('isActive') === 'true' || undefined;
+
+  // Deep-link status filter: pre-select the status dropdown from ?status= URL param.
+  const statusParam = searchParams.get('status') as WorkOrderStatus | null;
+  useEffect(() => {
+    if (statusParam && Object.values(WorkOrderStatus).includes(statusParam)) {
+      setStatus(statusParam);
+    }
+  // Run once on mount — user can change the dropdown afterward.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Priority change dialog (quick-access from row)
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderListItem | null>(null);
   const [priorityDialogOpen, setPriorityDialogOpen] = useState(false);
@@ -146,8 +159,9 @@ export function WorkOrdersBoard() {
       ...(priority ? { priority } : {}),
       ...(technicianId ? { technicianId } : {}),
       ...(isOverdue ? { isOverdue } : {}),
+      ...(isActive ? { isActive } : {}),
     }),
-    [page, search, status, type, priority, technicianId, isOverdue],
+    [page, search, status, type, priority, technicianId, isOverdue, isActive],
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -184,7 +198,7 @@ export function WorkOrdersBoard() {
     setType('');
     setPriority('');
     setPage(1);
-    if (technicianId) {
+    if (technicianId || isOverdue || isActive || statusParam) {
       router.replace('/supervisor/work-orders', { scroll: false });
     }
   };
@@ -290,6 +304,19 @@ export function WorkOrdersBoard() {
               <button
                 type="button"
                 aria-label={t('supervisorWorkOrders.filters.clearTechnicianFilter')}
+                onClick={() => router.replace('/supervisor/work-orders', { scroll: false })}
+                className="ml-0.5 rounded hover:bg-secondary-foreground/10"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {isActive && (
+            <Badge variant="secondary" className="flex items-center gap-1 pr-1">
+              {t('supervisorWorkOrders.filters.activeFilter')}
+              <button
+                type="button"
+                aria-label={t('supervisorWorkOrders.filters.clearActiveFilter')}
                 onClick={() => router.replace('/supervisor/work-orders', { scroll: false })}
                 className="ml-0.5 rounded hover:bg-secondary-foreground/10"
               >

@@ -13,4 +13,7 @@ export class AuthResponseDto {
 
   @ApiProperty()
   name: string;
+
+  @ApiProperty({ description: 'Session idle timeout in hours (§3.4)' })
+  idleTimeoutHours: number;
 }

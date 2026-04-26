@@ -25,6 +25,7 @@ import type { UsersService } from '../users/users.service';
 const RT_PREFIX = 'rt:';
 const RT_SET_PREFIX = 'rt-set:';
 const DEFAULT_RT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const DEFAULT_IDLE_TIMEOUT_HOURS = 8;
 const SESSION_IDLE_TIMEOUT_HOURS_KEY = 'SESSION_IDLE_TIMEOUT_HOURS';
 
 // Dummy hash used to keep validateUser constant-time when user is not found.
@@ -69,7 +70,8 @@ export class AuthService {
   }
 
   async login(user: User, res: Response): Promise<AuthResponseDto> {
-    const refreshTokenTtlSeconds = await this.getRefreshTokenTtlSeconds();
+    const idleTimeoutHours = await this.getIdleTimeoutHours();
+    const refreshTokenTtlSeconds = idleTimeoutHours * 60 * 60;
     const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(
       user,
       refreshTokenTtlSeconds,
@@ -81,7 +83,7 @@ export class AuthService {
         this.logger.error(`lastLoginAt update failed for ${user.id}`, err),
       );
     this.attachRefreshCookie(res, refreshToken, refreshTokenTtlSeconds);
-    return { accessToken, roles: user.roles as Role[], userId: user.id, name: user.name };
+    return { accessToken, roles: user.roles as Role[], userId: user.id, name: user.name, idleTimeoutHours };
   }
 
   async refresh(rawRefreshToken: string, res: Response): Promise<AuthResponseDto> {
@@ -107,7 +109,8 @@ export class AuthService {
     pipeline.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
     pipeline.srem(`${RT_SET_PREFIX}${payload.sub}`, payload.jti);
     await pipeline.exec();
-    const refreshTokenTtlSeconds = await this.getRefreshTokenTtlSeconds();
+    const idleTimeoutHours = await this.getIdleTimeoutHours();
+    const refreshTokenTtlSeconds = idleTimeoutHours * 60 * 60;
     const { accessToken, refreshToken, refreshJti } = await this.issueTokenPair(
       user,
       refreshTokenTtlSeconds,
@@ -115,7 +118,7 @@ export class AuthService {
     await this.storeRefreshToken(user.id, refreshJti, refreshTokenTtlSeconds);
 
     this.attachRefreshCookie(res, refreshToken, refreshTokenTtlSeconds);
-    return { accessToken, roles: user.roles as Role[], userId: user.id, name: user.name };
+    return { accessToken, roles: user.roles as Role[], userId: user.id, name: user.name, idleTimeoutHours };
   }
 
   async logout(rawRefreshToken: string, res: Response): Promise<void> {
@@ -187,18 +190,19 @@ export class AuthService {
     });
   }
 
-  private async getRefreshTokenTtlSeconds(): Promise<number> {
+  /** Returns the configured idle timeout in hours, falling back to DEFAULT_IDLE_TIMEOUT_HOURS. */
+  private async getIdleTimeoutHours(): Promise<number> {
     const configuredHours = await this.systemConfig.get(SESSION_IDLE_TIMEOUT_HOURS_KEY);
     const parsedHours = Number.parseInt(configuredHours ?? '', 10);
 
     if (Number.isInteger(parsedHours) && parsedHours > 0) {
-      return parsedHours * 60 * 60;
+      return parsedHours;
     }
 
     this.logger.warn(
-      `Invalid ${SESSION_IDLE_TIMEOUT_HOURS_KEY} value "${configuredHours}". Falling back to ${DEFAULT_RT_TTL_SECONDS} seconds.`,
+      `Invalid ${SESSION_IDLE_TIMEOUT_HOURS_KEY} value "${configuredHours}". Falling back to ${DEFAULT_IDLE_TIMEOUT_HOURS}h.`,
     );
-    return DEFAULT_RT_TTL_SECONDS;
+    return DEFAULT_IDLE_TIMEOUT_HOURS;
   }
 
   private clearRefreshCookie(res: Response): void {

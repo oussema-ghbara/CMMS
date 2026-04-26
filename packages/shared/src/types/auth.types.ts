@@ -5,6 +5,8 @@ export interface AuthResponse {
   roles: Role[];
   userId: string;
   name: string;
+  /** Session idle timeout in hours, as configured by the admin (§3.4). */
+  idleTimeoutHours: number;
 }
 
 export interface UserSession {

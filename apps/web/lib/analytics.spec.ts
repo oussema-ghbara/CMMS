@@ -41,6 +41,8 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
         totalConverted: 3,
         conversionRate: 0.6,
         reportToActionAvgDays: 1.5,
+        reportAccuracyRate: 0.8,
+        duplicateSubmissionRate: 0.1,
       },
       preventivePlanEfficiency: {
         complianceRate: 0.9,
@@ -85,7 +87,7 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
         totalMaintenanceCost: 0,
       },
       technicianKpis: [],
-      requesterAnalytics: { totalReportsSubmitted: 0, totalConverted: 0, conversionRate: null, reportToActionAvgDays: null },
+      requesterAnalytics: { totalReportsSubmitted: 0, totalConverted: 0, conversionRate: null, reportToActionAvgDays: null, reportAccuracyRate: null, duplicateSubmissionRate: null },
       preventivePlanEfficiency: { complianceRate: null, anomalyRate: null, totalPreventiveWOs: 0, closedPreventiveWOs: 0 },
       operationalOverview: { sourceDistribution: {}, rejectionReasonDistribution: {}, reassignmentCount: 0, avgHoldPeriodsPerWo: null },
     };
@@ -117,6 +119,9 @@ describe('TechnicianKpiItem contract', () => {
       technicianId: 'tech-1',
       name: 'Alice',
       closedCount: 15,
+      rejectionCount: 2,
+      rejectionRate: 0.13,
+      rejectionRateByCategory: {},
       avgActiveDurationMinutes: 120.5,
       firstPassRate: 0.87,
       avgHoldPerWo: 0.2,
@@ -125,6 +130,7 @@ describe('TechnicianKpiItem contract', () => {
 
     expect(item.closedCount).toBe(15);
     expect(item.firstPassRate).toBe(0.87);
+    expect(item.rejectionCount).toBe(2);
   });
 
   it('accepts null values for optional metrics', () => {
@@ -132,6 +138,9 @@ describe('TechnicianKpiItem contract', () => {
       technicianId: 'tech-2',
       name: 'Bob',
       closedCount: 0,
+      rejectionCount: 0,
+      rejectionRate: null,
+      rejectionRateByCategory: {},
       avgActiveDurationMinutes: null,
       firstPassRate: null,
       avgHoldPerWo: null,
@@ -139,5 +148,6 @@ describe('TechnicianKpiItem contract', () => {
     };
 
     expect(item.avgActiveDurationMinutes).toBeNull();
+    expect(item.rejectionRate).toBeNull();
   });
 });

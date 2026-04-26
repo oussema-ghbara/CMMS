@@ -416,6 +416,8 @@ export interface WorkOrderAnalyticsResponse {
     totalConverted: number;
     conversionRate: number | null;
     reportToActionAvgDays: number | null;
+    reportAccuracyRate: number | null;
+    duplicateSubmissionRate: number | null;
   };
   preventivePlanEfficiency: {
     complianceRate: number | null;

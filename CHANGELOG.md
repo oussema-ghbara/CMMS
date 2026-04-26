@@ -4,6 +4,50 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — requesterAnalytics frontend type missing computed fields (April 26, 2026)
+
+**fix(web): add reportAccuracyRate and duplicateSubmissionRate to WorkOrderAnalyticsResponse**
+- `WorkOrderAnalyticsResponse.requesterAnalytics` in `apps/web/lib/work-orders.api.ts` was missing `reportAccuracyRate: number | null` and `duplicateSubmissionRate: number | null`. The backend already computes and returns both fields; only the frontend type definition was incomplete, causing TypeScript errors in `SupervisorAnalyticsBoard` at the two `KpiCard` render sites.
+- `analytics.spec.ts` fixtures updated: both `requesterAnalytics` object literals now include the two new fields (`reportAccuracyRate: 0.8 / null`, `duplicateSubmissionRate: 0.1 / null`); `TechnicianKpiItem` test objects updated to include `rejectionCount`, `rejectionRate`, and `rejectionRateByCategory` which had been added to the interface in a prior commit but not reflected in the test fixtures.
+- Zero new functionality; strictly a type-alignment and test-fixture correction.
+
+---
+
+### Added — Dedicated low-stock view for storekeeper (April 26, 2026)
+
+**feat(web): sortable below-threshold parts list at /storekeeper/low-stock**
+- A new `/storekeeper/low-stock` page lists all parts currently below their minimum stock threshold, sorted by deficit severity (threshold − currentStock) descending by default. The backend endpoint `GET /stock/low` already existed and returned parts ordered by deficit; no backend changes were required.
+- `LowStockView` component renders a bordered table with columns: Pièce, Référence, Emplacement, Stock actuel (destructive `Badge`), Seuil min., Déficit (displayed as −N in destructive red), and an action column. The deficit value is computed client-side from `minimumStockThreshold − currentStock`.
+- Column headers for Pièce, Stock actuel, and Déficit are clickable sort buttons with ascending/descending indicators (`ArrowUp`/`ArrowDown`/`ArrowUpDown`). Clicking the active column reverses direction; clicking a new column resets to descending. Sort is performed client-side on the full list returned by the backend.
+- Each row has a "Réceptionner" button that opens the existing `StockIncomingDialog`. On successful receipt the dialog already invalidates the `['storekeeper', 'low-stock']` query key, so the table refreshes automatically.
+- Loading, empty ("Aucune pièce en stock bas"), and error states are handled with dedicated messages.
+- A "Stock bas" navigation item (AlertTriangle icon) is added to the storekeeper sidebar between "Inventaire" and "Demandes de pièces".
+- Pure logic extracted to `lib/low-stock-utils.ts`: `computeDeficit`, `sortLowStockParts`, `toggleSortDir`. All three are re-exported and used by the component.
+- React Query key: `['storekeeper', 'low-stock']` — consistent with the key invalidated by `StockIncomingDialog` on stock receipt.
+- i18n: `nav.lowStock`, `storekeeperLowStock.{title, subtitle, columns.*, actions.receive, states.*}` added to `apps/web/public/locales/fr/common.json`.
+
+**tests: 15 unit tests covering all sort paths and edge cases**
+- `lib/low-stock-utils.spec.ts`: `computeDeficit` with normal input and edge case (currentStock == threshold); `sortLowStockParts` by deficit desc/asc, by currentStock desc/asc, by name desc/asc; no-mutation guarantee (result is a new array); empty input; single-element input; `toggleSortDir` both directions.
+- 164 frontend tests total, 0 regressions.
+
+---
+
+### Added — System config panel grouped sections and operational key labels (April 26, 2026)
+
+**feat(web): system config panel rewritten with i18n, groups, and typed numeric inputs**
+- `SystemConfigPanel` previously showed the 10 operational config keys (`SESSION_IDLE_TIMEOUT_HOURS`, `ESCALATION_CHECK_FREQUENCY_MINUTES`, `DAILY_SUMMARY_HOUR`, `RECURRING_FAULT_THRESHOLD_COUNT`, `RECURRING_FAULT_THRESHOLD_DAYS`, `DEFERRED_REPORT_AGING_DAYS`, `POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS`, `DEAD_STOCK_THRESHOLD_DAYS`, `REORDER_SIGNAL_THRESHOLD_COUNT`, `INACTIVE_USER_THRESHOLD_DAYS`) with their raw technical key names as labels, no descriptions, and a plain text input with no min/max constraints.
+- All 14 known keys (4 password-policy + 10 operational) are now grouped into 6 named `Card` sections: "Politique de mot de passe", "Session & Sécurité", "Planification & Notifications", "Seuils — Ordres de travail", "Seuils — Inventaire", and "Seuils — Utilisateurs". An "Autres paramètres" fallback card catches any keys not present in the group definitions.
+- Every non-boolean key renders a `type="number"` input with enforced `min`/`max` attributes derived from `SYSTEM_CONFIG_KEY_CONSTRAINTS` (e.g. `DAILY_SUMMARY_HOUR` is constrained 0–23; `ESCALATION_CHECK_FREQUENCY_MINUTES` is 1–1440).
+- All hardcoded French strings replaced with `useTranslation` calls. Labels and descriptions for each key are loaded from `admin.systemConfig.keys.<KEY>.{label,description}` i18n paths. Group titles from `admin.systemConfig.groups.*`. Toast messages from `admin.systemConfig.{updateSuccess,updateError}`.
+- Logic extracted to `lib/system-config-groups.ts`: `SYSTEM_CONFIG_GROUPS`, `SYSTEM_CONFIG_BOOLEAN_KEYS`, `SYSTEM_CONFIG_KEY_CONSTRAINTS`, `ALL_KNOWN_KEYS`. The panel imports these constants; they are independently testable.
+- i18n: `admin.systemConfig.{updateSuccess, updateError, groups.*, keys.*}` — 38 new keys added to `apps/web/public/locales/fr/common.json`.
+
+**tests: 12 unit tests covering group coverage, boolean classification, and constraint correctness**
+- `lib/system-config-groups.spec.ts`: all 4 password keys present in `ALL_KNOWN_KEYS`; all 10 operational keys present; exactly 14 total with no duplicates; every group has at least one key and a non-empty `titleKey`; `SYSTEM_CONFIG_BOOLEAN_KEYS` correctly marks the 3 boolean keys and excludes the 4th password key and all 10 operational keys; every non-boolean key has a `KEY_CONSTRAINTS` entry; no boolean key has a constraint entry; all constraint ranges satisfy `min < max`; `DAILY_SUMMARY_HOUR` allows 0 as minimum; `ESCALATION_CHECK_FREQUENCY_MINUTES` maximum is 1440.
+- 164 frontend tests total, 0 regressions.
+
+---
+
 ### Added — Overdue work order filter and supervisor dashboard panel (April 26, 2026)
 
 **feat(work-orders): isOverdue server-side filter on work order list endpoint**

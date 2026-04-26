@@ -4,6 +4,27 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Session idle timeout enforcement (April 26, 2026)
+
+**feat(auth): return idle timeout hours in login and refresh responses**
+- `AuthService.getIdleTimeoutHours()` reads `SESSION_IDLE_TIMEOUT_HOURS` from `SystemConfig`. On invalid or missing config it falls back to `8` hours (the documented default) and logs a warning. The previous fallback was 7 days; the corrected default aligns with the configured spec.
+- Both `login()` and `refresh()` call `getIdleTimeoutHours()` once and reuse the result: refresh token JWT `expiresIn`, Redis key TTL (`SETEX`), and cookie `maxAge` are all computed as `hours × 3600`. Each successful `POST /auth/refresh` re-issues the refresh token with a fresh TTL (sliding window), so an active session never expires mid-use.
+- `AuthResponseDto` and the `AuthResponse` shared type (`packages/shared/src/types/auth.types.ts`) gain `idleTimeoutHours: number`, allowing every client to know the configured timeout without a separate API call.
+
+**feat(web): client-side session idle detection and auto-logout**
+- `useIdleTimeout` hook (`hooks/use-idle-timeout.ts`): reads `idleTimeoutHours` from the Zustand auth store; registers passive listeners for `mousemove`, `mousedown`, `keydown`, `touchstart`, `scroll`, and `wheel` on `window`; resets a `setTimeout` on every activity event; when the timer fires (no activity for the configured hours), calls `POST /auth/logout`, clears the auth store, removes the `user_roles` cookie, and redirects to `/login?reason=idle`. API errors during logout are caught and swallowed so the redirect always completes. A minimum floor of 0.5 hours prevents misconfiguration from locking users out immediately.
+- Hook mounted in `AppShell` so it is only active on protected routes.
+- `auth.store.ts` gains `idleTimeoutHours: number | null` field. `setAuth` accepts an optional third argument; when provided it updates the stored value, when omitted the previous value is preserved (so a background token refresh does not lose the hours set at login).
+- `use-auth-init.ts` and the axios refresh interceptor in `lib/api.ts` both forward `idleTimeoutHours` from the server response into the store.
+- Login form shows the existing `auth.sessionExpired` i18n message when the URL contains `?reason=idle`.
+
+**tests: 9 backend unit + 17 frontend unit — all branches covered**
+- `auth.service.spec.ts`: `idleTimeoutHours` present in login and refresh responses; fallback to 8 hours on invalid config with exactly one logger warning; refresh token JWT, Redis TTL, and cookie maxAge all reflect the configured value; revoked token rejection unchanged; invalid signature rejection unchanged.
+- `use-idle-timeout.spec.ts`: `computeTimeoutMs` (correct ms, MIN_TIMEOUT_HOURS clamp, 8-hour spec default); redirect URL contains `?reason=idle`; login form key selection for `reason=idle` vs `error=no_web_access` vs absent; `ACTIVITY_EVENTS` contains all 6 event types with no duplicates; timer fires after timeout and is cancelled by activity (fake timers); double-fire prevention; `setAuth` stores and preserves `idleTimeoutHours`; logout sequence (API call, store clear, cookie removal, redirect) completes even when the API call fails.
+- Backend total: 562 passing, 0 regressions. Frontend total: 200 passing, 0 regressions.
+
+---
+
 ### Added — Active work orders filter and supervisor dashboard improvements (April 26, 2026)
 
 **feat(work-orders): isActive server-side filter on work order list endpoint**

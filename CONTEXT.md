@@ -16,7 +16,7 @@ Tech stack decisions: stack.pdf
  - [x] PrismaModule (global)
  - [x] RedisModule (global, ioredis)
  - [x] AuthModule — login/refresh/logout, JWT + refresh token rotation, Redis revocation
- - [x] AuthModule — session inactivity timeout enforced from `SystemConfig` (`SESSION_IDLE_TIMEOUT_HOURS`) across refresh JWT expiry, Redis refresh-token TTL, and refresh cookie maxAge (with 7-day fallback on invalid config)
+ - [x] AuthModule — session inactivity timeout enforced end-to-end: `getIdleTimeoutHours()` reads `SESSION_IDLE_TIMEOUT_HOURS` from `SystemConfig` (default 8 hours on invalid or missing config); `login()` and `refresh()` compute the TTL once from the configured hours and return `idleTimeoutHours: number` in `AuthResponseDto` and the `AuthResponse` shared type; refresh token JWT `expiresIn`, Redis key TTL, and cookie `maxAge` are all aligned to `hours × 3600`; each successful `refresh()` renews the TTL (sliding window), so an active session never expires
  - [x] MailModule — BullMQ queue, Nodemailer processor, Handlebars templates (setup-account, password-reset)
  - [x] SystemConfigModule — password policy, 14 config keys seeded
  - [x] UsersModule — Admin CRUD, setup token flow, deactivate/reactivate, admin resend setup, public resend setup by email
@@ -43,6 +43,7 @@ Tech stack decisions: stack.pdf
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports
 - [x] apps/web — Next.js started (auth + protected layouts + admin pages)
 - [x] Auth module (web) — login page + account setup (/auth/setup) + public setup resend (/resend-setup) + password recovery (/auth/forgot-password, /auth/reset-password)
+- [x] Auth module (web) — client-side session idle detection: `useIdleTimeout` hook reads `idleTimeoutHours` from the auth store; tracks `mousemove`, `mousedown`, `keydown`, `touchstart`, `scroll`, and `wheel` events via `window.addEventListener`; resets a `setTimeout` on every event; after the configured hours of inactivity, calls `POST /auth/logout`, clears the Zustand store, removes `user_roles` cookie, and redirects to `/login?reason=idle`; API failures during logout are swallowed so the redirect always completes; hook mounted in `AppShell` (protected routes only); login form shows `auth.sessionExpired` i18n message when `?reason=idle` is present; `auth.store.ts` gains `idleTimeoutHours: number | null` state and `setAuth` accepts an optional third argument to persist it; `use-auth-init.ts` and the axios refresh interceptor both forward `idleTimeoutHours` from the server response into the store on every successful token refresh
 - [x] AdminModule (backend) — /admin/system-config (GET/PATCH), /admin/audit-log (GET paginated)
 - [x] Admin module (web) — users management, system config panel, audit log table
 - [x] Admin module (web) — hardening: ConfirmDialog for deactivate/delete, audit log filter fixed, hourlyRate clear on role change

@@ -1469,7 +1469,77 @@
     },
     "systemConfig": {
       "title": "Configuration système",
-      "subtitle": "Ajustez les paramètres globaux du système."
+      "subtitle": "Ajustez les paramètres globaux du système.",
+      "updateSuccess": "Configuration mise à jour",
+      "updateError": "Erreur lors de la mise à jour",
+      "groups": {
+        "passwordPolicy": "Politique de mot de passe",
+        "passwordPolicyDesc": "Règles appliquées lors de la création ou du changement de mot de passe",
+        "session": "Session & Sécurité",
+        "scheduling": "Planification & Notifications",
+        "workOrderThresholds": "Seuils — Ordres de travail",
+        "inventoryThresholds": "Seuils — Inventaire",
+        "userThresholds": "Seuils — Utilisateurs",
+        "other": "Autres paramètres"
+      },
+      "keys": {
+        "PASSWORD_MIN_LENGTH": {
+          "label": "Longueur minimale du mot de passe",
+          "description": "Nombre minimum de caractères requis (6–128)"
+        },
+        "PASSWORD_REQUIRE_UPPERCASE": {
+          "label": "Majuscule obligatoire",
+          "description": "Le mot de passe doit contenir au moins une lettre majuscule"
+        },
+        "PASSWORD_REQUIRE_NUMBER": {
+          "label": "Chiffre obligatoire",
+          "description": "Le mot de passe doit contenir au moins un chiffre"
+        },
+        "PASSWORD_REQUIRE_SPECIAL": {
+          "label": "Caractère spécial obligatoire",
+          "description": "Le mot de passe doit contenir au moins un caractère spécial"
+        },
+        "SESSION_IDLE_TIMEOUT_HOURS": {
+          "label": "Délai d'inactivité de session",
+          "description": "Durée en heures avant déconnexion automatique (1–72). Par défaut : 8 h."
+        },
+        "ESCALATION_CHECK_FREQUENCY_MINUTES": {
+          "label": "Fréquence de vérification des escalades",
+          "description": "Intervalle en minutes entre deux passages du moteur d'escalade (1–1440)"
+        },
+        "DAILY_SUMMARY_HOUR": {
+          "label": "Heure du résumé quotidien",
+          "description": "Heure de la journée (0–23) à laquelle l'e-mail de résumé quotidien est envoyé"
+        },
+        "RECURRING_FAULT_THRESHOLD_COUNT": {
+          "label": "Seuil de panne récurrente — nombre",
+          "description": "Nombre d'OT correctifs sur le même actif déclenchant une alerte de panne récurrente (1–100)"
+        },
+        "RECURRING_FAULT_THRESHOLD_DAYS": {
+          "label": "Seuil de panne récurrente — période",
+          "description": "Fenêtre en jours dans laquelle les pannes répétées sont comptabilisées (1–365)"
+        },
+        "DEFERRED_REPORT_AGING_DAYS": {
+          "label": "Vieillissement des signalements différés",
+          "description": "Nombre de jours avant qu'un signalement non traité soit considéré comme vieillissant (1–365)"
+        },
+        "POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS": {
+          "label": "Fenêtre correctif post-préventif",
+          "description": "Nombre de jours après une clôture préventive dans lesquels un OT correctif est comptabilisé comme post-préventif (1–90)"
+        },
+        "DEAD_STOCK_THRESHOLD_DAYS": {
+          "label": "Seuil stock mort",
+          "description": "Nombre de jours sans mouvement après lequel une pièce est classée en stock mort (30–730)"
+        },
+        "REORDER_SIGNAL_THRESHOLD_COUNT": {
+          "label": "Seuil de signal de réapprovisionnement",
+          "description": "Nombre de ruptures de stock consécutives déclenchant un signal de réapprovisionnement (1–100)"
+        },
+        "INACTIVE_USER_THRESHOLD_DAYS": {
+          "label": "Seuil d'inactivité utilisateur",
+          "description": "Nombre de jours sans connexion avant qu'un utilisateur soit marqué comme inactif (30–730)"
+        }
+      }
     }
   },
   "storekeeperInventory": {

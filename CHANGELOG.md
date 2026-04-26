@@ -4,6 +4,32 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Active work orders filter and supervisor dashboard improvements (April 26, 2026)
+
+**feat(work-orders): isActive server-side filter on work order list endpoint**
+- `WorkOrderQueryDto` gains `isActive?: boolean` decorated with `@IsOptional`, `@IsBoolean`, and `@Transform` (string `"true"` coerces to `true`) — matching the existing `isOverdue` pattern.
+- `WorkOrdersRepository.findAll()` defines `ACTIVE_STATUSES = [ASSIGNED, IN_PROGRESS, ON_HOLD]` and spreads `{ status: { in: ACTIVE_STATUSES } }` into the Prisma `where` clause when `isActive=true`. The filter composes safely with all other existing query params (`priority`, `technicianId`, `type`, etc.).
+- `WorkOrderListQuery` frontend interface gains `isActive?: boolean`; `workOrdersApi.list()` passes it as an axios query param.
+
+**feat(web): active work orders deep-link in supervisor work orders board**
+- `WorkOrdersBoard` reads `?isActive=true` from `useSearchParams` and passes it through `queryParams` to `workOrdersApi.list()`, pre-filtering the board to ASSIGNED, IN_PROGRESS, and ON_HOLD work orders on navigation from the dashboard.
+- A dismissible filter badge ("OT actifs uniquement") is displayed alongside the existing technician and overdue filter badges. Clicking the clear button navigates to `/supervisor/work-orders` without the param.
+- `WorkOrdersBoard` also reads `?status=<WorkOrderStatus>` from the URL on mount and pre-selects the status dropdown, enabling any caller to deep-link into a specific single-status filter.
+- The reset button now clears all deep-link params (`technicianId`, `isOverdue`, `isActive`, `status`) by replacing the URL when any of them are set.
+- i18n: `supervisorWorkOrders.filters.{activeFilter, clearActiveFilter}` added to `apps/web/public/locales/fr/common.json`.
+
+**feat(web): supervisor dashboard active WOs card and recent closures panel**
+- "OT actifs" summary card now links to `/supervisor/work-orders?isActive=true` instead of the unfiltered list, giving the supervisor a one-click path to all ASSIGNED, IN_PROGRESS, and ON_HOLD work orders.
+- "Clôturés aujourd'hui" operational panel replaced the count-only display with an inline list. The query limit is raised from 1 to 5 so actual work order rows can be rendered. Each row (`ClosedTodayRow`) shows the asset name, the principal technician name (with a fallback label when unassigned), and the work order type as an outline badge. If more than 5 closures exist, an overflow note shows the remaining count.
+- The "Voir les OT clôturés" CTA now links to `/supervisor/work-orders?status=CLOSED` so the board opens pre-filtered to closed work orders.
+- i18n: `supervisorDashboard.operational.closedToday.{none, more, viewWo}` added to `apps/web/public/locales/fr/common.json`.
+
+**tests: 9 backend unit + 19 frontend logic — all branches covered**
+- `work-orders.repository.isactive.spec.ts`: no filter when `isActive` is undefined; no filter when `isActive=false`; `status.in` equals exactly `[ASSIGNED, IN_PROGRESS, ON_HOLD]`; excludes `DRAFT`, `OPEN`, `PENDING_VALIDATION`, `CLOSED`, `CANCELLED`; composition with `priority` and `assetId` filters; pagination `skip`/`take` correct when `isActive=true`; `count` query uses the same WHERE clause as `findMany`; explicit `status` param is unaffected when `isActive` is not set.
+- `active-work-orders.spec.ts`: `isActive` query-param serialisation (true, false, undefined, coexistence with `isOverdue`); `readIsActiveFromSearchParams` URL-wiring (true, false, absent, arbitrary value); `readStatusFromSearchParams` (valid status, invalid status, absent, empty string); `ClosedTodayRow` technician name fallback, asset name access, type badge value, overflow count arithmetic.
+
+---
+
 ### Fixed — requesterAnalytics frontend type missing computed fields (April 26, 2026)
 
 **fix(web): add reportAccuracyRate and duplicateSubmissionRate to WorkOrderAnalyticsResponse**

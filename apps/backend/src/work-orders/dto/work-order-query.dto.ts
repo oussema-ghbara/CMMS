@@ -59,9 +59,15 @@ export class WorkOrderQueryDto {
   @IsDateString()
   closedBefore?: string;
 
-  @ApiPropertyOptional({ description: 'When true, return only non-terminal WOs whose dueDate is in the past (spec §9.3)' })
+  @ApiPropertyOptional({ description: 'When true, return only non-terminal WOs whose dueDate is in the past' })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   isOverdue?: boolean;
+
+  @ApiPropertyOptional({ description: 'When true, return only WOs in active states: ASSIGNED, IN_PROGRESS, ON_HOLD' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  isActive?: boolean;
 }

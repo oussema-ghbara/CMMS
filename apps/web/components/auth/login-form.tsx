@@ -38,6 +38,8 @@ export function LoginForm() {
   useEffect(() => {
     if (searchParams.get('error') === 'no_web_access') {
       setApiError(t('auth.noWebAccess'));
+    } else if (searchParams.get('reason') === 'idle') {
+      setApiError(t('auth.sessionExpired'));
     }
   }, [searchParams, t]);
 
@@ -56,7 +58,7 @@ export function LoginForm() {
     setApiError(null);
     try {
       const res = await api.post<AuthResponse>('/auth/login', data);
-      const { accessToken, roles, userId, name } = res.data;
+      const { accessToken, roles, userId, name, idleTimeoutHours } = res.data;
 
       const home = roles.map((r) => WEB_ROLE_HOME[r]).find((value): value is string => !!value);
       if (!home) {
@@ -66,7 +68,7 @@ export function LoginForm() {
         return;
       }
 
-      setAuth(accessToken, { id: userId, name, roles });
+      setAuth(accessToken, { id: userId, name, roles }, idleTimeoutHours);
       Cookies.set('user_roles', JSON.stringify(roles), { path: '/', expires: 7 });
       router.push(home);
     } catch {

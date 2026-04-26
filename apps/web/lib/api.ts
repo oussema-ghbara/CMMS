@@ -68,10 +68,11 @@ api.interceptors.response.use(
         roles: string[];
         userId: string;
         name: string;
+        idleTimeoutHours: number;
       }>(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {}, { withCredentials: true });
 
-      const { accessToken, roles, userId, name } = data;
-      useAuthStore.getState().setAuth(accessToken, { id: userId, name, roles: roles as never });
+      const { accessToken, roles, userId, name, idleTimeoutHours } = data;
+      useAuthStore.getState().setAuth(accessToken, { id: userId, name, roles: roles as never }, idleTimeoutHours);
       Cookies.set('user_roles', JSON.stringify(roles), { path: '/', expires: 7 });
 
       flushQueue(null, accessToken);

@@ -11,6 +11,7 @@ interface RefreshResponse {
   roles: Role[];
   userId: string;
   name: string;
+  idleTimeoutHours: number;
 }
 
 /**
@@ -28,11 +29,11 @@ export function useAuthInit() {
     axios
       .post<RefreshResponse>(`${baseUrl}/auth/refresh`, {}, { withCredentials: true })
       .then(({ data }) => {
-        setAuth(data.accessToken, {
-          id: data.userId,
-          name: data.name,
-          roles: data.roles,
-        });
+        setAuth(
+          data.accessToken,
+          { id: data.userId, name: data.name, roles: data.roles },
+          data.idleTimeoutHours,
+        );
         Cookies.set('user_roles', JSON.stringify(data.roles), { path: '/', expires: 7 });
       })
       .catch(() => {

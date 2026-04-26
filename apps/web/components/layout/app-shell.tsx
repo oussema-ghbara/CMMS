@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { SIDEBAR_MODULES } from './sidebar-nav.config';
 import { isPathActive } from './sidebar-utils';
 import { NotificationMenu } from './notification-menu';
+import { useIdleTimeout } from '@/hooks/use-idle-timeout';
 
 function getPageLabelKey(pathname: string): string | null {
   let match: { labelKey: string; hrefLength: number } | null = null;
@@ -28,6 +29,7 @@ function getPageLabelKey(pathname: string): string | null {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const pathname = usePathname();
+  useIdleTimeout();
 
   const pageLabelKey = useMemo(() => getPageLabelKey(pathname), [pathname]);
 

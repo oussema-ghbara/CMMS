@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks, Activity, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks, Activity, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Role } from '@gmao/shared';
 import type { LucideIcon } from 'lucide-react';
 
@@ -75,6 +75,11 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         href: '/storekeeper',
         icon: Package,
         match: 'exact',
+      },
+      {
+        labelKey: 'nav.lowStock',
+        href: '/storekeeper/low-stock',
+        icon: AlertTriangle,
       },
       {
         labelKey: 'nav.partRequests',

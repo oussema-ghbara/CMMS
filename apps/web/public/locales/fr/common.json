@@ -58,6 +58,7 @@
     "reports": "Signalements",
     "preventivePlans": "Plans préventifs",
     "inventory": "Inventaire",
+    "lowStock": "Stock bas",
     "partRequests": "Demandes de pièces",
     "users": "Utilisateurs",
     "locations": "Emplacements",
@@ -1540,6 +1541,25 @@
           "description": "Nombre de jours sans connexion avant qu'un utilisateur soit marqué comme inactif (30–730)"
         }
       }
+    }
+  },
+  "storekeeperLowStock": {
+    "title": "Stock bas",
+    "subtitle": "Pièces dont le stock est en dessous du seuil minimum, classées par déficit décroissant.",
+    "columns": {
+      "part": "Pièce",
+      "reference": "Référence",
+      "location": "Emplacement",
+      "currentStock": "Stock actuel",
+      "minimum": "Seuil min.",
+      "deficit": "Déficit"
+    },
+    "actions": {
+      "receive": "Réceptionner"
+    },
+    "states": {
+      "empty": "Aucune pièce en stock bas. Tout le stock est au-dessus des seuils minimums.",
+      "error": "Impossible de charger les pièces en stock bas."
     }
   },
   "storekeeperInventory": {

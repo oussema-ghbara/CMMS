@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Activity,
   AlertTriangle,
+  CheckCircle2,
   ClipboardCheck,
   ClipboardList,
   Clock,
@@ -129,6 +130,30 @@ function OverdueWorkOrderRow({ item }: { item: WorkOrderListItem }) {
   );
 }
 
+function ClosedTodayRow({ item }: { item: WorkOrderListItem }) {
+  const { t } = useTranslation();
+  return (
+    <Link
+      href={`/supervisor/work-orders?id=${item.id}`}
+      className="flex items-center justify-between gap-2 rounded py-2 px-1 text-sm transition-colors hover:bg-muted/50"
+      title={t('supervisorDashboard.operational.closedToday.viewWo')}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
+        <div className="min-w-0">
+          <span className="block truncate font-medium">{item.asset.name}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {item.principalTechnician?.name ?? t('supervisorDashboard.operational.closedToday.noTechnician')}
+          </span>
+        </div>
+      </div>
+      <Badge variant="outline" className="shrink-0 text-[10px]">
+        {t(`supervisorWorkOrders.type.${item.type}`)}
+      </Badge>
+    </Link>
+  );
+}
+
 function TechnicianLoadRow({ item }: { item: TechnicianLoadItem }) {
   const { t } = useTranslation();
   return (
@@ -210,7 +235,7 @@ export default function SupervisorDashboardPage() {
         queryFn: () =>
           workOrdersApi.list({
             page: 1,
-            limit: 1,
+            limit: 5,
             status: WorkOrderStatus.CLOSED,
             closedAfter: todayStartIso(),
           }),
@@ -307,7 +332,7 @@ export default function SupervisorDashboardPage() {
             onHoldWorkOrders.isLoading
           }
           icon={Wrench}
-          href="/supervisor/work-orders"
+          href="/supervisor/work-orders?isActive=true"
           cta={t('supervisorDashboard.cards.activeWorkOrders.cta')}
         />
 
@@ -445,26 +470,50 @@ export default function SupervisorDashboardPage() {
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
 
-          {/* Recent closures today */}
+          {/* Recent closures today: asset, technician, WO type */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                {t('supervisorDashboard.operational.closedToday.title')}
-              </CardTitle>
-              <CardDescription>
-                {t('supervisorDashboard.operational.closedToday.description')}
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium">
+                    {t('supervisorDashboard.operational.closedToday.title')}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('supervisorDashboard.operational.closedToday.description')}
+                  </CardDescription>
+                </div>
+                {(closedToday.data?.total ?? 0) > 0 && (
+                  <span className="text-2xl font-bold">
+                    {formatCount(closedToday.data?.total ?? 0)}
+                  </span>
+                )}
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {closedToday.isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              ) : (
-                <p className="text-3xl font-bold tracking-tight">
-                  {formatCount(closedToday.data?.total ?? 0)}
+              ) : !closedToday.data?.data.length ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('supervisorDashboard.operational.closedToday.none')}
                 </p>
+              ) : (
+                <div className="divide-y">
+                  {closedToday.data.data.map((wo) => (
+                    <ClosedTodayRow key={wo.id} item={wo} />
+                  ))}
+                  {(closedToday.data.total ?? 0) > 5 && (
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      {t('supervisorDashboard.operational.closedToday.more', {
+                        count: closedToday.data.total - 5,
+                      })}
+                    </p>
+                  )}
+                </div>
               )}
-              <Button asChild variant="outline" size="sm">
-                <Link href="/supervisor/work-orders">
+              <Button asChild variant="outline" size="sm" className="mt-1">
+                <Link
+                  href={`/supervisor/work-orders?status=${WorkOrderStatus.CLOSED}`}
+                >
                   {t('supervisorDashboard.operational.closedToday.cta')}
                 </Link>
               </Button>

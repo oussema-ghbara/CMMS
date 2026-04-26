@@ -213,7 +213,10 @@
       "closedToday": {
         "title": "Clôturés aujourd'hui",
         "description": "OT fermés depuis minuit",
-        "cta": "Voir les OT clôturés"
+        "cta": "Voir les OT clôturés",
+        "none": "Aucune clôture aujourd'hui",
+        "more": "+ {{count}} autre(s) clôture(s)",
+        "viewWo": "Ouvrir l'ordre de travail"
       },
       "blockedPartRequests": {
         "title": "Demandes bloquées",
@@ -518,7 +521,9 @@
       "apply": "Appliquer",
       "reset": "Réinitialiser",
       "technicianFilter": "Filtré par technicien",
-      "clearTechnicianFilter": "Supprimer le filtre technicien"
+      "clearTechnicianFilter": "Supprimer le filtre technicien",
+      "activeFilter": "OT actifs uniquement",
+      "clearActiveFilter": "Supprimer le filtre actif"
     },
     "columns": {
       "createdAt": "Créé le",

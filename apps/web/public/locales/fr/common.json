@@ -333,7 +333,11 @@
       "technicianRejectionBreakdown": "Détail des rejets par technicien",
       "technicianRejectionBreakdownDesc": "Taux de rejet ventilé par catégorie de motif de rejet du superviseur",
       "sourceDistribution": "Distribution par source",
-      "rejectionReasons": "Motifs de rejet de validation"
+      "rejectionReasons": "Motifs de rejet de validation",
+      "compliancePerPlan": "Taux de conformité par plan",
+      "compliancePerPlanDesc": "Pourcentage d'OT préventifs clôturés dans les délais, ventilé par plan de maintenance.",
+      "anomalyPerChecklistItem": "Taux d'anomalies par item de checklist",
+      "anomalyPerChecklistItemDesc": "Pourcentage d'exécutions signalées ANOMALIE par item de checklist de plan préventif, trié par taux décroissant."
     },
     "columns": {
       "asset": "Équipement",
@@ -350,7 +354,15 @@
       "rejectionCount": "Rejets",
       "avgActiveDuration": "Durée active moy.",
       "avgResponseTime": "Délai intervention",
-      "avgHolds": "Blocages / OT"
+      "avgHolds": "Blocages / OT",
+      "plan": "Plan",
+      "total": "Total",
+      "closedOnTime": "Clôturés dans les délais",
+      "complianceRate": "Taux de conformité",
+      "checklistItem": "Item de checklist",
+      "executions": "Exécutions",
+      "anomalies": "Anomalies",
+      "anomalyRate": "Taux d'anomalies"
     },
     "type": {
       "CORRECTIVE": "Correctif",

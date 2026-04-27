@@ -8,7 +8,8 @@ import {
   TrendingDown, TrendingUp, Users, Wrench,
 } from 'lucide-react';
 import { WorkOrderStatus, WorkOrderType, WorkOrderPriority } from '@gmao/shared';
-import { workOrdersApi, type TechnicianKpiItem, type AssetBreakdownItem } from '@/lib/work-orders.api';
+import { workOrdersApi, type TechnicianKpiItem, type AssetBreakdownItem, type PlanComplianceEntry, type ChecklistItemAnomalyEntry } from '@/lib/work-orders.api';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { categoriesApi } from '@/lib/categories.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,90 @@ function TechRow({ item }: { item: TechnicianKpiItem }) {
         </tr>
       )}
     </>
+  );
+}
+
+function PlanComplianceTable({ entries }: { entries: PlanComplianceEntry[] }) {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t('supervisorAnalytics.sections.compliancePerPlan')}</CardTitle>
+        <CardDescription>{t('supervisorAnalytics.sections.compliancePerPlanDesc')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('supervisorAnalytics.states.noData')}</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('supervisorAnalytics.columns.plan')}</TableHead>
+                <TableHead className="text-right">{t('supervisorAnalytics.columns.total')}</TableHead>
+                <TableHead className="text-right">{t('supervisorAnalytics.columns.closedOnTime')}</TableHead>
+                <TableHead className="text-right">{t('supervisorAnalytics.columns.complianceRate')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((row) => (
+                <TableRow key={row.planId}>
+                  <TableCell className="font-medium">{row.planTitle}</TableCell>
+                  <TableCell className="text-right">{fmt(row.total)}</TableCell>
+                  <TableCell className="text-right">{fmt(row.closedOnTime)}</TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant={row.rate != null && row.rate >= 0.8 ? 'outline' : 'destructive'}>
+                      {row.rate != null ? fmtPct(row.rate) : '—'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChecklistItemAnomalyTable({ entries }: { entries: ChecklistItemAnomalyEntry[] }) {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t('supervisorAnalytics.sections.anomalyPerChecklistItem')}</CardTitle>
+        <CardDescription>{t('supervisorAnalytics.sections.anomalyPerChecklistItemDesc')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('supervisorAnalytics.states.noData')}</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('supervisorAnalytics.columns.checklistItem')}</TableHead>
+                <TableHead className="text-right">{t('supervisorAnalytics.columns.executions')}</TableHead>
+                <TableHead className="text-right">{t('supervisorAnalytics.columns.anomalies')}</TableHead>
+                <TableHead className="text-right">{t('supervisorAnalytics.columns.anomalyRate')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((row) => (
+                <TableRow key={row.itemId}>
+                  <TableCell className="font-medium">{row.description}</TableCell>
+                  <TableCell className="text-right">{fmt(row.total)}</TableCell>
+                  <TableCell className="text-right">{fmt(row.anomalyCount)}</TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant={row.rate != null && row.rate > 0.2 ? 'destructive' : row.rate != null && row.rate > 0 ? 'warning' : 'outline'}>
+                      {row.rate != null ? fmtPct(row.rate) : '—'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -535,6 +620,9 @@ export function SupervisorAnalyticsBoard() {
                   })}
                 />
               </div>
+
+              <PlanComplianceTable entries={data.preventivePlanEfficiency.compliancePerPlan} />
+              <ChecklistItemAnomalyTable entries={data.preventivePlanEfficiency.anomalyPerChecklistItem} />
             </div>
           )}
 

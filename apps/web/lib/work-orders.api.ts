@@ -407,6 +407,22 @@ export interface AssetHealthItem {
   lastFailureDate: string;
 }
 
+export interface PlanComplianceEntry {
+  planId: string;
+  planTitle: string;
+  total: number;
+  closedOnTime: number;
+  rate: number | null;
+}
+
+export interface ChecklistItemAnomalyEntry {
+  itemId: string;
+  description: string;
+  total: number;
+  anomalyCount: number;
+  rate: number | null;
+}
+
 export interface WorkOrderAnalyticsResponse {
   periodDays: number;
   categoryId: string | null;
@@ -441,6 +457,8 @@ export interface WorkOrderAnalyticsResponse {
     closedPreventiveWOs: number;
     postPreventiveCorrectiveRate: number | null;
     postPreventiveCorrectiveWindowDays: number;
+    compliancePerPlan: PlanComplianceEntry[];
+    anomalyPerChecklistItem: ChecklistItemAnomalyEntry[];
   };
   operationalOverview: {
     sourceDistribution: Partial<Record<string, number>>;

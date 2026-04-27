@@ -541,7 +541,7 @@ export default function SupervisorDashboardPage() {
                 </p>
               )}
               <Button asChild variant="outline" size="sm">
-                <Link href="/supervisor/work-orders">
+                <Link href={`/supervisor/work-orders?status=${WorkOrderStatus.ON_HOLD}`}>
                   {t('supervisorDashboard.operational.blockedPartRequests.cta')}
                 </Link>
               </Button>

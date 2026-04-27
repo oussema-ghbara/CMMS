@@ -763,4 +763,54 @@ export class InventoryRepository {
         })),
       }));
   }
+
+  async getUnitCostTrendPerPart(periodDays: number) {
+    const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+
+    type RawRow = {
+      part_id: string;
+      part_name: string;
+      part_reference: string;
+      month: Date;
+      avg_unit_cost: string;
+    };
+
+    const rows = await this.prisma.$queryRaw<RawRow[]>`
+      SELECT
+        p.id                                          AS part_id,
+        p.name                                        AS part_name,
+        p."referenceCode"                             AS part_reference,
+        DATE_TRUNC('month', sm."createdAt")           AS month,
+        AVG(sm."unitCostAtTime")                      AS avg_unit_cost
+      FROM "StockMovement" sm
+      JOIN "Part" p ON p.id = sm."partId"
+      WHERE sm.type = 'INCOMING'
+        AND sm."unitCostAtTime" IS NOT NULL
+        AND sm."createdAt" >= ${since}
+      GROUP BY p.id, p.name, p."referenceCode", DATE_TRUNC('month', sm."createdAt")
+      ORDER BY p.name ASC, month ASC
+    `;
+
+    const byPart = new Map<
+      string,
+      { partName: string; partReference: string; trend: { month: string; avgUnitCost: number }[] }
+    >();
+
+    for (const row of rows) {
+      if (!byPart.has(row.part_id)) {
+        byPart.set(row.part_id, { partName: row.part_name, partReference: row.part_reference, trend: [] });
+      }
+      byPart.get(row.part_id)!.trend.push({
+        month: row.month.toISOString().slice(0, 7),
+        avgUnitCost: Math.round(Number(row.avg_unit_cost) * 100) / 100,
+      });
+    }
+
+    return Array.from(byPart.entries()).map(([partId, { partName, partReference, trend }]) => ({
+      partId,
+      partName,
+      partReference,
+      trend,
+    }));
+  }
 }

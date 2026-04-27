@@ -1785,7 +1785,9 @@
       "consumptionBreakdown": "Consommation par catégorie d'équipement et type d'OT",
       "consumptionBreakdownDescription": "Répartition des sorties de stock par catégorie d'actif (correctif vs préventif), limitée aux 20 pièces les plus consommées.",
       "stockAccuracy": "Taux de précision du stock",
-      "stockAccuracyDescription": "Ratio des mouvements d'ajustement sur les mouvements totaux par période, par pièce. Les pièces avec un taux faible nécessitent des contrôles physiques plus stricts."
+      "stockAccuracyDescription": "Ratio des mouvements d'ajustement sur les mouvements totaux par période, par pièce. Les pièces avec un taux faible nécessitent des contrôles physiques plus stricts.",
+      "unitCostTrend": "Évolution du coût unitaire moyen par pièce",
+      "unitCostTrendDescription": "Coût unitaire moyen mensuel calculé depuis les entrées de stock sur la période sélectionnée. Renseigne sur l'évolution des prix fournisseurs."
     },
     "requests": {
       "fulfilled": "Traitées",
@@ -1811,7 +1813,12 @@
       "woType": "Type d'OT",
       "adjustments": "Ajustements",
       "totalMovements": "Total mouvements",
-      "accuracyRate": "Taux de précision"
+      "accuracyRate": "Taux de précision",
+      "avgUnitCost": "Coût unitaire moy.",
+      "monthsTracked": "Mois suivis",
+      "firstMonth": "Premier mois",
+      "lastMonth": "Dernier mois",
+      "trend": "Tendance"
     },
     "labels": {
       "windowSummary": "Période: {{periodDays}} j | Stock mort: {{deadStockDays}} j",
@@ -1834,7 +1841,8 @@
       "noLongWaiting": "Aucune demande en attente critique sur des OT en pause.",
       "noStockAccuracyData": "Aucun mouvement de stock sur cette période.",
       "globalAccuracyRate": "Taux global de précision",
-      "globalAccuracyDetail": "{{adjustments}} ajustement(s) sur {{total}} mouvement(s)"
+      "globalAccuracyDetail": "{{adjustments}} ajustement(s) sur {{total}} mouvement(s)",
+      "noUnitCostTrend": "Aucune entrée de stock avec coût unitaire enregistrée sur cette période."
     }
   },
   "supervisorCategories": {

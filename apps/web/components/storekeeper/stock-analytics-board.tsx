@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, ChevronRight, Clock, Layers, Loader2, TrendingUp } from 'lucide-react';
-import type { PartConsumptionBreakdown } from '@/lib/inventory.api';
+import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, ChevronRight, Clock, Layers, Loader2, TrendingUp } from 'lucide-react';
+import type { PartConsumptionBreakdown, UnitCostTrendPartEntry } from '@/lib/inventory.api';
 import { inventoryApi } from '@/lib/inventory.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ export function StockAnalyticsBoard() {
   const deadStock = data?.deadStock ?? [];
   const costTrend = data?.costTrend ?? [];
   const longWaitingRequests = data?.longWaitingRequests ?? [];
+  const unitCostTrendPerPart: UnitCostTrendPartEntry[] = data?.unitCostTrendPerPart ?? [];
 
   return (
     <div className="space-y-4">
@@ -618,6 +619,74 @@ export function StockAnalyticsBoard() {
                   </Table>
                 )}
               </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* §10.6 — Unit cost trend per part */}
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              {t('storekeeperAnalytics.sections.unitCostTrend')}
+            </CardTitle>
+            <CardDescription>
+              {t('storekeeperAnalytics.sections.unitCostTrendDescription')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : unitCostTrendPerPart.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t('storekeeperAnalytics.states.noUnitCostTrend')}
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('storekeeperAnalytics.columns.part')}</TableHead>
+                    <TableHead>{t('storekeeperAnalytics.columns.reference')}</TableHead>
+                    <TableHead>{t('storekeeperAnalytics.columns.firstMonth')}</TableHead>
+                    <TableHead className="text-right">{t('storekeeperAnalytics.columns.avgUnitCost')} (début)</TableHead>
+                    <TableHead>{t('storekeeperAnalytics.columns.lastMonth')}</TableHead>
+                    <TableHead className="text-right">{t('storekeeperAnalytics.columns.avgUnitCost')} (fin)</TableHead>
+                    <TableHead className="text-center">{t('storekeeperAnalytics.columns.trend')}</TableHead>
+                    <TableHead className="text-right">{t('storekeeperAnalytics.columns.monthsTracked')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unitCostTrendPerPart.map((entry) => {
+                    const first = entry.trend[0];
+                    const last = entry.trend[entry.trend.length - 1];
+                    const delta = last.avgUnitCost - first.avgUnitCost;
+                    const TrendIcon =
+                      delta > 0 ? ArrowUp : delta < 0 ? ArrowDown : ArrowRight;
+                    const trendClass =
+                      delta > 0
+                        ? 'text-destructive'
+                        : delta < 0
+                          ? 'text-green-600'
+                          : 'text-muted-foreground';
+                    return (
+                      <TableRow key={entry.partId}>
+                        <TableCell className="font-medium">{entry.partName}</TableCell>
+                        <TableCell className="font-mono text-xs">{entry.partReference}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{first.month}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(first.avgUnitCost)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{last.month}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(last.avgUnitCost)}</TableCell>
+                        <TableCell className="text-center">
+                          <TrendIcon className={`h-4 w-4 mx-auto ${trendClass}`} />
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">{entry.trend.length}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

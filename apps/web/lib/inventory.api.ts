@@ -129,6 +129,18 @@ export interface StockAccuracyReport {
   perPart: StockAccuracyPartEntry[];
 }
 
+export interface UnitCostTrendMonthEntry {
+  month: string;
+  avgUnitCost: number;
+}
+
+export interface UnitCostTrendPartEntry {
+  partId: string;
+  partName: string;
+  partReference: string;
+  trend: UnitCostTrendMonthEntry[];
+}
+
 export interface InventoryAnalyticsResponse {
   periodDays: number;
   consumption: {
@@ -148,6 +160,7 @@ export interface InventoryAnalyticsResponse {
   longWaitingRequests: LongWaitingPartRequest[];
   longWaitingThresholdHours: number;
   stockAccuracy: StockAccuracyReport;
+  unitCostTrendPerPart: UnitCostTrendPartEntry[];
 }
 
 export interface StockMovement {

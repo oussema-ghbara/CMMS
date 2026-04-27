@@ -4,6 +4,31 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Per-user login frequency classification in admin analytics (April 27, 2026)
+
+**feat(admin): add per-user login frequency list endpoint**
+- `classifyLoginFrequency(lastLoginAt, ago7, ago30, ago90)` exported as a pure helper from `admin-analytics.service.ts`. Takes the user's last login timestamp and three pre-computed thresholds; returns one of five `LoginFrequencyCategory` values: `RECENT` (within 7 days), `WEEKLY` (7–30 days), `OCCASIONAL` (30–90 days), `INACTIVE` (over 90 days), `NEVER` (null lastLoginAt). The function is exported for independent unit testing without any service dependencies.
+- `getUserLoginFrequencyList(page, limit)` method added to `AdminAnalyticsService`. Wraps two queries in a `$transaction`: `user.findMany` (selecting id, name, email, roles, lastLoginAt, isActive; ordered by `lastLoginAt DESC NULLS LAST` then `name ASC`; paginated via skip/take) and `user.count`. Maps each record through `classifyLoginFrequency` and serialises `lastLoginAt` to ISO string or null. Returns `UserLoginFrequencyResponse { data: UserLoginFrequencyEntry[]; total: number }`.
+- `GET /admin/analytics/users/frequency` endpoint added to `AdminController` (Admin role required). Accepts optional `?page` and `?limit` query params; `page` is clamped to a minimum of 1, `limit` to a maximum of 100. Delegates directly to `getUserLoginFrequencyList`.
+- `LoginFrequencyCategory`, `UserLoginFrequencyEntry`, and `UserLoginFrequencyResponse` interfaces exported from `admin-analytics.service.ts`.
+
+**feat(web): render per-user login frequency table in admin analytics**
+- `LoginFrequencyCategory`, `UserLoginFrequencyEntry`, and `UserLoginFrequencyResponse` interfaces added to `apps/web/lib/admin.api.ts`.
+- `adminApi.getUserLoginFrequency(params?)` API call added, targeting `GET /admin/analytics/users/frequency`.
+- `lib/login-frequency-utils.ts` introduced with two exports: `FREQUENCY_BADGE_VARIANT` (a `Record<LoginFrequencyCategory, BadgeVariant>` mapping RECENT → success, WEEKLY → default, OCCASIONAL → secondary, INACTIVE → warning, NEVER → destructive) and `formatLoginDate(iso, locale)` (returns null for null input, otherwise formats with day/month/year/hour/minute via `Intl.DateTimeFormat`).
+- `UserLoginFrequencyTable` component added to `admin-analytics-board.tsx`. Fetches from the new endpoint with local `page` state; renders a table with columns Utilisateur (name + email), Rôles (badge per role), Dernière connexion (formatted date or "Jamais connecté"), Fréquence (badge coloured by category). Pagination controls (chevron buttons + range label) appear when `total > 20`. Loading and empty states handled.
+- `ChevronLeft`, `ChevronRight` icons and `Button` component imported into the analytics board.
+- Component rendered inside the User Activity section of `AdminAnalyticsBoard`, below the existing recency bars and by-role table.
+- i18n keys added to `apps/web/public/locales/fr/common.json` under `adminAnalytics.userStats`: `loginFrequencyTable`, `loginFrequencyTableDescription`, `loginFrequencyColumns.{user,roles,lastLogin,frequency}`, `loginFrequencyCategory.{RECENT,WEEKLY,OCCASIONAL,INACTIVE,NEVER}`, `loginFrequencyNever`, `loginFrequencyEmpty`.
+
+**tests: 16 backend unit tests + 6 controller integration tests + 10 frontend unit tests**
+- `admin-analytics.service.spec.ts` — `classifyLoginFrequency`: null returns NEVER; within 7 days returns RECENT; exactly at 7-day boundary returns RECENT; 7–30 days returns WEEKLY; 30–90 days returns OCCASIONAL; over 90 days returns INACTIVE. `getUserLoginFrequencyList`: returns data and total; RECENT assigned when last login within 7 days; NEVER assigned when lastLoginAt is null; INACTIVE assigned when last login over 90 days ago; lastLoginAt serialised as ISO string; null lastLoginAt mapped to null in output; defaults to page 1 / limit 20; skip computed correctly when page > 1.
+- `admin.controller.integration.spec.ts` — returns 401 when unauthenticated; returns 403 for non-admin role; returns 200 with correct payload for admin; passes page and limit to service; clamps limit to 100 maximum; clamps page to 1 minimum.
+- `lib/login-frequency-utils.spec.ts` — `FREQUENCY_BADGE_VARIANT`: each of the 5 categories maps to its expected variant; covers all 5 keys. `formatLoginDate`: returns null for null input; returns a non-empty string for a valid ISO; output includes year component; formats consistently with the supplied locale.
+- Backend admin suite total: 61 passing, 0 regressions. Frontend suite total: 237 passing, 0 regressions.
+
+---
+
 ### Added — Per-plan compliance rate and per-checklist-item anomaly rate in supervisor analytics (April 27, 2026)
 
 **feat(work-orders): extract analytics helpers for per-plan and per-checklist-item computation**

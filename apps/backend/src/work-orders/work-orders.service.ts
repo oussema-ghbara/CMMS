@@ -19,6 +19,7 @@ import { StockMovementType } from '@gmao/db';
 import { WOCancellationReason, ChecklistItemStatus } from '@gmao/shared';
 import { assertTransitionAllowed, isTerminal } from './work-orders.state-machine';
 import { calculateWorkOrderCostSummary } from './work-order-costs';
+import { computeCompliancePerPlan, computeAnomalyPerChecklistItem } from './work-orders.analytics-helpers';
 
 export interface TechnicianLoadItem {
   technicianId: string;
@@ -419,6 +420,8 @@ export class WorkOrdersService {
       rejectionRaw,
       reassignmentCount,
       postPreventiveWindowConfig,
+      preventiveWOsPerPlan,
+      checklistItemsPerPlanItem,
     ] = await Promise.all([
       this.prisma.workOrder.groupBy({ by: ['status'], _count: { id: true } }),
       this.prisma.workOrder.groupBy({ by: ['type'], _count: { id: true } }),
@@ -533,6 +536,30 @@ export class WorkOrdersService {
       this.prisma.workOrderReassignment.count({ where: { createdAt: { gte: since } } }),
       // §9.8: window config for post-preventive corrective KPI
       this.prisma.systemConfig.findUnique({ where: { key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS' } }),
+      // §1.3: per-plan compliance — preventive WOs in period that have a source plan
+      this.prisma.workOrder.findMany({
+        where: { type: WorkOrderType.PREVENTIVE, createdAt: { gte: since }, sourcePlanId: { not: null }, ...catFilter },
+        select: {
+          sourcePlanId: true,
+          sourcePlan: { select: { id: true, title: true } },
+          status: true,
+          dueDate: true,
+          closedAt: true,
+        },
+      }),
+      // §1.3: per-checklist-item anomaly — executed items linked to a plan template item
+      this.prisma.workOrderChecklistItem.findMany({
+        where: {
+          sourcePlanItemId: { not: null },
+          status: { in: [ChecklistItemStatus.DONE, ChecklistItemStatus.ANOMALY_DETECTED] },
+          workOrder: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since }, ...catFilter },
+        },
+        select: {
+          sourcePlanItemId: true,
+          status: true,
+          sourcePlanItem: { select: { id: true, description: true } },
+        },
+      }),
     ]);
 
     // ── Existing KPIs ─────────────────────────────────────────────────────────
@@ -870,6 +897,10 @@ export class WorkOrdersService {
       ? Math.round(anomalyItems / checklistItemsDone.length * 1000) / 1000
       : null;
 
+    // §1.3 — Per-plan compliance rate and per-checklist-item anomaly rate
+    const compliancePerPlan = computeCompliancePerPlan(preventiveWOsPerPlan);
+    const anomalyPerChecklistItem = computeAnomalyPerChecklistItem(checklistItemsPerPlanItem);
+
     // ── Operational overview ──────────────────────────────────────────────────
     const sourceDistribution = Object.fromEntries(sourceDistRaw.map((r) => [r.sourceType, r._count.id]));
     const rejectionReasonDistribution = Object.fromEntries(
@@ -915,6 +946,8 @@ export class WorkOrdersService {
         closedPreventiveWOs: preventiveClosedCount,
         postPreventiveCorrectiveRate,
         postPreventiveCorrectiveWindowDays: postPreventiveWindowDays,
+        compliancePerPlan,
+        anomalyPerChecklistItem,
       },
       operationalOverview: {
         sourceDistribution,

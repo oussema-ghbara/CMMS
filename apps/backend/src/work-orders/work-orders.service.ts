@@ -637,6 +637,67 @@ export class WorkOrdersService {
       .sort((a, b) => b.totalCost - a.totalCost)
       .slice(0, 10);
 
+    // §1.4 / §2.7: per-asset breakdown — downtime, MTBF, MTTR, cost, failure count
+    const perAssetMttrMap = new Map<string, { name: string; durationSumMs: number; count: number }>();
+    for (const wo of correctiveWOs) {
+      const durationMs = wo.closedAt!.getTime() - wo.createdAt.getTime();
+      const entry = perAssetMttrMap.get(wo.assetId) ?? { name: wo.asset.name, durationSumMs: 0, count: 0 };
+      entry.durationSumMs += durationMs;
+      entry.count += 1;
+      perAssetMttrMap.set(wo.assetId, entry);
+    }
+
+    const perAssetDowntimeMs = new Map<string, number>();
+    for (const wo of correctiveWOs) {
+      if (wo.closedAt && wo.closedAt >= since) {
+        const prev = perAssetDowntimeMs.get(wo.assetId) ?? 0;
+        perAssetDowntimeMs.set(wo.assetId, prev + (wo.closedAt.getTime() - wo.createdAt.getTime()));
+      }
+    }
+
+    const allAssetIds = new Set([
+      ...failureCountInPeriod.keys(),
+      ...costByAsset.keys(),
+    ]);
+
+    const perAsset = [...allAssetIds].map((assetId) => {
+      const failure = failureCountInPeriod.get(assetId);
+      const cost = costByAsset.get(assetId);
+      const mttrEntry = perAssetMttrMap.get(assetId);
+      const assetWos = wosByAsset.get(assetId) ?? [];
+
+      const mttrHours = mttrEntry && mttrEntry.count > 0
+        ? Math.round((mttrEntry.durationSumMs / mttrEntry.count / 3_600_000) * 10) / 10
+        : null;
+
+      const mtbfIntervalsDays: number[] = [];
+      for (let i = 1; i < assetWos.length; i++) {
+        const gapMs = assetWos[i].createdAt.getTime() - assetWos[i - 1].closedAt.getTime();
+        if (gapMs > 0) mtbfIntervalsDays.push(gapMs / 86_400_000);
+      }
+      const mtbfDays = mtbfIntervalsDays.length > 0
+        ? Math.round((mtbfIntervalsDays.reduce((s, v) => s + v, 0) / mtbfIntervalsDays.length) * 10) / 10
+        : null;
+
+      const downtimeMs = perAssetDowntimeMs.get(assetId) ?? 0;
+      const downtimeHours = Math.round((downtimeMs / 3_600_000) * 10) / 10;
+
+      const partsCost = cost ? round2(cost.partsCost) : 0;
+      const totalCost = cost ? round2(cost.laborCost + cost.partsCost + cost.contractorCost) : 0;
+
+      return {
+        assetId,
+        assetName: failure?.assetName ?? cost?.assetName ?? mttrEntry?.name ?? assetId,
+        failureCount: failure?.count ?? 0,
+        lastFailureDate: failure?.lastDate.toISOString() ?? null,
+        downtimeHours,
+        mttrHours,
+        mtbfDays,
+        partsCost,
+        totalCost,
+      };
+    }).sort((a, b) => b.failureCount - a.failureCount || b.totalCost - a.totalCost);
+
     const preventiveClosedCount = preventiveWOsInPeriod.filter((w) => w.status === WorkOrderStatus.CLOSED).length;
     const preventiveComplianceRate = preventiveWOsInPeriod.length > 0
       ? Math.round((preventiveClosedCount / preventiveWOsInPeriod.length) * 1000) / 1000
@@ -836,6 +897,7 @@ export class WorkOrdersService {
         topByCost: topCostAssets,
         preventiveComplianceRate,
         totalMaintenanceCost: totalCost,
+        perAsset,
       },
       technicianKpis,
       requesterAnalytics: {

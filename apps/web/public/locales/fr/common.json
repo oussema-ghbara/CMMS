@@ -1783,7 +1783,9 @@
       "longWaitingRequests": "Demandes en attente sur OT bloqués",
       "longWaitingRequestsDescription": "Demandes de pièces en attente depuis plus de {{hours}} h sur des OT en pause.",
       "consumptionBreakdown": "Consommation par catégorie d'équipement et type d'OT",
-      "consumptionBreakdownDescription": "Répartition des sorties de stock par catégorie d'actif (correctif vs préventif), limitée aux 20 pièces les plus consommées."
+      "consumptionBreakdownDescription": "Répartition des sorties de stock par catégorie d'actif (correctif vs préventif), limitée aux 20 pièces les plus consommées.",
+      "stockAccuracy": "Taux de précision du stock",
+      "stockAccuracyDescription": "Ratio des mouvements d'ajustement sur les mouvements totaux par période, par pièce. Les pièces avec un taux faible nécessitent des contrôles physiques plus stricts."
     },
     "requests": {
       "fulfilled": "Traitées",
@@ -1806,7 +1808,10 @@
       "workOrder": "OT",
       "waitingHours": "Attente (h)",
       "assetCategory": "Catégorie d'équipement",
-      "woType": "Type d'OT"
+      "woType": "Type d'OT",
+      "adjustments": "Ajustements",
+      "totalMovements": "Total mouvements",
+      "accuracyRate": "Taux de précision"
     },
     "labels": {
       "windowSummary": "Période: {{periodDays}} j | Stock mort: {{deadStockDays}} j",
@@ -1826,7 +1831,10 @@
     "states": {
       "error": "Impossible de charger les analytiques d'inventaire",
       "empty": "Aucune donnée disponible pour cette période",
-      "noLongWaiting": "Aucune demande en attente critique sur des OT en pause."
+      "noLongWaiting": "Aucune demande en attente critique sur des OT en pause.",
+      "noStockAccuracyData": "Aucun mouvement de stock sur cette période.",
+      "globalAccuracyRate": "Taux global de précision",
+      "globalAccuracyDetail": "{{adjustments}} ajustement(s) sur {{total}} mouvement(s)"
     }
   },
   "supervisorCategories": {

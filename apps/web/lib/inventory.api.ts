@@ -113,6 +113,22 @@ export interface PartConsumptionBreakdown {
   byAssetCategory: ConsumptionBreakdownCategoryEntry[];
 }
 
+export interface StockAccuracyPartEntry {
+  partId: string;
+  partName: string;
+  partReference: string;
+  totalMovements: number;
+  adjustmentMovements: number;
+  accuracyRate: number;
+}
+
+export interface StockAccuracyReport {
+  globalRate: number;
+  totalMovements: number;
+  adjustmentCount: number;
+  perPart: StockAccuracyPartEntry[];
+}
+
 export interface InventoryAnalyticsResponse {
   periodDays: number;
   consumption: {
@@ -131,6 +147,7 @@ export interface InventoryAnalyticsResponse {
   costTrend: InventoryCostTrendItem[];
   longWaitingRequests: LongWaitingPartRequest[];
   longWaitingThresholdHours: number;
+  stockAccuracy: StockAccuracyReport;
 }
 
 export interface StockMovement {

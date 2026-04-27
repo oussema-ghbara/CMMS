@@ -526,6 +526,103 @@ export function StockAnalyticsBoard() {
         </div>
       )}
 
+      {/* §10.6 Stock accuracy rate */}
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">
+              {t('storekeeperAnalytics.sections.stockAccuracy')}
+            </CardTitle>
+            <CardDescription>
+              {t('storekeeperAnalytics.sections.stockAccuracyDescription')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : !data?.stockAccuracy || data.stockAccuracy.totalMovements === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t('storekeeperAnalytics.states.noStockAccuracyData')}
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('storekeeperAnalytics.states.globalAccuracyRate')}
+                    </p>
+                    <p
+                      className={`text-2xl font-bold ${
+                        data.stockAccuracy.globalRate < 80
+                          ? 'text-destructive'
+                          : data.stockAccuracy.globalRate < 95
+                            ? 'text-yellow-600'
+                            : 'text-green-600'
+                      }`}
+                    >
+                      {formatPercent(data.stockAccuracy.globalRate)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('storekeeperAnalytics.states.globalAccuracyDetail', {
+                        adjustments: data.stockAccuracy.adjustmentCount,
+                        total: data.stockAccuracy.totalMovements,
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {data.stockAccuracy.perPart.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('storekeeperAnalytics.columns.part')}</TableHead>
+                        <TableHead>{t('storekeeperAnalytics.columns.reference')}</TableHead>
+                        <TableHead className="text-right">
+                          {t('storekeeperAnalytics.columns.totalMovements')}
+                        </TableHead>
+                        <TableHead className="text-right">
+                          {t('storekeeperAnalytics.columns.adjustments')}
+                        </TableHead>
+                        <TableHead className="text-right">
+                          {t('storekeeperAnalytics.columns.accuracyRate')}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.stockAccuracy.perPart.map((entry) => (
+                        <TableRow key={entry.partId}>
+                          <TableCell className="font-medium">{entry.partName}</TableCell>
+                          <TableCell className="font-mono text-xs">{entry.partReference}</TableCell>
+                          <TableCell className="text-right">
+                            {formatNumber(entry.totalMovements)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatNumber(entry.adjustmentMovements)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge
+                              variant={
+                                entry.accuracyRate < 80
+                                  ? 'destructive'
+                                  : entry.accuracyRate < 95
+                                    ? 'warning'
+                                    : 'outline'
+                              }
+                            >
+                              {formatPercent(entry.accuracyRate)}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="rounded-md border bg-card p-3 text-sm text-muted-foreground flex items-center gap-2">
         <ChevronRight className="h-4 w-4" />
         {t('storekeeperAnalytics.labels.endpointNote')}

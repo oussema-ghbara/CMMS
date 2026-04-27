@@ -4,6 +4,31 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Per-plan compliance rate and per-checklist-item anomaly rate in supervisor analytics (April 27, 2026)
+
+**feat(work-orders): extract analytics helpers for per-plan and per-checklist-item computation**
+- `work-orders.analytics-helpers.ts` introduced as a pure, side-effect-free module exposing two functions: `computeCompliancePerPlan` and `computeAnomalyPerChecklistItem`. Both functions take typed input arrays and return typed result arrays, making them independently testable without a database.
+- `computeCompliancePerPlan(wos: PreventiveWOForPlan[])` groups work orders by `sourcePlanId`. A work order counts as compliant when its status is `CLOSED`, both `closedAt` and `dueDate` are present, and `closedAt <= dueDate`. Entries missing `sourcePlanId` or `sourcePlan` are silently skipped. The rate is rounded to 3 decimal places; `null` is returned when a group has zero entries (unreachable under normal conditions but guarded).
+- `computeAnomalyPerChecklistItem(items: ChecklistItemForPlanItem[])` groups executed checklist items by `sourcePlanItemId`. Items with `ANOMALY_DETECTED` status increment the anomaly counter. Results are sorted by anomaly rate descending so the most problematic items appear first. Rate rounded to 3 decimal places; `null` when total is zero.
+- `WorkOrdersService.getAnalytics()` adds two new Prisma queries to the existing `Promise.all` batch: `preventiveWOsPerPlan` fetches preventive WOs in the period that reference a source plan (selecting `sourcePlanId`, `sourcePlan.{id,title}`, `status`, `dueDate`, `closedAt`); `checklistItemsPerPlanItem` fetches executed checklist items linked to a plan template item (selecting `sourcePlanItemId`, `sourcePlanItem.{id,description}`, `status`) restricted to closed WOs within the period.
+- Both helper calls replace the previously inline computation blocks. `compliancePerPlan` and `anomalyPerChecklistItem` are added to `preventivePlanEfficiency` in the analytics return object alongside the existing global metrics.
+
+**feat(web): add per-plan compliance and per-checklist-item anomaly tables to supervisor analytics**
+- `PlanComplianceEntry` interface (`planId`, `planTitle`, `total`, `closedOnTime`, `rate: number | null`) and `ChecklistItemAnomalyEntry` interface (`itemId`, `description`, `total`, `anomalyCount`, `rate: number | null`) added to `work-orders.api.ts`.
+- `WorkOrderAnalyticsResponse.preventivePlanEfficiency` extended with `compliancePerPlan: PlanComplianceEntry[]` and `anomalyPerChecklistItem: ChecklistItemAnomalyEntry[]`.
+- `PlanComplianceTable` component renders a table with columns Plan, Total, Clôturés dans les délais, Taux de conformité. Badge variant: `outline` when rate >= 0.8, `destructive` otherwise.
+- `ChecklistItemAnomalyTable` component renders a table with columns Item de checklist, Exécutions, Anomalies, Taux d'anomalies. Badge variants: `outline` for zero rate, `warning` for rate > 0 up to 0.2, `destructive` for rate > 0.2. Results are pre-sorted by rate descending from the backend.
+- Both components rendered inside the existing preventive tab of `SupervisorAnalyticsBoard`, below the four global KPI cards.
+- `Table`, `TableBody`, `TableCell`, `TableHead`, `TableHeader`, `TableRow` imported from `@/components/ui/table` in the analytics board.
+- i18n keys added to `apps/web/public/locales/fr/common.json`: `supervisorAnalytics.sections.compliancePerPlan`, `supervisorAnalytics.sections.compliancePerPlanDesc`, `supervisorAnalytics.sections.anomalyPerChecklistItem`, `supervisorAnalytics.sections.anomalyPerChecklistItemDesc`, `supervisorAnalytics.columns.plan`, `supervisorAnalytics.columns.total`, `supervisorAnalytics.columns.closedOnTime`, `supervisorAnalytics.columns.complianceRate`, `supervisorAnalytics.columns.checklistItem`, `supervisorAnalytics.columns.executions`, `supervisorAnalytics.columns.anomalies`, `supervisorAnalytics.columns.anomalyRate`.
+
+**tests: 19 backend unit tests + 15 frontend unit tests covering all computation and display branches**
+- `work-orders.analytics-helpers.spec.ts` — `computeCompliancePerPlan`: empty input; missing sourcePlanId skipped; CLOSED + closedAt <= dueDate counted as compliant; closedAt > dueDate counted as non-compliant; non-CLOSED status always non-compliant; null dueDate non-compliant; null closedAt non-compliant; multi-WO aggregation per plan (3 WOs → 0.667 rate); distinct plan entries; planTitle preserved in output. `computeAnomalyPerChecklistItem`: empty input; missing sourcePlanItemId skipped; ANOMALY_DETECTED correctly counted; all-DONE gives zero anomalyCount; distinct item entries; sort order descending by rate; description preserved; rate rounds to 3 decimal places (1/3 → 0.333).
+- `lib/preventive-analytics.spec.ts` — `fmtPct`: 100%, 0%, 66.7%; `planComplianceBadgeVariant`: outline >= 0.8, destructive < 0.8, destructive for null; `checklistAnomalyBadgeVariant`: outline for 0 and null, warning for 0 < rate <= 0.2, destructive for rate > 0.2; `PlanComplianceEntry` shape: required fields, rate in [0, 1]; `ChecklistItemAnomalyEntry` shape: required fields, anomalyCount <= total, rate consistent with anomalyCount / total.
+- `analytics.spec.ts` — existing type-level fixtures updated to include `compliancePerPlan: []` and `anomalyPerChecklistItem: []` and `perAsset: []` to satisfy the extended `WorkOrderAnalyticsResponse` interface.
+
+---
+
 ### Added — Per-asset analytics breakdown and category filter in supervisor analytics (April 27, 2026)
 
 **feat(work-orders): compute per-asset breakdown metrics in analytics**

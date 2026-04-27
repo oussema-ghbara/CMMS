@@ -587,6 +587,63 @@ export class InventoryRepository {
     }));
   }
 
+  // §10.6: Stock accuracy rate — ratio of ADJUSTMENT movements to total movements per
+  // period. Parts with high adjustment ratios need stricter physical stock controls.
+  // Returns global stats and per-part breakdown sorted by worst accuracy first (max 20).
+  async getStockAccuracyRate(periodDays: number) {
+    const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+
+    type RawRow = {
+      part_id: string;
+      part_name: string;
+      part_reference: string;
+      total_count: bigint;
+      adjustment_count: bigint;
+    };
+
+    const rows = await this.prisma.$queryRaw<RawRow[]>`
+      SELECT
+        sm."partId"                                           AS part_id,
+        p.name                                                AS part_name,
+        p."referenceCode"                                     AS part_reference,
+        COUNT(*)                                              AS total_count,
+        COUNT(*) FILTER (WHERE sm.type = 'ADJUSTMENT')       AS adjustment_count
+      FROM "StockMovement" sm
+      JOIN "Part" p ON p.id = sm."partId"
+      WHERE sm."createdAt" >= ${since}
+      GROUP BY sm."partId", p.name, p."referenceCode"
+      HAVING COUNT(*) > 0
+      ORDER BY
+        (COUNT(*) FILTER (WHERE sm.type = 'ADJUSTMENT'))::float / COUNT(*) DESC,
+        COUNT(*) DESC
+      LIMIT 20
+    `;
+
+    let globalTotal = 0;
+    let globalAdjustments = 0;
+
+    const perPart = rows.map((row) => {
+      const total = Number(row.total_count);
+      const adjustments = Number(row.adjustment_count);
+      globalTotal += total;
+      globalAdjustments += adjustments;
+      const accuracyRate = total === 0 ? 100 : Math.round((1 - adjustments / total) * 1000) / 10;
+      return {
+        partId: row.part_id,
+        partName: row.part_name,
+        partReference: row.part_reference,
+        totalMovements: total,
+        adjustmentMovements: adjustments,
+        accuracyRate,
+      };
+    });
+
+    const globalRate =
+      globalTotal === 0 ? 100 : Math.round((1 - globalAdjustments / globalTotal) * 1000) / 10;
+
+    return { globalRate, totalMovements: globalTotal, adjustmentCount: globalAdjustments, perPart };
+  }
+
   // §10.6: Per-part consumption broken down by asset category and WO type
   // (CORRECTIVE vs PREVENTIVE). Restricted to the top-20 parts by outgoing
   // quantity so the payload stays bounded.

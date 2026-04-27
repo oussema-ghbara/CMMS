@@ -105,11 +105,11 @@ describe('idle timer — reset on activity', () => {
   it('fires callback after the configured timeout', () => {
     const callback = jest.fn();
     const timeoutMs = computeTimeoutMs(8);
-    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let timerId: number | null = null;
 
     function startTimer() {
       if (timerId !== null) clearTimeout(timerId);
-      timerId = setTimeout(callback, timeoutMs);
+      timerId = setTimeout(callback, timeoutMs) as unknown as number;
     }
 
     startTimer();
@@ -122,11 +122,11 @@ describe('idle timer — reset on activity', () => {
   it('does NOT fire if activity resets the timer before it expires', () => {
     const callback = jest.fn();
     const timeoutMs = computeTimeoutMs(8);
-    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let timerId: number | null = null;
 
     function startTimer() {
       if (timerId !== null) clearTimeout(timerId);
-      timerId = setTimeout(callback, timeoutMs);
+      timerId = setTimeout(callback, timeoutMs) as unknown as number;
     }
 
     startTimer();
@@ -141,11 +141,11 @@ describe('idle timer — reset on activity', () => {
   it('does not fire twice if activity resets timer shortly before expiry', () => {
     const callback = jest.fn();
     const timeoutMs = computeTimeoutMs(1);
-    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let timerId: number | null = null;
 
     function startTimer() {
       if (timerId !== null) clearTimeout(timerId);
-      timerId = setTimeout(callback, timeoutMs);
+      timerId = setTimeout(callback, timeoutMs) as unknown as number;
     }
 
     startTimer();

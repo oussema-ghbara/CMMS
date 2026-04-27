@@ -24,7 +24,7 @@
  * - totalSentLast24h query uses emailSentAt gte ~24h ago
  */
 
-import { AdminAnalyticsService } from './admin-analytics.service';
+import { AdminAnalyticsService, classifyLoginFrequency } from './admin-analytics.service';
 import { Role } from '@gmao/db';
 import { MAIL_QUEUE } from '../mail/mail.constants';
 import { REPORT_GENERATION_QUEUE } from '../work-orders/jobs/report-generation.constants';
@@ -397,6 +397,184 @@ describe('AdminAnalyticsService', () => {
       const stats = await service.getSystemHealthStats();
 
       expect(stats.scheduledJobs).toEqual([]);
+    });
+  });
+
+  // ── classifyLoginFrequency (pure helper) ─────────────────────────────────
+
+  describe('classifyLoginFrequency()', () => {
+    const MS = 24 * 60 * 60 * 1000;
+    const now = new Date(2026, 0, 30);
+    const ago7 = new Date(now.getTime() - 7 * MS);
+    const ago30 = new Date(now.getTime() - 30 * MS);
+    const ago90 = new Date(now.getTime() - 90 * MS);
+
+    it('returns NEVER when lastLoginAt is null', () => {
+      expect(classifyLoginFrequency(null, ago7, ago30, ago90)).toBe('NEVER');
+    });
+
+    it('returns RECENT when lastLoginAt is within last 7 days', () => {
+      const recent = new Date(now.getTime() - 3 * MS);
+      expect(classifyLoginFrequency(recent, ago7, ago30, ago90)).toBe('RECENT');
+    });
+
+    it('returns RECENT when lastLoginAt equals the 7-day threshold exactly', () => {
+      expect(classifyLoginFrequency(ago7, ago7, ago30, ago90)).toBe('RECENT');
+    });
+
+    it('returns WEEKLY when lastLoginAt is between 7 and 30 days ago', () => {
+      const weekly = new Date(now.getTime() - 15 * MS);
+      expect(classifyLoginFrequency(weekly, ago7, ago30, ago90)).toBe('WEEKLY');
+    });
+
+    it('returns OCCASIONAL when lastLoginAt is between 30 and 90 days ago', () => {
+      const occasional = new Date(now.getTime() - 60 * MS);
+      expect(classifyLoginFrequency(occasional, ago7, ago30, ago90)).toBe('OCCASIONAL');
+    });
+
+    it('returns INACTIVE when lastLoginAt is more than 90 days ago', () => {
+      const inactive = new Date(now.getTime() - 120 * MS);
+      expect(classifyLoginFrequency(inactive, ago7, ago30, ago90)).toBe('INACTIVE');
+    });
+  });
+
+  // ── getUserLoginFrequencyList ─────────────────────────────────────────────
+
+  describe('getUserLoginFrequencyList()', () => {
+    function buildFrequencyMocks(
+      users: Array<{ id: string; name: string; email: string; roles: string[]; lastLoginAt: Date | null; isActive: boolean }>,
+      total: number = users.length,
+    ) {
+      const prisma = {
+        user: {
+          count: jest.fn(),
+          findMany: jest.fn(),
+        },
+        $transaction: jest
+          .fn()
+          .mockImplementation((queries: unknown[]) =>
+            Promise.all(
+              queries.map((q: unknown) => {
+                if (typeof (q as Record<string, unknown>).then === 'function') return q;
+                return q;
+              }),
+            ),
+          ),
+        notification: { count: jest.fn() },
+      };
+
+      prisma.$transaction.mockResolvedValueOnce([users, total]);
+
+      const jobLogger = { getAll: jest.fn().mockResolvedValue([]) };
+      const queue = { getJobCounts: jest.fn().mockResolvedValue({}) };
+
+      const service = new AdminAnalyticsService(
+        prisma as never,
+        jobLogger as never,
+        queue as never,
+        queue as never,
+        queue as never,
+      );
+
+      return { service, prisma };
+    }
+
+    it('returns data and total from the repository query', async () => {
+      const users = [
+        { id: 'u1', name: 'Alice', email: 'alice@test.com', roles: ['SUPERVISOR'], lastLoginAt: new Date(), isActive: true },
+        { id: 'u2', name: 'Bob', email: 'bob@test.com', roles: ['TECHNICIAN'], lastLoginAt: null, isActive: true },
+      ];
+      const { service } = buildFrequencyMocks(users, 2);
+
+      const result = await service.getUserLoginFrequencyList(1, 20);
+
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('assigns RECENT category to users logged in within the last 7 days', async () => {
+      const recentUser = {
+        id: 'u1', name: 'Alice', email: 'alice@test.com', roles: ['ADMIN'],
+        lastLoginAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        isActive: true,
+      };
+      const { service } = buildFrequencyMocks([recentUser]);
+
+      const result = await service.getUserLoginFrequencyList();
+
+      expect(result.data[0].frequencyCategory).toBe('RECENT');
+    });
+
+    it('assigns NEVER category to users with null lastLoginAt', async () => {
+      const neverUser = {
+        id: 'u2', name: 'Bob', email: 'bob@test.com', roles: ['TECHNICIAN'],
+        lastLoginAt: null,
+        isActive: false,
+      };
+      const { service } = buildFrequencyMocks([neverUser]);
+
+      const result = await service.getUserLoginFrequencyList();
+
+      expect(result.data[0].frequencyCategory).toBe('NEVER');
+    });
+
+    it('assigns INACTIVE category to users last logged in over 90 days ago', async () => {
+      const inactiveUser = {
+        id: 'u3', name: 'Carol', email: 'carol@test.com', roles: ['STOREKEEPER'],
+        lastLoginAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000),
+        isActive: true,
+      };
+      const { service } = buildFrequencyMocks([inactiveUser]);
+
+      const result = await service.getUserLoginFrequencyList();
+
+      expect(result.data[0].frequencyCategory).toBe('INACTIVE');
+    });
+
+    it('serializes lastLoginAt as ISO string', async () => {
+      const loginAt = new Date('2026-01-15T10:00:00.000Z');
+      const user = {
+        id: 'u1', name: 'Alice', email: 'a@test.com', roles: ['ADMIN'],
+        lastLoginAt: loginAt,
+        isActive: true,
+      };
+      const { service } = buildFrequencyMocks([user]);
+
+      const result = await service.getUserLoginFrequencyList();
+
+      expect(result.data[0].lastLoginAt).toBe(loginAt.toISOString());
+    });
+
+    it('maps lastLoginAt null to null in output', async () => {
+      const user = {
+        id: 'u1', name: 'Alice', email: 'a@test.com', roles: [],
+        lastLoginAt: null,
+        isActive: true,
+      };
+      const { service } = buildFrequencyMocks([user]);
+
+      const result = await service.getUserLoginFrequencyList();
+
+      expect(result.data[0].lastLoginAt).toBeNull();
+    });
+
+    it('defaults to page=1 and limit=20 when called with no arguments', async () => {
+      const { service, prisma } = buildFrequencyMocks([], 0);
+
+      await service.getUserLoginFrequencyList();
+
+      const txCall = (prisma.$transaction as jest.Mock).mock.calls[0][0];
+      expect(txCall).toHaveLength(2);
+    });
+
+    it('passes correct skip when page > 1', async () => {
+      const { service, prisma } = buildFrequencyMocks([], 0);
+      prisma.$transaction.mockResolvedValueOnce([[], 50]);
+
+      await service.getUserLoginFrequencyList(3, 10);
+
+      const txCall = (prisma.$transaction as jest.Mock).mock.calls[0][0];
+      expect(txCall).toHaveLength(2);
     });
   });
 });

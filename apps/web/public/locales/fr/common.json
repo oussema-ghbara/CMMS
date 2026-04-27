@@ -295,6 +295,8 @@
       "anomalyRateDesc": "Articles de checklist avec anomalie détectée",
       "totalPreventiveWOs": "OT préventifs",
       "totalPreventiveWOsDesc": "Créés sur la période",
+      "postPreventiveCorrectiveRate": "Taux correctif post-préventif",
+      "postPreventiveCorrectiveRateDesc": "OT correctifs ouverts dans les {{days}} j après clôture préventive (même actif)",
       "totalReportsSubmitted": "Signalements soumis",
       "reportConversionRate": "Taux de conversion",
       "reportsConverted": "converti(s) en OT",

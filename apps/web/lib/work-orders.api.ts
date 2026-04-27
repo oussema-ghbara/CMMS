@@ -426,6 +426,8 @@ export interface WorkOrderAnalyticsResponse {
     anomalyRate: number | null;
     totalPreventiveWOs: number;
     closedPreventiveWOs: number;
+    postPreventiveCorrectiveRate: number | null;
+    postPreventiveCorrectiveWindowDays: number;
   };
   operationalOverview: {
     sourceDistribution: Partial<Record<string, number>>;

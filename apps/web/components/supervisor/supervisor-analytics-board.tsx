@@ -436,7 +436,7 @@ export function SupervisorAnalyticsBoard() {
           {/* ── Preventive plan efficiency ── */}
           {activeTab === 'preventive' && (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <KpiCard
                   label={t('supervisorAnalytics.kpi.planComplianceRate')}
                   value={data.preventivePlanEfficiency.complianceRate != null ? fmtPct(data.preventivePlanEfficiency.complianceRate) : '—'}
@@ -451,6 +451,13 @@ export function SupervisorAnalyticsBoard() {
                   label={t('supervisorAnalytics.kpi.totalPreventiveWOs')}
                   value={fmt(data.preventivePlanEfficiency.totalPreventiveWOs)}
                   sub={t('supervisorAnalytics.kpi.totalPreventiveWOsDesc')}
+                />
+                <KpiCard
+                  label={t('supervisorAnalytics.kpi.postPreventiveCorrectiveRate')}
+                  value={data.preventivePlanEfficiency.postPreventiveCorrectiveRate != null ? fmtPct(data.preventivePlanEfficiency.postPreventiveCorrectiveRate) : '—'}
+                  sub={t('supervisorAnalytics.kpi.postPreventiveCorrectiveRateDesc', {
+                    days: data.preventivePlanEfficiency.postPreventiveCorrectiveWindowDays,
+                  })}
                 />
               </div>
             </div>

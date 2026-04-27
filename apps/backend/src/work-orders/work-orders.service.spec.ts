@@ -535,6 +535,212 @@ describe('WorkOrdersService.getAnalytics', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.getAnalytics — perAsset breakdown (§1.4 / §2.7)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('WorkOrdersService.getAnalytics — assetKpis.perAsset', () => {
+  let service: WorkOrdersService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+            findOverdueCritical: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            workOrder: { groupBy: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+            problemReport: { findMany: jest.fn() },
+            workOrderChecklistItem: { findMany: jest.fn() },
+            workOrderValidation: { groupBy: jest.fn() },
+            workOrderReassignment: { count: jest.fn() },
+            systemConfig: { findUnique: jest.fn() },
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        { provide: PartRequestsService, useValue: { handleWorkOrderCancellation: jest.fn() } },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(WorkOrdersService);
+  });
+
+  function setupMinimalMocks(prisma: any, correctiveWOs: any[], costWOs: any[]) {
+    prisma.workOrder.groupBy
+      .mockResolvedValueOnce([{ status: WorkOrderStatus.OPEN, _count: { id: 1 } }])
+      .mockResolvedValueOnce([{ type: WorkOrderType.CORRECTIVE, _count: { id: 1 } }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    prisma.workOrder.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    prisma.workOrder.findMany
+      .mockResolvedValueOnce([])    // closedWOs
+      .mockResolvedValueOnce(costWOs)
+      .mockResolvedValueOnce(correctiveWOs)
+      .mockResolvedValueOnce([])    // techKpiWOs
+      .mockResolvedValueOnce([]);   // preventiveWOsInPeriod
+    prisma.problemReport.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
+    prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
+  }
+
+  it('returns empty perAsset when no corrective WOs or cost data exist', async () => {
+    const prisma = service['prisma'] as any;
+    setupMinimalMocks(prisma, [], []);
+
+    const result = await service.getAnalytics(30);
+
+    expect(result.assetKpis.perAsset).toEqual([]);
+  });
+
+  it('computes downtimeHours as sum of WO duration for corrective WOs closed within the period', async () => {
+    const prisma = service['prisma'] as any;
+    const now = new Date();
+    const recentClose = new Date(now.getTime() - 2 * 86_400_000); // 2 days ago — within 30-day period
+    const openedAt = new Date(recentClose.getTime() - 4 * 3_600_000); // 4h before close
+
+    const correctiveWOs = [
+      {
+        assetId: 'a1',
+        asset: { name: 'Pump A' },
+        createdAt: openedAt,
+        closedAt: recentClose,
+      },
+    ];
+    setupMinimalMocks(prisma, correctiveWOs, []);
+
+    const result = await service.getAnalytics(30);
+
+    const entry = result.assetKpis.perAsset.find((p) => p.assetId === 'a1');
+    expect(entry).toBeDefined();
+    expect(entry!.downtimeHours).toBe(4);
+    expect(entry!.failureCount).toBe(1); // createdAt is within the 30-day period so it counts
+  });
+
+  it('computes mttrHours as mean repair time across all corrective WOs for that asset', async () => {
+    const prisma = service['prisma'] as any;
+    const now = new Date();
+    const wo1Close = new Date(now.getTime() - 1 * 86_400_000);
+    const wo1Open = new Date(wo1Close.getTime() - 2 * 3_600_000); // 2h
+    const wo2Close = new Date(now.getTime() - 5 * 86_400_000);
+    const wo2Open = new Date(wo2Close.getTime() - 4 * 3_600_000); // 4h
+
+    const correctiveWOs = [
+      { assetId: 'a1', asset: { name: 'Motor B' }, createdAt: wo1Open, closedAt: wo1Close },
+      { assetId: 'a1', asset: { name: 'Motor B' }, createdAt: wo2Open, closedAt: wo2Close },
+    ];
+    setupMinimalMocks(prisma, correctiveWOs, []);
+
+    const result = await service.getAnalytics(30);
+
+    const entry = result.assetKpis.perAsset.find((p) => p.assetId === 'a1');
+    expect(entry).toBeDefined();
+    expect(entry!.mttrHours).toBe(3); // mean of [2, 4]
+  });
+
+  it('computes mtbfDays as mean gap between consecutive corrective WOs', async () => {
+    const prisma = service['prisma'] as any;
+    const now = new Date();
+    // Both WOs within the 30-day period so the asset appears in perAsset
+    const wo1Open = new Date(now.getTime() - 20 * 86_400_000);
+    const wo1Close = new Date(now.getTime() - 19 * 86_400_000); // 1-day WO
+    const wo2Open = new Date(now.getTime() - 14 * 86_400_000);  // gap = 5 days from wo1Close
+    const wo2Close = new Date(now.getTime() - 13 * 86_400_000);
+
+    const correctiveWOs = [
+      { assetId: 'a1', asset: { name: 'Pump' }, createdAt: wo1Open, closedAt: wo1Close },
+      { assetId: 'a1', asset: { name: 'Pump' }, createdAt: wo2Open, closedAt: wo2Close },
+    ];
+    setupMinimalMocks(prisma, correctiveWOs, []);
+
+    const result = await service.getAnalytics(30);
+
+    const entry = result.assetKpis.perAsset.find((p) => p.assetId === 'a1');
+    expect(entry).toBeDefined();
+    expect(entry!.mtbfDays).toBe(5);
+  });
+
+  it('includes total cost from costByAsset in perAsset entry', async () => {
+    const prisma = service['prisma'] as any;
+    const close = new Date();
+    const open = new Date(close.getTime() - 3_600_000);
+
+    const correctiveWOs = [
+      { assetId: 'a1', asset: { name: 'Asset A' }, createdAt: open, closedAt: close },
+    ];
+    const costWOs = [
+      {
+        assetId: 'a1',
+        asset: { name: 'Asset A' },
+        contractorCost: '0',
+        interventionLogs: [{ activeDurationMinutes: 60, hourlyRateAtTime: '100' }],
+        stockMovements: [{ type: 'OUTGOING', quantity: 2, unitCostAtTime: '50' }],
+      },
+    ];
+    setupMinimalMocks(prisma, correctiveWOs, costWOs);
+
+    const result = await service.getAnalytics(30);
+
+    const entry = result.assetKpis.perAsset.find((p) => p.assetId === 'a1');
+    expect(entry).toBeDefined();
+    expect(entry!.partsCost).toBe(100);
+    expect(entry!.totalCost).toBe(200); // 100 labor + 100 parts
+  });
+
+  it('includes assets that appear only in costWOs (no corrective failures)', async () => {
+    const prisma = service['prisma'] as any;
+    const costWOs = [
+      {
+        assetId: 'a2',
+        asset: { name: 'Asset B' },
+        contractorCost: '50',
+        interventionLogs: [],
+        stockMovements: [],
+      },
+    ];
+    setupMinimalMocks(prisma, [], costWOs);
+
+    const result = await service.getAnalytics(30);
+
+    const entry = result.assetKpis.perAsset.find((p) => p.assetId === 'a2');
+    expect(entry).toBeDefined();
+    expect(entry!.failureCount).toBe(0);
+    expect(entry!.downtimeHours).toBe(0);
+    expect(entry!.totalCost).toBe(50);
+  });
+
+  it('passes categoryId to the backend query filter and returns it in the response', async () => {
+    const prisma = service['prisma'] as any;
+    setupMinimalMocks(prisma, [], []);
+
+    const result = await service.getAnalytics(30, 'cat-abc');
+
+    expect(result.categoryId).toBe('cat-abc');
+    const countCall = prisma.workOrder.count.mock.calls[2];
+    expect(countCall[0]).toMatchObject({ where: expect.objectContaining({ asset: { categoryId: 'cat-abc' } }) });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // WorkOrdersService.getAnalytics — technician rejection rate by category (§9.8)
 // ─────────────────────────────────────────────────────────────────────────────
 describe('WorkOrdersService.getAnalytics — technicianKpis.rejectionRateByCategory', () => {

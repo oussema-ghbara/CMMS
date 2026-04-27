@@ -460,3 +460,145 @@ describe('InventoryRepository.getConsumptionBreakdown', () => {
     expect(sinceArg.getTime()).toBeLessThanOrEqual(after - 30 * 24 * 60 * 60 * 1000 + 100);
   });
 });
+
+// ── getStockAccuracyRate ───────────────────────────────────────────────────────
+
+describe('InventoryRepository.getStockAccuracyRate', () => {
+  const createRepository = () => {
+    const prisma = { $queryRaw: jest.fn() };
+    return { prisma, repository: new InventoryRepository(prisma as never) };
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns 100% global rate and empty perPart when no movements exist', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const result = await repository.getStockAccuracyRate(30);
+
+    expect(result.globalRate).toBe(100);
+    expect(result.totalMovements).toBe(0);
+    expect(result.adjustmentCount).toBe(0);
+    expect(result.perPart).toEqual([]);
+  });
+
+  it('computes per-part accuracy rate correctly', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Hydraulic seal',
+        part_reference: 'SEAL-001',
+        total_count: BigInt(10),
+        adjustment_count: BigInt(2),
+      },
+    ]);
+
+    const result = await repository.getStockAccuracyRate(30);
+
+    expect(result.perPart).toHaveLength(1);
+    expect(result.perPart[0]).toMatchObject({
+      partId: 'part-1',
+      partName: 'Hydraulic seal',
+      partReference: 'SEAL-001',
+      totalMovements: 10,
+      adjustmentMovements: 2,
+      accuracyRate: 80,
+    });
+  });
+
+  it('computes global rate from all parts', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Part A',
+        part_reference: 'A-001',
+        total_count: BigInt(10),
+        adjustment_count: BigInt(2),
+      },
+      {
+        part_id: 'part-2',
+        part_name: 'Part B',
+        part_reference: 'B-001',
+        total_count: BigInt(10),
+        adjustment_count: BigInt(0),
+      },
+    ]);
+
+    const result = await repository.getStockAccuracyRate(30);
+
+    // 2 adjustments out of 20 total → 90% accuracy
+    expect(result.totalMovements).toBe(20);
+    expect(result.adjustmentCount).toBe(2);
+    expect(result.globalRate).toBe(90);
+  });
+
+  it('returns 0% accuracy rate when all movements are adjustments', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Part A',
+        part_reference: 'A-001',
+        total_count: BigInt(5),
+        adjustment_count: BigInt(5),
+      },
+    ]);
+
+    const result = await repository.getStockAccuracyRate(30);
+
+    expect(result.perPart[0].accuracyRate).toBe(0);
+    expect(result.globalRate).toBe(0);
+  });
+
+  it('returns 100% accuracy rate when no adjustments exist', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Filter',
+        part_reference: 'FLT-001',
+        total_count: BigInt(8),
+        adjustment_count: BigInt(0),
+      },
+    ]);
+
+    const result = await repository.getStockAccuracyRate(30);
+
+    expect(result.perPart[0].accuracyRate).toBe(100);
+    expect(result.globalRate).toBe(100);
+  });
+
+  it('passes a since date derived from periodDays to the raw query', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([]);
+
+    const before = Date.now();
+    await repository.getStockAccuracyRate(30);
+    const after = Date.now();
+
+    const [, sinceArg] = prisma.$queryRaw.mock.calls[0];
+    expect(sinceArg.getTime()).toBeGreaterThanOrEqual(before - 30 * 24 * 60 * 60 * 1000);
+    expect(sinceArg.getTime()).toBeLessThanOrEqual(after - 30 * 24 * 60 * 60 * 1000 + 100);
+  });
+
+  it('rounds accuracy rate to one decimal place', async () => {
+    const { prisma, repository } = createRepository();
+    prisma.$queryRaw.mockResolvedValue([
+      {
+        part_id: 'part-1',
+        part_name: 'Gasket',
+        part_reference: 'GSK-001',
+        total_count: BigInt(3),
+        adjustment_count: BigInt(1),
+      },
+    ]);
+
+    const result = await repository.getStockAccuracyRate(30);
+
+    // 1 - (1/3) = 0.6666... → 66.7%
+    expect(result.perPart[0].accuracyRate).toBe(66.7);
+  });
+});

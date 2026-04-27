@@ -418,6 +418,7 @@ export class WorkOrdersService {
       sourceDistRaw,
       rejectionRaw,
       reassignmentCount,
+      postPreventiveWindowConfig,
     ] = await Promise.all([
       this.prisma.workOrder.groupBy({ by: ['status'], _count: { id: true } }),
       this.prisma.workOrder.groupBy({ by: ['type'], _count: { id: true } }),
@@ -530,6 +531,8 @@ export class WorkOrdersService {
       }),
       // Reassignment count in period
       this.prisma.workOrderReassignment.count({ where: { createdAt: { gte: since } } }),
+      // §9.8: window config for post-preventive corrective KPI
+      this.prisma.systemConfig.findUnique({ where: { key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS' } }),
     ]);
 
     // ── Existing KPIs ─────────────────────────────────────────────────────────
@@ -638,6 +641,45 @@ export class WorkOrdersService {
     const preventiveComplianceRate = preventiveWOsInPeriod.length > 0
       ? Math.round((preventiveClosedCount / preventiveWOsInPeriod.length) * 1000) / 1000
       : null;
+
+    // ── §9.8: Taux correctif post-préventif ──────────────────────────────────
+    const postPreventiveWindowDays = parseInt(postPreventiveWindowConfig?.value ?? '7', 10);
+    const closedPreventiveList = preventiveWOsInPeriod.filter(
+      (w) => w.status === WorkOrderStatus.CLOSED && w.closedAt !== null,
+    );
+    let postPreventiveCorrectiveRate: number | null = null;
+    if (closedPreventiveList.length > 0) {
+      const windowMs = postPreventiveWindowDays * 24 * 60 * 60 * 1000;
+      const affectedAssetIds = [...new Set(closedPreventiveList.map((w) => w.assetId))];
+      const windowStart = new Date(
+        Math.min(...closedPreventiveList.map((w) => w.closedAt!.getTime())),
+      );
+      const windowEnd = new Date(
+        Math.max(...closedPreventiveList.map((w) => w.closedAt!.getTime())) + windowMs,
+      );
+      const correctiveFollowUps = await this.prisma.workOrder.findMany({
+        where: {
+          type: WorkOrderType.CORRECTIVE,
+          assetId: { in: affectedAssetIds },
+          createdAt: { gte: windowStart, lte: windowEnd },
+          ...catFilter,
+        },
+        select: { assetId: true, createdAt: true },
+      });
+      let triggeredCount = 0;
+      for (const preventive of closedPreventiveList) {
+        const closedMs = preventive.closedAt!.getTime();
+        const hasFollowUp = correctiveFollowUps.some(
+          (c) =>
+            c.assetId === preventive.assetId &&
+            c.createdAt.getTime() >= closedMs &&
+            c.createdAt.getTime() <= closedMs + windowMs,
+        );
+        if (hasFollowUp) triggeredCount++;
+      }
+      postPreventiveCorrectiveRate =
+        Math.round((triggeredCount / closedPreventiveList.length) * 1000) / 1000;
+    }
 
     // ── Technician KPIs ───────────────────────────────────────────────────────
     const techMap = new Map<string, {
@@ -809,6 +851,8 @@ export class WorkOrdersService {
         anomalyRate,
         totalPreventiveWOs: preventiveWOsInPeriod.length,
         closedPreventiveWOs: preventiveClosedCount,
+        postPreventiveCorrectiveRate,
+        postPreventiveCorrectiveWindowDays: postPreventiveWindowDays,
       },
       operationalOverview: {
         sourceDistribution,

@@ -4,6 +4,26 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Unit cost trend per part in inventory analytics (April 27, 2026)
+
+**feat(inventory): add unit cost trend per part computation**
+- `InventoryRepository.getUnitCostTrendPerPart(periodDays)` executes a raw SQL query that aggregates `AVG(unitCostAtTime)` from `INCOMING` stock movements where `unitCostAtTime IS NOT NULL`, grouped by `(partId, DATE_TRUNC('month', createdAt))`. Results are ordered by `partName ASC, month ASC` so the in-process grouping step receives rows in the correct sequence.
+- Post-query JavaScript groups raw rows into `UnitCostTrendPartEntry[]` — one entry per part — where each entry carries `partId`, `partName`, `partReference`, and a `trend` array of `{ month: string (YYYY-MM), avgUnitCost: number }` objects. `avgUnitCost` is rounded to two decimal places via `Math.round(value * 100) / 100`.
+- When no qualifying movements exist in the period, an empty array is returned.
+- `InventoryService.getAnalytics()` adds `getUnitCostTrendPerPart(periodDays)` as the ninth entry in the existing `Promise.all` batch and exposes the result as `unitCostTrendPerPart` in the returned analytics object.
+
+**feat(web): render unit cost trend per part in storekeeper analytics**
+- `UnitCostTrendMonthEntry` (`{ month: string; avgUnitCost: number }`) and `UnitCostTrendPartEntry` (`{ partId, partName, partReference, trend }`) interfaces added to `apps/web/lib/inventory.api.ts`. `InventoryAnalyticsResponse` extended with `unitCostTrendPerPart: UnitCostTrendPartEntry[]`.
+- `StockAnalyticsBoard` gains a new "Évolution du coût unitaire moyen par pièce" `Card` section rendered between the stock accuracy panel and the endpoint note. The table shows one row per part with columns: Pièce, Référence, first month, average unit cost at first month, last month, average unit cost at last month, trend direction icon (ArrowUp red / ArrowDown green / ArrowRight neutral), and months tracked. An empty state is shown when no qualifying movements exist in the period.
+- i18n keys added to `apps/web/public/locales/fr/common.json`: `storekeeperAnalytics.sections.unitCostTrend`, `storekeeperAnalytics.sections.unitCostTrendDescription`, `storekeeperAnalytics.states.noUnitCostTrend`, `storekeeperAnalytics.columns.avgUnitCost`, `storekeeperAnalytics.columns.monthsTracked`, `storekeeperAnalytics.columns.firstMonth`, `storekeeperAnalytics.columns.lastMonth`, `storekeeperAnalytics.columns.trend`.
+
+**tests: 8 backend unit tests + 12 frontend unit tests covering all logic branches**
+- `inventory.repository.unit-cost-trend.spec.ts`: empty array when no qualifying movements; multi-part grouping into separate entries; month string format (`YYYY-MM`); `avgUnitCost` rounded to 2 decimal places; month ordering preserved (ascending); shape (`partId`, `partName`, `partReference`); single-month part is valid; zero cost string handled without throwing.
+- `unit-cost-trend.spec.ts` (frontend): `computeTrendDirection` — up when last > first; down when last < first; flat when equal; flat for single data point; flat for empty trend; uses first and last values only in multi-month series; `getFirstMonth`/`getLastMonth` — correct extraction and null for empty trend; `formatCurrency` — EUR symbol present; 2-decimal rounding; zero formatted.
+- Backend total: 583 passing, 0 regressions. Frontend total: 217 passing, 0 regressions.
+
+---
+
 ### Added — Stock accuracy rate KPI in inventory analytics (April 27, 2026)
 
 **feat(inventory): add stock accuracy rate computation**

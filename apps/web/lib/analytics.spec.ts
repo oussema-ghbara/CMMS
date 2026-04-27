@@ -34,6 +34,7 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
         topByCost: [],
         preventiveComplianceRate: 0.9,
         totalMaintenanceCost: 150,
+        perAsset: [],
       },
       technicianKpis: [],
       requesterAnalytics: {
@@ -51,6 +52,8 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
         closedPreventiveWOs: 9,
         postPreventiveCorrectiveRate: 0.2,
         postPreventiveCorrectiveWindowDays: 7,
+        compliancePerPlan: [],
+        anomalyPerChecklistItem: [],
       },
       operationalOverview: {
         sourceDistribution: {},
@@ -87,10 +90,11 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
         topByCost: [],
         preventiveComplianceRate: null,
         totalMaintenanceCost: 0,
+        perAsset: [],
       },
       technicianKpis: [],
       requesterAnalytics: { totalReportsSubmitted: 0, totalConverted: 0, conversionRate: null, reportToActionAvgDays: null, reportAccuracyRate: null, duplicateSubmissionRate: null },
-      preventivePlanEfficiency: { complianceRate: null, anomalyRate: null, totalPreventiveWOs: 0, closedPreventiveWOs: 0, postPreventiveCorrectiveRate: null, postPreventiveCorrectiveWindowDays: 7 },
+      preventivePlanEfficiency: { complianceRate: null, anomalyRate: null, totalPreventiveWOs: 0, closedPreventiveWOs: 0, postPreventiveCorrectiveRate: null, postPreventiveCorrectiveWindowDays: 7, compliancePerPlan: [], anomalyPerChecklistItem: [] },
       operationalOverview: { sourceDistribution: {}, rejectionReasonDistribution: {}, reassignmentCount: 0, avgHoldPeriodsPerWo: null },
     };
 

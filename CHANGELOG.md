@@ -4,6 +4,37 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Per-asset analytics breakdown and category filter in supervisor analytics (April 27, 2026)
+
+**feat(work-orders): compute per-asset breakdown metrics in analytics**
+- `WorkOrdersService.getAnalytics()` now derives per-asset metrics from already-fetched in-memory data — no additional Prisma queries.
+- `perAssetMttrMap` iterates all-time corrective WOs, accumulating total repair duration and WO count per asset to compute mean time to repair.
+- `perAssetDowntimeMs` sums the calendar duration (createdAt to closedAt) for corrective WOs whose `closedAt` falls within the selected period, giving total downtime per asset per period.
+- The `allAssetIds` union of `failureCountInPeriod` and `costByAsset` keys defines which assets appear in the breakdown — only assets with maintenance activity in the period are included.
+- Per-asset fields returned: `failureCount`, `lastFailureDate`, `downtimeHours` (rounded to 1 decimal), `mttrHours` (mean repair time, rounded to 1 decimal, null when no WOs), `mtbfDays` (mean gap between consecutive corrective WOs for that asset, null when fewer than 2 WOs exist), `partsCost`, `totalCost`.
+- Results are sorted by `failureCount` descending then `totalCost` descending.
+- `perAsset` field added to `assetKpis` in the analytics response.
+
+**feat(web): add category filter and per-asset breakdown to supervisor analytics**
+- `SupervisorAnalyticsBoard` gains a `categoryId` state variable initialised to `undefined` (no filter).
+- Category list is fetched via `categoriesApi.list()` using a React Query `useQuery` call. The category `<select>` is rendered in the filter bar only when at least one category exists. Selecting "Toutes les catégories" clears `categoryId` back to `undefined`.
+- `queryParams` memo now includes `categoryId`, so the analytics query refetches automatically when the category selection changes. The reset button also clears `categoryId`.
+- `AssetBreakdownItem` interface (`assetId`, `assetName`, `failureCount`, `lastFailureDate`, `downtimeHours`, `mttrHours`, `mtbfDays`, `partsCost`, `totalCost`) added to `work-orders.api.ts`. `WorkOrderAnalyticsResponse.assetKpis` extended with `perAsset: AssetBreakdownItem[]`.
+- The assets tab renders a full per-asset breakdown table below the existing top-10 cards, conditionally shown when `perAsset` is non-empty. Columns: asset name, failure count badge (destructive when >= 5), downtime (h), MTTR (h), MTBF (days), total cost. Rows with no data in a column display "—".
+- i18n keys added: `supervisorAnalytics.filters.category`, `supervisorAnalytics.filters.allCategories`, `supervisorAnalytics.sections.perAssetBreakdown`, `supervisorAnalytics.sections.perAssetBreakdownDesc`, `supervisorAnalytics.columns.downtimeHours`, `supervisorAnalytics.columns.mttrHours`, `supervisorAnalytics.columns.mtbfDays`.
+
+**tests: 7 backend unit tests covering all computation branches**
+- `returns empty perAsset when no corrective WOs or cost data exist` — zero-data guard.
+- `computes downtimeHours as sum of WO duration for corrective WOs closed within the period` — downtime formula and period boundary.
+- `computes mttrHours as mean repair time across all corrective WOs for that asset` — multi-WO average (2h + 4h = 3h mean).
+- `computes mtbfDays as mean gap between consecutive corrective WOs` — 5-day MTBF from two WOs with a 5-day gap.
+- `includes total cost from costByAsset in perAsset entry` — labor + parts aggregation.
+- `includes assets that appear only in costWOs (no corrective failures)` — assets with maintenance costs but no failures.
+- `passes categoryId to the backend query filter and returns it in the response` — filter propagation.
+- Backend total: 68 passing (work-orders service suite), 0 regressions.
+
+---
+
 ### Added — Unit cost trend per part in inventory analytics (April 27, 2026)
 
 **feat(inventory): add unit cost trend per part computation**

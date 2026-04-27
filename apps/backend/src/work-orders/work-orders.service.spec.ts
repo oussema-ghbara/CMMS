@@ -434,6 +434,7 @@ describe('WorkOrdersService.getAnalytics', () => {
             workOrderChecklistItem: { findMany: jest.fn() },
             workOrderValidation: { groupBy: jest.fn() },
             workOrderReassignment: { count: jest.fn() },
+            systemConfig: { findUnique: jest.fn() },
           },
         },
         {
@@ -511,6 +512,7 @@ describe('WorkOrdersService.getAnalytics', () => {
     prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
 
     const analytics = await service.getAnalytics(30);
 
@@ -570,6 +572,7 @@ describe('WorkOrdersService.getAnalytics — technicianKpis.rejectionRateByCateg
     prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
   }
 
   beforeEach(async () => {
@@ -596,6 +599,7 @@ describe('WorkOrdersService.getAnalytics — technicianKpis.rejectionRateByCateg
             workOrderChecklistItem: { findMany: jest.fn() },
             workOrderValidation: { groupBy: jest.fn() },
             workOrderReassignment: { count: jest.fn() },
+            systemConfig: { findUnique: jest.fn() },
           },
         },
         {
@@ -1253,6 +1257,7 @@ describe('WorkOrdersService.getAnalytics — requesterAnalytics §9.8', () => {
     prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
   }
 
   beforeEach(async () => {
@@ -1279,6 +1284,7 @@ describe('WorkOrdersService.getAnalytics — requesterAnalytics §9.8', () => {
             workOrderChecklistItem: { findMany: jest.fn() },
             workOrderValidation: { groupBy: jest.fn() },
             workOrderReassignment: { count: jest.fn() },
+            systemConfig: { findUnique: jest.fn() },
           },
         },
         {
@@ -1475,5 +1481,188 @@ describe('WorkOrdersService.getAnalytics — requesterAnalytics §9.8', () => {
     expect(ra.reportAccuracyRate).toBe(0.5);
     // Reports with warning: R2 and R4 → 2/4 = 0.5
     expect(ra.duplicateSubmissionRate).toBe(0.5);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkOrdersService.getAnalytics — postPreventiveCorrectiveRate (§1.2 / §9.8)
+//
+//  Spec: "OT correctifs ouverts dans les N jours après une clôture préventive
+//         sur le même actif" where N = POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS.
+//  Rate = (# closed preventive WOs with ≥1 corrective WO opened within N days
+//           on the same asset) / (total closed preventive WOs)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('WorkOrdersService.getAnalytics — postPreventiveCorrectiveRate §1.2', () => {
+  let service: WorkOrdersService;
+
+  const ASSET_A = 'asset-a';
+  const ASSET_B = 'asset-b';
+  const PERIOD_DAYS = 30;
+
+  // Preventive WO closed on ASSET_A at T0
+  const T0 = new Date('2026-04-10T10:00:00Z');
+  // Corrective WO opened on ASSET_A 3 days later (within a 7-day window)
+  const T0_plus3d = new Date('2026-04-13T10:00:00Z');
+  // Corrective WO opened on ASSET_A 10 days later (outside a 7-day window)
+  const T0_plus10d = new Date('2026-04-20T10:00:00Z');
+
+  function buildPrismaValue() {
+    return {
+      workOrder: { groupBy: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+      problemReport: { findMany: jest.fn() },
+      workOrderChecklistItem: { findMany: jest.fn() },
+      workOrderValidation: { groupBy: jest.fn() },
+      workOrderReassignment: { count: jest.fn() },
+      systemConfig: { findUnique: jest.fn() },
+    };
+  }
+
+  function setupBasePromiseAll(prisma: any, preventiveWOs: unknown[]) {
+    prisma.workOrder.groupBy
+      .mockResolvedValueOnce([]) // byStatus
+      .mockResolvedValueOnce([]) // byType
+      .mockResolvedValueOnce([]) // byPriority
+      .mockResolvedValueOnce([]); // sourceDistRaw
+    prisma.workOrder.count.mockResolvedValue(0);
+    prisma.workOrder.findMany
+      .mockResolvedValueOnce([]) // closedWOs
+      .mockResolvedValueOnce([]) // costWOs
+      .mockResolvedValueOnce([]) // correctiveWOs (MTBF/MTTR)
+      .mockResolvedValueOnce([]) // techKpiWOs
+      .mockResolvedValueOnce(preventiveWOs); // preventiveWOsInPeriod
+    prisma.problemReport.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
+    prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
+    prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+  }
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersService,
+        {
+          provide: WorkOrdersRepository,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            updateStatus: jest.fn(),
+            updatePriority: jest.fn(),
+            findOverdueForEscalation: jest.fn(),
+            findOverdueCritical: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: buildPrismaValue(),
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notify: jest.fn(), notifyMany: jest.fn(), notifySupervisors: jest.fn() },
+        },
+        {
+          provide: PartRequestsService,
+          useValue: { handleWorkOrderCancellation: jest.fn() },
+        },
+        { provide: StorageService, useValue: { getSignedUrl: jest.fn() } },
+        { provide: ReportGenerationService, useValue: { generatePdf: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(WorkOrdersService);
+  });
+
+  it('returns null when there are no closed preventive WOs in period', async () => {
+    const prisma = service['prisma'] as any;
+    setupBasePromiseAll(prisma, [
+      { status: WorkOrderStatus.OPEN, assetId: ASSET_A, closedAt: null },
+    ]);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce({ key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS', value: '7' });
+
+    const result = await service.getAnalytics(PERIOD_DAYS);
+
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveRate).toBeNull();
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveWindowDays).toBe(7);
+  });
+
+  it('returns 1.0 when every closed preventive WO has a corrective WO within the window', async () => {
+    const prisma = service['prisma'] as any;
+    setupBasePromiseAll(prisma, [
+      { status: WorkOrderStatus.CLOSED, assetId: ASSET_A, closedAt: T0 },
+    ]);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce({ key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS', value: '7' });
+    // correctiveFollowUps query — corrective WO on ASSET_A opened 3 days after T0
+    prisma.workOrder.findMany.mockResolvedValueOnce([
+      { assetId: ASSET_A, createdAt: T0_plus3d },
+    ]);
+
+    const result = await service.getAnalytics(PERIOD_DAYS);
+
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveRate).toBe(1);
+  });
+
+  it('returns 0 when the corrective WO is opened after the window', async () => {
+    const prisma = service['prisma'] as any;
+    setupBasePromiseAll(prisma, [
+      { status: WorkOrderStatus.CLOSED, assetId: ASSET_A, closedAt: T0 },
+    ]);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce({ key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS', value: '7' });
+    // correctiveFollowUps — opened 10 days later, outside the 7-day window
+    prisma.workOrder.findMany.mockResolvedValueOnce([
+      { assetId: ASSET_A, createdAt: T0_plus10d },
+    ]);
+
+    const result = await service.getAnalytics(PERIOD_DAYS);
+
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveRate).toBe(0);
+  });
+
+  it('computes partial rate when only some preventive WOs have corrective follow-ups', async () => {
+    const prisma = service['prisma'] as any;
+    // Two closed preventive WOs: ASSET_A has a follow-up, ASSET_B does not
+    setupBasePromiseAll(prisma, [
+      { status: WorkOrderStatus.CLOSED, assetId: ASSET_A, closedAt: T0 },
+      { status: WorkOrderStatus.CLOSED, assetId: ASSET_B, closedAt: T0 },
+    ]);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce({ key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS', value: '7' });
+    prisma.workOrder.findMany.mockResolvedValueOnce([
+      { assetId: ASSET_A, createdAt: T0_plus3d }, // only ASSET_A gets a corrective WO
+    ]);
+
+    const result = await service.getAnalytics(PERIOD_DAYS);
+
+    // 1 triggered out of 2 → 0.5
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveRate).toBe(0.5);
+  });
+
+  it('uses default window of 7 days when config key is absent', async () => {
+    const prisma = service['prisma'] as any;
+    setupBasePromiseAll(prisma, [
+      { status: WorkOrderStatus.CLOSED, assetId: ASSET_A, closedAt: T0 },
+    ]);
+    prisma.systemConfig.findUnique.mockResolvedValueOnce(null); // key not set
+    prisma.workOrder.findMany.mockResolvedValueOnce([]);
+
+    const result = await service.getAnalytics(PERIOD_DAYS);
+
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveWindowDays).toBe(7);
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveRate).toBe(0);
+  });
+
+  it('respects a custom window from system config', async () => {
+    const prisma = service['prisma'] as any;
+    setupBasePromiseAll(prisma, [
+      { status: WorkOrderStatus.CLOSED, assetId: ASSET_A, closedAt: T0 },
+    ]);
+    // Custom window of 14 days
+    prisma.systemConfig.findUnique.mockResolvedValueOnce({ key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS', value: '14' });
+    // Corrective WO opened 10 days after — within 14-day window but outside 7-day
+    prisma.workOrder.findMany.mockResolvedValueOnce([
+      { assetId: ASSET_A, createdAt: T0_plus10d },
+    ]);
+
+    const result = await service.getAnalytics(PERIOD_DAYS);
+
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveWindowDays).toBe(14);
+    expect(result.preventivePlanEfficiency.postPreventiveCorrectiveRate).toBe(1);
   });
 });

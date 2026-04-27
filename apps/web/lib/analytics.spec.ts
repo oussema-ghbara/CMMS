@@ -49,6 +49,8 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
         anomalyRate: 0.05,
         totalPreventiveWOs: 10,
         closedPreventiveWOs: 9,
+        postPreventiveCorrectiveRate: 0.2,
+        postPreventiveCorrectiveWindowDays: 7,
       },
       operationalOverview: {
         sourceDistribution: {},
@@ -88,7 +90,7 @@ describe('WorkOrderAnalyticsResponse extended contract', () => {
       },
       technicianKpis: [],
       requesterAnalytics: { totalReportsSubmitted: 0, totalConverted: 0, conversionRate: null, reportToActionAvgDays: null, reportAccuracyRate: null, duplicateSubmissionRate: null },
-      preventivePlanEfficiency: { complianceRate: null, anomalyRate: null, totalPreventiveWOs: 0, closedPreventiveWOs: 0 },
+      preventivePlanEfficiency: { complianceRate: null, anomalyRate: null, totalPreventiveWOs: 0, closedPreventiveWOs: 0, postPreventiveCorrectiveRate: null, postPreventiveCorrectiveWindowDays: 7 },
       operationalOverview: { sourceDistribution: {}, rejectionReasonDistribution: {}, reassignmentCount: 0, avgHoldPeriodsPerWo: null },
     };
 

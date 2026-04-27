@@ -368,6 +368,18 @@ export interface AssetCostKpiItem {
   totalCost: number;
 }
 
+export interface AssetBreakdownItem {
+  assetId: string;
+  assetName: string;
+  failureCount: number;
+  lastFailureDate: string | null;
+  downtimeHours: number;
+  mttrHours: number | null;
+  mtbfDays: number | null;
+  partsCost: number;
+  totalCost: number;
+}
+
 export interface TechnicianRejectionCategoryEntry {
   count: number;
   rate: number;
@@ -411,6 +423,7 @@ export interface WorkOrderAnalyticsResponse {
     topByCost: AssetCostKpiItem[];
     preventiveComplianceRate: number | null;
     totalMaintenanceCost: number;
+    perAsset: AssetBreakdownItem[];
   };
   technicianKpis: TechnicianKpiItem[];
   requesterAnalytics: {

@@ -259,6 +259,8 @@
     "subtitle": "Suivez l'état global des ordres de travail, les retards, la répartition par type et la performance de clôture.",
     "filters": {
       "periodDays": "Fenêtre (jours)",
+      "category": "Catégorie",
+      "allCategories": "Toutes les catégories",
       "apply": "Appliquer",
       "reset": "Réinitialiser"
     },
@@ -324,6 +326,8 @@
       "topFailingAssetsDesc": "Top 10 par nombre de pannes correctives sur la période",
       "topCostAssets": "Équipements les plus coûteux",
       "topCostAssetsDesc": "Top 10 par coût total (main-d'œuvre + pièces + sous-traitance)",
+      "perAssetBreakdown": "Détail par équipement",
+      "perAssetBreakdownDesc": "Temps d'arrêt, MTBF, MTTR et coût par équipement sur la période",
       "technicianPerformance": "Performance par technicien",
       "technicianPerformanceDesc": "OT clôturés sur la période avec technicien principal désigné",
       "technicianRejectionBreakdown": "Détail des rejets par technicien",
@@ -336,6 +340,9 @@
       "failureCount": "Pannes",
       "lastFailure": "Dernière panne",
       "totalCost": "Coût total",
+      "downtimeHours": "Temps d'arrêt",
+      "mttrHours": "MTTR",
+      "mtbfDays": "MTBF",
       "technician": "Technicien",
       "closedWOs": "OT clôturés",
       "firstPassRate": "1er passage",

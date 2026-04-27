@@ -8,7 +8,8 @@ import {
   TrendingDown, TrendingUp, Users, Wrench,
 } from 'lucide-react';
 import { WorkOrderStatus, WorkOrderType, WorkOrderPriority } from '@gmao/shared';
-import { workOrdersApi, type TechnicianKpiItem } from '@/lib/work-orders.api';
+import { workOrdersApi, type TechnicianKpiItem, type AssetBreakdownItem } from '@/lib/work-orders.api';
+import { categoriesApi } from '@/lib/categories.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,9 +111,15 @@ export function SupervisorAnalyticsBoard() {
 
   const [periodInput, setPeriodInput] = useState(String(DEFAULT_PERIOD_DAYS));
   const [periodDays, setPeriodDays] = useState(DEFAULT_PERIOD_DAYS);
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
 
-  const queryParams = useMemo(() => ({ periodDays }), [periodDays]);
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', 'list'],
+    queryFn: categoriesApi.list,
+  });
+
+  const queryParams = useMemo(() => ({ periodDays, categoryId }), [periodDays, categoryId]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['supervisor', 'analytics', queryParams],
@@ -162,10 +169,32 @@ export function SupervisorAnalyticsBoard() {
             className="w-20 h-8 text-sm"
           />
         </div>
+        {categories.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="analytics-category">
+              {t('supervisorAnalytics.filters.category')}
+            </label>
+            <select
+              id="analytics-category"
+              value={categoryId ?? ''}
+              onChange={(e) => setCategoryId(e.target.value || undefined)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="">{t('supervisorAnalytics.filters.allCategories')}</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <Button size="sm" variant="outline" onClick={handleApply}>
           {t('supervisorAnalytics.filters.apply')}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => { setPeriodInput(String(DEFAULT_PERIOD_DAYS)); setPeriodDays(DEFAULT_PERIOD_DAYS); }}>
+        <Button size="sm" variant="ghost" onClick={() => {
+          setPeriodInput(String(DEFAULT_PERIOD_DAYS));
+          setPeriodDays(DEFAULT_PERIOD_DAYS);
+          setCategoryId(undefined);
+        }}>
           {t('supervisorAnalytics.filters.reset')}
         </Button>
       </div>
@@ -367,6 +396,52 @@ export function SupervisorAnalyticsBoard() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* §1.4 / §2.7: per-asset full breakdown — downtime, MTBF, MTTR, cost */}
+              {data.assetKpis.perAsset.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">{t('supervisorAnalytics.sections.perAssetBreakdown')}</CardTitle>
+                    <CardDescription>{t('supervisorAnalytics.sections.perAssetBreakdownDesc')}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[700px]">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="pb-2 text-left font-medium text-muted-foreground">{t('supervisorAnalytics.columns.asset')}</th>
+                          <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.failureCount')}</th>
+                          <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.downtimeHours')}</th>
+                          <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.mttrHours')}</th>
+                          <th className="pb-2 text-center font-medium text-muted-foreground">{t('supervisorAnalytics.columns.mtbfDays')}</th>
+                          <th className="pb-2 text-right font-medium text-muted-foreground">{t('supervisorAnalytics.columns.totalCost')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.assetKpis.perAsset.map((item: AssetBreakdownItem) => (
+                          <tr key={item.assetId} className="border-b last:border-0">
+                            <td className="py-2 pr-4 font-medium">{item.assetName}</td>
+                            <td className="py-2 text-center">
+                              {item.failureCount > 0
+                                ? <Badge variant={item.failureCount >= 5 ? 'destructive' : 'warning'}>{item.failureCount}</Badge>
+                                : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-2 text-center text-muted-foreground">
+                              {item.downtimeHours > 0 ? `${fmtDec(item.downtimeHours)} h` : '—'}
+                            </td>
+                            <td className="py-2 text-center text-muted-foreground">
+                              {item.mttrHours != null ? `${fmtDec(item.mttrHours)} h` : '—'}
+                            </td>
+                            <td className="py-2 text-center text-muted-foreground">
+                              {item.mtbfDays != null ? `${fmtDec(item.mtbfDays)} j` : '—'}
+                            </td>
+                            <td className="py-2 text-right font-medium">{fmtCur(item.totalCost)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 

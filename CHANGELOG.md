@@ -4,6 +4,40 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — idle timeout spec TypeScript timer type declarations (April 27, 2026)
+
+**fix(test): correct timer type declarations in idle timeout spec**
+- The three fake-timer tests in `use-idle-timeout.spec.ts` declared `timerId` as `ReturnType<typeof setTimeout>`, which resolves to `NodeJS.Timeout` in the Node/jsdom environment. When `jest.useFakeTimers()` is active, `setTimeout` returns a plain `number`, causing a TypeScript assignment error.
+- Changed all three declarations to `number | null` and cast the `setTimeout` return with `as unknown as number` to match the fake-timer environment.
+- No runtime behaviour change; tests pass and are type-correct.
+
+---
+
+### Added — Post-preventive corrective rate KPI in work order analytics (April 27, 2026)
+
+**feat(work-orders): compute post-preventive corrective rate in analytics**
+- `getAnalytics()` reads `POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS` from `SystemConfig` as the 18th item in the existing `Promise.all` (defaults to 7 when the key is absent or non-numeric).
+- After the parallel batch resolves, a bounded follow-up query finds all corrective work orders whose `createdAt` falls within `windowDays × 24h` of any closed preventive work order's `closedAt` on the same asset. The cross-match is performed in JavaScript to avoid N+1 queries.
+- `postPreventiveCorrectiveRate` = (closed preventive WOs with at least one corrective WO opened on the same asset within the window) / (total closed preventive WOs in period); `null` when no preventive WOs were closed in the period.
+- `postPreventiveCorrectiveWindowDays` (the effective configured value) is returned alongside the rate so clients can render the configured window to users.
+- Both fields added to `preventivePlanEfficiency` in the analytics return object.
+
+**feat(web): add post-preventive corrective rate KPI to supervisor analytics**
+- `WorkOrderAnalyticsResponse.preventivePlanEfficiency` interface extended with `postPreventiveCorrectiveRate: number | null` and `postPreventiveCorrectiveWindowDays: number`.
+- Preventive tab grid changed from `sm:grid-cols-3` to `sm:grid-cols-2 lg:grid-cols-4`; a fourth `KpiCard` renders the rate as a percentage (`—` when null) with a sub-label interpolating the configured window in days.
+- i18n: `supervisorAnalytics.kpi.postPreventiveCorrectiveRate` and `supervisorAnalytics.kpi.postPreventiveCorrectiveRateDesc` added to `apps/web/public/locales/fr/common.json`.
+
+**fix(web): navigate blocked part requests panel to ON_HOLD filtered list**
+- The "Demandes bloquées" CTA button in the supervisor dashboard previously linked to `/supervisor/work-orders` with no filter. It now links to `/supervisor/work-orders?status=ON_HOLD`, opening the work orders board pre-filtered to the only status that produces blocked part requests.
+
+**tests: 6 backend unit tests covering all computation branches**
+- `work-orders.service.spec.ts`: new `describe` block — `null` when no closed preventive WOs exist; rate = 1 when all have a corrective follow-up within the window; rate = 0 when the corrective WO falls after the window; rate = 0.5 for a partial match; default 7-day window when config key is absent; custom window from config respected.
+- All three existing analytics `describe` blocks updated: `systemConfig: { findUnique: jest.fn() }` added to each `PrismaService` mock and `mockResolvedValueOnce(null)` added in each `setupMocks` helper.
+- `analytics.spec.ts`: two fixture objects updated with `postPreventiveCorrectiveRate` and `postPreventiveCorrectiveWindowDays` to match the extended TypeScript interface.
+- Backend total: 568 passing, 0 regressions. Frontend total: 205 passing, 0 regressions.
+
+---
+
 ### Added — Session idle timeout enforcement (April 26, 2026)
 
 **feat(auth): return idle timeout hours in login and refresh responses**

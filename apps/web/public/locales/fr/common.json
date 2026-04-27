@@ -1957,7 +1957,25 @@
       "last7To30Days": "7 – 30 jours",
       "last30To90Days": "30 – 90 jours",
       "over90Days": "> 90 jours",
-      "never": "Jamais connectés"
+      "never": "Jamais connectés",
+      "loginFrequencyTable": "Détail par utilisateur",
+      "loginFrequencyTableDescription": "Classification de chaque utilisateur selon la date de sa dernière connexion.",
+      "loginFrequencyColumns": {
+        "user": "Utilisateur",
+        "roles": "Rôles",
+        "lastLogin": "Dernière connexion",
+        "frequency": "Fréquence"
+      },
+      "loginFrequencyCategory": {
+        "RECENT": "Récente (< 7 j)",
+        "WEEKLY": "Hebdomadaire (< 30 j)",
+        "OCCASIONAL": "Occasionnelle (< 90 j)",
+        "INACTIVE": "Inactive (> 90 j)",
+        "NEVER": "Jamais"
+      },
+      "loginFrequencyNever": "Jamais connecté",
+      "loginFrequencyLoadMore": "Charger plus",
+      "loginFrequencyEmpty": "Aucun utilisateur trouvé."
     },
     "systemStats": {
       "queues": "Files d'attente de jobs",

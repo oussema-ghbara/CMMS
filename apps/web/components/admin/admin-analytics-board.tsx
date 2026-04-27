@@ -1,19 +1,31 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Loader2,
   Users,
   XCircle,
   CalendarClock,
 } from 'lucide-react';
-import { adminApi, type QueueStats, type UserActivityStats, type SystemHealthStats, type ScheduledJobStat } from '@/lib/admin.api';
+import {
+  adminApi,
+  type QueueStats,
+  type UserActivityStats,
+  type UserLoginFrequencyEntry,
+  type SystemHealthStats,
+  type ScheduledJobStat,
+} from '@/lib/admin.api';
+import { FREQUENCY_BADGE_VARIANT, formatLoginDate } from '@/lib/login-frequency-utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -260,6 +272,134 @@ function UserActivitySection({
   );
 }
 
+
+const FREQUENCY_PAGE_SIZE = 20;
+
+function UserLoginFrequencyTable({
+  t,
+  language,
+}: {
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  language: string;
+}) {
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'analytics', 'users', 'frequency', page] as const,
+    queryFn: () => adminApi.getUserLoginFrequency({ page, limit: FREQUENCY_PAGE_SIZE }),
+  });
+
+  const totalPages = data ? Math.ceil(data.total / FREQUENCY_PAGE_SIZE) : 1;
+
+  const formatDate = (iso: string | null) => {
+    return formatLoginDate(iso, language) ?? t('adminAnalytics.userStats.loginFrequencyNever');
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          {t('adminAnalytics.userStats.loginFrequencyTable')}
+        </CardTitle>
+        <CardDescription>
+          {t('adminAnalytics.userStats.loginFrequencyTableDescription')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !data || data.data.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            {t('adminAnalytics.userStats.loginFrequencyEmpty')}
+          </p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="pb-2 text-left font-medium text-muted-foreground pr-4">
+                      {t('adminAnalytics.userStats.loginFrequencyColumns.user')}
+                    </th>
+                    <th className="pb-2 text-left font-medium text-muted-foreground pr-4">
+                      {t('adminAnalytics.userStats.loginFrequencyColumns.roles')}
+                    </th>
+                    <th className="pb-2 text-left font-medium text-muted-foreground pr-4">
+                      {t('adminAnalytics.userStats.loginFrequencyColumns.lastLogin')}
+                    </th>
+                    <th className="pb-2 text-left font-medium text-muted-foreground">
+                      {t('adminAnalytics.userStats.loginFrequencyColumns.frequency')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.map((entry: UserLoginFrequencyEntry) => (
+                    <tr key={entry.id} className="border-b last:border-0">
+                      <td className="py-2 pr-4">
+                        <div>
+                          <p className="font-medium">{entry.name}</p>
+                          <p className="text-xs text-muted-foreground">{entry.email}</p>
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4">
+                        <div className="flex flex-wrap gap-1">
+                          {entry.roles.map((role) => (
+                            <Badge key={role} variant="outline" className="text-[10px] py-0 px-1.5">
+                              {t(`roles.${role}`, { defaultValue: role })}
+                            </Badge>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {formatDate(entry.lastLoginAt)}
+                      </td>
+                      <td className="py-2">
+                        <Badge variant={FREQUENCY_BADGE_VARIANT[entry.frequencyCategory]}>
+                          {t(`adminAnalytics.userStats.loginFrequencyCategory.${entry.frequencyCategory}`)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
+                <span>
+                  {(page - 1) * FREQUENCY_PAGE_SIZE + 1}–
+                  {Math.min(page * FREQUENCY_PAGE_SIZE, data.total)} / {data.total}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function SystemHealthSection({
   data,
   t,
@@ -477,6 +617,9 @@ export function AdminAnalyticsBoard() {
           </p>
         </div>
         <UserActivitySection data={userQuery.data} t={t} />
+        <div className="mt-6">
+          <UserLoginFrequencyTable t={t} language={i18n.language || 'fr'} />
+        </div>
       </section>
 
       {/* System Health section */}

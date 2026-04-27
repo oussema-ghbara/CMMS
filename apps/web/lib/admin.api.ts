@@ -51,6 +51,23 @@ export interface UserActivityStats {
   loginRecency: LoginRecency;
 }
 
+export type LoginFrequencyCategory = 'RECENT' | 'WEEKLY' | 'OCCASIONAL' | 'INACTIVE' | 'NEVER';
+
+export interface UserLoginFrequencyEntry {
+  id: string;
+  name: string;
+  email: string;
+  roles: string[];
+  lastLoginAt: string | null;
+  isActive: boolean;
+  frequencyCategory: LoginFrequencyCategory;
+}
+
+export interface UserLoginFrequencyResponse {
+  data: UserLoginFrequencyEntry[];
+  total: number;
+}
+
 export interface QueueStats {
   name: string;
   waiting: number;
@@ -94,6 +111,11 @@ export const adminApi = {
 
   getUserAnalytics: () =>
     api.get<UserActivityStats>('/admin/analytics/users').then((r) => r.data),
+
+  getUserLoginFrequency: (params?: { page?: number; limit?: number }) =>
+    api
+      .get<UserLoginFrequencyResponse>('/admin/analytics/users/frequency', { params })
+      .then((r) => r.data),
 
   getSystemHealth: () =>
     api.get<SystemHealthStats>('/admin/analytics/system').then((r) => r.data),

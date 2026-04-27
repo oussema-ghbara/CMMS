@@ -53,7 +53,37 @@ export interface SystemHealthStats {
   scheduledJobs: ScheduledJobStatus[];
 }
 
+export type LoginFrequencyCategory = 'RECENT' | 'WEEKLY' | 'OCCASIONAL' | 'INACTIVE' | 'NEVER';
+
+export interface UserLoginFrequencyEntry {
+  id: string;
+  name: string;
+  email: string;
+  roles: string[];
+  lastLoginAt: string | null;
+  isActive: boolean;
+  frequencyCategory: LoginFrequencyCategory;
+}
+
+export interface UserLoginFrequencyResponse {
+  data: UserLoginFrequencyEntry[];
+  total: number;
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function classifyLoginFrequency(
+  lastLoginAt: Date | null,
+  ago7: Date,
+  ago30: Date,
+  ago90: Date,
+): LoginFrequencyCategory {
+  if (!lastLoginAt) return 'NEVER';
+  if (lastLoginAt >= ago7) return 'RECENT';
+  if (lastLoginAt >= ago30) return 'WEEKLY';
+  if (lastLoginAt >= ago90) return 'OCCASIONAL';
+  return 'INACTIVE';
+}
 
 @Injectable()
 export class AdminAnalyticsService {
@@ -121,6 +151,37 @@ export class AdminAnalyticsService {
         over90Days: loginOver90,
         never: neverLoggedIn,
       },
+    };
+  }
+
+  async getUserLoginFrequencyList(page: number = 1, limit: number = 20): Promise<UserLoginFrequencyResponse> {
+    const now = new Date();
+    const ago7 = new Date(now.getTime() - 7 * MS_PER_DAY);
+    const ago30 = new Date(now.getTime() - 30 * MS_PER_DAY);
+    const ago90 = new Date(now.getTime() - 90 * MS_PER_DAY);
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        select: { id: true, name: true, email: true, roles: true, lastLoginAt: true, isActive: true },
+        orderBy: [{ lastLoginAt: { sort: 'desc', nulls: 'last' } }, { name: 'asc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.user.count(),
+    ]);
+
+    return {
+      data: users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        roles: u.roles,
+        lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+        isActive: u.isActive,
+        frequencyCategory: classifyLoginFrequency(u.lastLoginAt, ago7, ago30, ago90),
+      })),
+      total,
     };
   }
 

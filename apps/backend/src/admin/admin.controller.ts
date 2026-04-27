@@ -62,6 +62,20 @@ export class AdminController {
     return this.adminAnalytics.getUserActivityStats();
   }
 
+  @Get('analytics/users/frequency')
+  @ApiOperation({ summary: 'Per-user login frequency classification list, paginated (Admin)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  getUserLoginFrequency(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminAnalytics.getUserLoginFrequencyList(
+      page ? Math.max(1, parseInt(page, 10)) : 1,
+      limit ? Math.min(100, Math.max(1, parseInt(limit, 10))) : 20,
+    );
+  }
+
   @Get('analytics/system')
   @ApiOperation({ summary: 'System health — queue statuses, failed notification counts (Admin)' })
   getSystemHealth() {

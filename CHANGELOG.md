@@ -4,6 +4,25 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Stock accuracy rate KPI in inventory analytics (April 27, 2026)
+
+**feat(inventory): add stock accuracy rate computation**
+- `InventoryRepository.getStockAccuracyRate(periodDays)` executes a single raw SQL query that counts total movements and `ADJUSTMENT`-type movements per part within the period, groups by `partId`, and orders results by adjustment ratio descending so the most problematic parts appear first. The query is bounded to 20 rows via `LIMIT 20`.
+- Per-part accuracy rate is computed as `(1 − adjustments / total) × 100`, rounded to one decimal place. The global rate aggregates `adjustmentCount` and `totalMovements` across all returned parts.
+- When no movements exist in the period, `globalRate` returns `100`, `totalMovements` and `adjustmentCount` return `0`, and `perPart` is an empty array.
+- `InventoryService.getAnalytics()` adds `getStockAccuracyRate(periodDays)` to the existing `Promise.all` batch and exposes the result as `stockAccuracy` in the returned analytics object alongside the existing fields.
+
+**feat(web): render stock accuracy rate in storekeeper analytics**
+- `StockAccuracyPartEntry` and `StockAccuracyReport` interfaces added to `apps/web/lib/inventory.api.ts`. `InventoryAnalyticsResponse` extended with `stockAccuracy: StockAccuracyReport`.
+- `StockAnalyticsBoard` gains a new "Taux de précision du stock" `Card` section rendered below the long-waiting requests panel. The section shows: a global rate figure with colour coding (green ≥ 95%, yellow 80–95%, red < 80%) and a detail line showing adjustment count over total movements; a per-part `Table` with columns Pièce, Référence, Total mouvements, Ajustements, and Taux de précision (badge coloured by the same thresholds). An empty state is shown when no movements exist in the period.
+- i18n keys added to `apps/web/public/locales/fr/common.json`: `storekeeperAnalytics.sections.stockAccuracy`, `storekeeperAnalytics.sections.stockAccuracyDescription`, `storekeeperAnalytics.columns.adjustments`, `storekeeperAnalytics.columns.totalMovements`, `storekeeperAnalytics.columns.accuracyRate`, `storekeeperAnalytics.states.noStockAccuracyData`, `storekeeperAnalytics.states.globalAccuracyRate`, `storekeeperAnalytics.states.globalAccuracyDetail`.
+
+**tests: 7 backend unit tests covering all computation branches**
+- `inventory.repository.spec.ts`: `describe('InventoryRepository.getStockAccuracyRate')` — empty movements returns 100% global rate; per-part rate computed correctly (80% for 2/10 adjustments); global rate aggregated across multiple parts; 0% when all movements are adjustments; 100% when no adjustments exist; `since` date boundary derived correctly from `periodDays`; accuracy rate rounded to one decimal (1/3 → 66.7%).
+- Backend total: 575 passing, 0 regressions.
+
+---
+
 ### Fixed — idle timeout spec TypeScript timer type declarations (April 27, 2026)
 
 **fix(test): correct timer type declarations in idle timeout spec**

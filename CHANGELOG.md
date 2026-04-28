@@ -4,6 +4,20 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Checklist anomaly corrective WO creation deferred to closure submission (April 28, 2026)
+
+**fix(work-orders): defer checklist anomaly corrective WO creation to closure submission**
+- `ChecklistService.completeItem()` previously created a corrective work order immediately when a technician marked a checklist item `ANOMALY_DETECTED` with `autoCreateCorrectiveWO: true`. The creation was irreversible even if the technician revised the item outcome before submitting closure.
+- The auto-creation block and its now-unused imports (`WorkOrderType`, `WorkOrderSource`, `nextWorkOrderReference`) have been removed from `ChecklistService`.
+- `InterventionService.submitClosure()` now queries all `ANOMALY_DETECTED` checklist items with `autoCreateCorrectiveWO: true` for the work order and creates one corrective WO per qualifying item inside the same transaction that transitions the WO to `PENDING_VALIDATION`. Atomicity is guaranteed: if the transaction rolls back, no corrective WOs are created.
+- Each corrective WO carries `sourceType: CHECKLIST_ANOMALY`, `triggeredByChecklistItemId` (FK to the originating item), `priority` inherited from the parent WO, `capturedLocationPath` from the asset's location, and `sourcePlanId` when the parent originated from a preventive plan.
+
+**tests: 9 new backend unit tests (intervention service) + 11 updated checklist service tests**
+- `intervention.service.spec.ts` (new) — covers: ForbiddenException when actor is not the principal technician; BadRequestException when mandatory items are still pending; WO transitions to PENDING_VALIDATION with supervisor notification; corrective WO created with correct source, FK, and location path; `sourcePlanId` propagated when present; `sourcePlanId` absent when parent WO has none; one corrective WO per qualifying anomaly item; no WOs created when no items qualify; active intervention log closed with duration on closure.
+- `checklist.service.spec.ts` — the two previous "creates corrective WO" tests replaced by "does NOT create corrective WO at item completion — deferred to closure submission" and "does NOT create corrective WO when ANOMALY_DETECTED but autoCreateCorrectiveWO is false"; all 11 tests pass with no regressions.
+
+---
+
 ### Fixed — Reports board duplicate-warning visibility (April 28, 2026)
 
 **fix(reports): surface duplicate-warning submissions in the supervisor reports board**

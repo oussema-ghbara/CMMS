@@ -72,6 +72,7 @@ describe('DocumentsService', () => {
             asset: { findUnique: jest.fn() },
             part: { findUnique: jest.fn() },
             preventivePlan: { findUnique: jest.fn() },
+            workOrder: { findUnique: jest.fn() },
             $transaction: jest.fn(),
           },
         },
@@ -388,6 +389,139 @@ describe('DocumentsService', () => {
 
       expect(storage.delete).toHaveBeenCalledWith('documents', doc.filePath);
       expect(prisma.document.delete).toHaveBeenCalledWith({ where: { id: DOC_ID } });
+    });
+  });
+
+  // ── findByWorkOrder ──────────────────────────────────────────────────────
+
+  describe('findByWorkOrder', () => {
+    const WO_ID = 'wo-1';
+
+    it('returns current-version docs for an existing work order', async () => {
+      (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue({ id: WO_ID });
+      const doc = makeDoc({ entityType: DocumentEntityType.WORK_ORDER, entityId: WO_ID });
+      (prisma.document.findMany as jest.Mock).mockResolvedValue([doc]);
+
+      const result = await service.findByWorkOrder(WO_ID);
+
+      expect(prisma.document.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            entityType: DocumentEntityType.WORK_ORDER,
+            entityId: WO_ID,
+            isCurrentVersion: true,
+          }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('throws NotFoundException if work order does not exist', async () => {
+      (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.findByWorkOrder(WO_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── uploadForWorkOrder ───────────────────────────────────────────────────
+
+  describe('uploadForWorkOrder', () => {
+    const WO_ID = 'wo-1';
+
+    it('rejects disallowed document types', async () => {
+      (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue({ id: WO_ID });
+      await expect(
+        service.uploadForWorkOrder(WO_ID, makeFile(), DocumentType.COMPLIANCE_CERTIFICATE, ACTOR_ID),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException if work order does not exist', async () => {
+      (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(
+        service.uploadForWorkOrder(WO_ID, makeFile(), DocumentType.PHOTO, ACTOR_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('creates version 1 document for a PHOTO when no prior version exists', async () => {
+      (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue({ id: WO_ID });
+      (prisma.document.findFirst as jest.Mock).mockResolvedValue(null);
+      const newDoc = makeDoc({
+        entityType: DocumentEntityType.WORK_ORDER,
+        entityId: WO_ID,
+        documentType: DocumentType.PHOTO,
+        version: 1,
+      });
+      txMock.document.create.mockResolvedValue(newDoc);
+
+      const result = await service.uploadForWorkOrder(WO_ID, makeFile('photo.jpg'), DocumentType.PHOTO, ACTOR_ID);
+
+      expect(txMock.document.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            entityType: DocumentEntityType.WORK_ORDER,
+            entityId: WO_ID,
+            documentType: DocumentType.PHOTO,
+            version: 1,
+          }),
+        }),
+      );
+      expect(result).toMatchObject({ version: 1, documentType: DocumentType.PHOTO });
+    });
+
+    it('archives prior version and creates version 2 for a CONTRACTOR_REPORT', async () => {
+      (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue({ id: WO_ID });
+      const existing = makeDoc({
+        id: 'doc-old',
+        entityType: DocumentEntityType.WORK_ORDER,
+        entityId: WO_ID,
+        documentType: DocumentType.CONTRACTOR_REPORT,
+        version: 1,
+      });
+      (prisma.document.findFirst as jest.Mock).mockResolvedValue(existing);
+      const newDoc = makeDoc({
+        id: 'doc-new',
+        entityType: DocumentEntityType.WORK_ORDER,
+        entityId: WO_ID,
+        documentType: DocumentType.CONTRACTOR_REPORT,
+        version: 2,
+      });
+      txMock.document.create.mockResolvedValue(newDoc);
+      txMock.document.update.mockResolvedValue({});
+
+      const result = await service.uploadForWorkOrder(
+        WO_ID,
+        makeFile('report.pdf'),
+        DocumentType.CONTRACTOR_REPORT,
+        ACTOR_ID,
+      );
+
+      expect(txMock.document.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'doc-old' },
+          data: expect.objectContaining({ isCurrentVersion: false }),
+        }),
+      );
+      expect(result).toMatchObject({ version: 2 });
+    });
+
+    it('accepts all seven allowed document types without throwing', async () => {
+      const allowed = [
+        DocumentType.TECHNICAL_MANUAL,
+        DocumentType.SCHEMATIC,
+        DocumentType.SAFETY_DATA_SHEET,
+        DocumentType.SPECIFICATION_SHEET,
+        DocumentType.PROCEDURE_DOCUMENT,
+        DocumentType.CONTRACTOR_REPORT,
+        DocumentType.PHOTO,
+      ];
+      for (const type of allowed) {
+        (prisma.workOrder.findUnique as jest.Mock).mockResolvedValue({ id: WO_ID });
+        (prisma.document.findFirst as jest.Mock).mockResolvedValue(null);
+        const newDoc = makeDoc({ entityType: DocumentEntityType.WORK_ORDER, entityId: WO_ID, documentType: type });
+        txMock.document.create.mockResolvedValue(newDoc);
+        await expect(
+          service.uploadForWorkOrder(WO_ID, makeFile(), type, ACTOR_ID),
+        ).resolves.toBeDefined();
+      }
     });
   });
 

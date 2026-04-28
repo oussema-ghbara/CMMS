@@ -19,6 +19,7 @@ import { InterventionService } from './intervention.service';
 import { OnHoldService } from './on-hold.service';
 import { ValidationService } from './validation.service';
 import { ChecklistService } from './checklist.service';
+import { DocumentsService } from '../assets/documents.service';
 
 interface TestUser {
   sub: string;
@@ -125,6 +126,15 @@ describe('WorkOrdersController integration', () => {
         { provide: OnHoldService, useValue: onHold },
         { provide: ValidationService, useValue: validation },
         { provide: ChecklistService, useValue: checklist },
+        {
+          provide: DocumentsService,
+          useValue: {
+            findByWorkOrder: jest.fn().mockResolvedValue([]),
+            uploadForWorkOrder: jest.fn(),
+            getDownloadUrl: jest.fn().mockResolvedValue('https://storage/presigned'),
+            delete: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         { provide: APP_GUARD, useClass: MockJwtAuthGuard },
         { provide: APP_GUARD, useClass: MockRolesGuard },
       ],
@@ -469,5 +479,47 @@ describe('WorkOrdersController integration', () => {
       partsCost: 40,
       totalCost: 240.5,
     });
+  });
+
+  // ── GET /work-orders/:id/documents (§11.2) ────────────────────────────────
+
+  it('GET /work-orders/:id/documents returns 401 without auth', async () => {
+    const response = await request(app.getHttpServer()).get('/work-orders/wo-1/documents');
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /work-orders/:id/documents returns 403 for non-supervisor roles', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/wo-1/documents')
+      .set('Authorization', 'Bearer TECHNICIAN');
+    expect(response.status).toBe(403);
+  });
+
+  it('GET /work-orders/:id/documents returns 200 for supervisors', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/wo-1/documents')
+      .set('Authorization', 'Bearer SUPERVISOR');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+  });
+
+  it('DELETE /work-orders/:id/documents/:docId returns 401 without auth', async () => {
+    const response = await request(app.getHttpServer()).delete('/work-orders/wo-1/documents/doc-1');
+    expect(response.status).toBe(401);
+  });
+
+  it('DELETE /work-orders/:id/documents/:docId returns 403 for non-supervisor roles', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/work-orders/wo-1/documents/doc-1')
+      .set('Authorization', 'Bearer TECHNICIAN');
+    expect(response.status).toBe(403);
+  });
+
+  it('GET /work-orders/:id/documents/:docId/download returns presigned URL for supervisors', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/wo-1/documents/doc-1/download')
+      .set('Authorization', 'Bearer SUPERVISOR');
+    expect(response.status).toBe(200);
+    expect(response.text).toBe('https://storage/presigned');
   });
 });

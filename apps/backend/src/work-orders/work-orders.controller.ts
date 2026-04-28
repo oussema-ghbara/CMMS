@@ -1,6 +1,10 @@
 import {
-  Controller, Get, Post, Patch, Param, Body, Query, Request, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query, Request,
+  HttpCode, HttpStatus, UseInterceptors, UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { DocumentType } from '@gmao/db';
+import { DocumentsService } from '../assets/documents.service';
 import { calculateWorkOrderCostSummary, WorkOrderCostSource } from './work-order-costs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -46,6 +50,7 @@ export class WorkOrdersController {
     private readonly onHold: OnHoldService,
     private readonly validation: ValidationService,
     private readonly checklist: ChecklistService,
+    private readonly documents: DocumentsService,
   ) {}
 
   // ── CRUD ────────────────────────────────────────────────────────
@@ -333,5 +338,42 @@ export class WorkOrdersController {
     @Request() req: AuthRequest,
   ) {
     return this.checklist.completeItem(id, itemId, dto, req.user.sub);
+  }
+
+  // ── Documents ─────────────────────────────────────────────────────
+
+  @Get(':id/documents')
+  @ApiOperation({ summary: 'List current-version documents for a work order (Supervisor)' })
+  @Roles(Role.SUPERVISOR)
+  listDocuments(@Param('id') id: string) {
+    return this.documents.findByWorkOrder(id);
+  }
+
+  @Post(':id/documents')
+  @Roles(Role.SUPERVISOR)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload reference document for a work order (Supervisor) — spec §11.2, §8.9' })
+  uploadDocument(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('documentType') documentType: DocumentType,
+    @Request() req: { user: { sub: string } },
+  ) {
+    return this.documents.uploadForWorkOrder(id, file, documentType, req.user.sub);
+  }
+
+  @Get(':id/documents/:docId/download')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'Get presigned download URL for a work order document (Supervisor)' })
+  getDocumentDownload(@Param('docId') docId: string) {
+    return this.documents.getDownloadUrl(docId);
+  }
+
+  @Delete(':id/documents/:docId')
+  @Roles(Role.SUPERVISOR)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a work order document (Supervisor)' })
+  deleteDocument(@Param('docId') docId: string) {
+    return this.documents.delete(docId);
   }
 }

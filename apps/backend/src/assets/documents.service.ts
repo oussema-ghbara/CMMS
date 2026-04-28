@@ -119,6 +119,53 @@ export class DocumentsService {
     );
   }
 
+  // ── Work order documents ─────────────────────────────────────────────────
+
+  private static readonly WO_ALLOWED_TYPES = new Set<DocumentType>([
+    DocumentType.TECHNICAL_MANUAL,
+    DocumentType.SCHEMATIC,
+    DocumentType.SAFETY_DATA_SHEET,
+    DocumentType.SPECIFICATION_SHEET,
+    DocumentType.PROCEDURE_DOCUMENT,
+    DocumentType.CONTRACTOR_REPORT,
+    DocumentType.PHOTO,
+  ]);
+
+  async findByWorkOrder(workOrderId: string) {
+    await this.assertWorkOrderExists(workOrderId);
+    return this.prisma.document.findMany({
+      where: {
+        entityType: DocumentEntityType.WORK_ORDER,
+        entityId: workOrderId,
+        isCurrentVersion: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { uploadedBy: { select: { id: true, name: true } } },
+    });
+  }
+
+  async uploadForWorkOrder(
+    workOrderId: string,
+    file: Express.Multer.File,
+    documentType: DocumentType,
+    actorId: string,
+  ) {
+    if (!DocumentsService.WO_ALLOWED_TYPES.has(documentType)) {
+      throw new BadRequestException(
+        `Invalid document type for work orders. Allowed: ${[...DocumentsService.WO_ALLOWED_TYPES].join(', ')}`,
+      );
+    }
+    await this.assertWorkOrderExists(workOrderId);
+    return this._doUpload(
+      DocumentEntityType.WORK_ORDER,
+      workOrderId,
+      file,
+      documentType,
+      actorId,
+      'work-orders',
+    );
+  }
+
   // ── Shared ───────────────────────────────────────────────────────────────
 
   async getDownloadUrl(documentId: string): Promise<string> {
@@ -220,5 +267,10 @@ export class DocumentsService {
   private async assertPlanExists(planId: string): Promise<void> {
     const plan = await this.prisma.preventivePlan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException(`Preventive plan ${planId} not found`);
+  }
+
+  private async assertWorkOrderExists(workOrderId: string): Promise<void> {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id: workOrderId } });
+    if (!wo) throw new NotFoundException(`Work order ${workOrderId} not found`);
   }
 }

@@ -834,6 +834,10 @@
       "contributors": "Contributeurs",
       "techLoad": "{{count}} OT actif(s)",
       "techNoLoad": "Aucun OT actif",
+      "draftHint": "Sans technicien, l'OT sera enregistré comme brouillon et devra être publié manuellement.",
+      "assignedHint": "L'OT sera publié et assigné directement au technicien sélectionné.",
+      "saveAsDraft": "Enregistrer comme brouillon",
+      "createAndAssign": "Créer et assigner",
       "durationHints": {
         "title": "Références historiques de durée",
         "last5Asset": "5 derniers OT sur cet équipement",

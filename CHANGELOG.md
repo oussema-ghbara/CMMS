@@ -4,6 +4,20 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Work order creation form draft and assign intent (April 28, 2026)
+
+**fix(web): make draft vs. assign intent explicit in work order creation form**
+- The supervisor work order creation form showed a generic "Create" button regardless of whether a principal technician was selected, giving no indication that submitting without a technician saves the WO as a draft requiring manual publication.
+- The submit button label is now driven by `getSubmitLabelKey(hasPrincipalTechnician)`, which returns the appropriate i18n key based on technician selection: "Enregistrer comme brouillon" when no technician is chosen, "Créer et assigner" when one is selected.
+- An informational hint paragraph is now displayed below the technician selector. It shows `form.draftHint` when no technician is selected (explaining the WO will need manual publication) and `form.assignedHint` when a technician is selected (confirming immediate publication and assignment).
+- `getSubmitLabelKey` is exported as a pure function to enable deterministic unit testing without component rendering.
+- Four i18n keys added under `supervisorWorkOrders.form`: `saveAsDraft`, `createAndAssign`, `draftHint`, `assignedHint`.
+
+**tests: 5 frontend unit tests**
+- `work-order-form-dialog.spec.tsx`: `getSubmitLabelKey(false)` returns `saveAsDraft` key; `getSubmitLabelKey(true)` returns `createAndAssign` key; empty string coercion returns draft key; non-empty string coercion returns assign key; both keys are distinct strings.
+
+---
+
 ### Fixed — Checklist anomaly corrective WO creation deferred to closure submission (April 28, 2026)
 
 **fix(work-orders): defer checklist anomaly corrective WO creation to closure submission**

@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { AlertCircle, Clock, Loader2, TriangleAlert, UserCheck } from 'lucide-react';
+import { AlertCircle, Clock, Info, Loader2, TriangleAlert, UserCheck } from 'lucide-react';
 import { WorkOrderType, WorkOrderPriority } from '@gmao/shared';
 import { workOrdersApi, type DuplicateWoConflict } from '@/lib/work-orders.api';
 import { assetsApi } from '@/lib/assets.api';
@@ -79,6 +79,12 @@ type WorkOrderFormValues = z.infer<typeof workOrderSchema>;
 interface WorkOrderFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+export function getSubmitLabelKey(hasPrincipalTechnician: boolean): string {
+  return hasPrincipalTechnician
+    ? 'supervisorWorkOrders.form.createAndAssign'
+    : 'supervisorWorkOrders.form.saveAsDraft';
 }
 
 const TYPE_OPTIONS = [WorkOrderType.CORRECTIVE, WorkOrderType.PREVENTIVE] as const;
@@ -416,6 +422,12 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
                 {t('supervisorWorkOrders.form.techNoLoad')}
               </p>
             )}
+            <p className="text-xs text-muted-foreground px-1 flex items-start gap-1 pt-1">
+              <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              {principalTechnicianId
+                ? t('supervisorWorkOrders.form.assignedHint')
+                : t('supervisorWorkOrders.form.draftHint')}
+            </p>
           </div>
 
           {/* Contributors — only shown if principal is selected */}
@@ -526,7 +538,7 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
               {createMutation.isPending && !duplicateConflict && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {t('common.create')}
+              {t(getSubmitLabelKey(!!principalTechnicianId))}
             </Button>
           </DialogFooter>
         </form>

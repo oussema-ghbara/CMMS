@@ -35,6 +35,14 @@ All notable changes to the GMAO project are documented here.
 - `OnHoldService.putOnHold()` accepted `supervisorAssetStatusChoice` for any `reasonType` and silently stored a semantically invalid value on `OnHoldPeriod` records where the field has no meaning (only applicable when `reasonType` is `OTHER`).
 - A `BadRequestException('workOrders.hold.supervisorChoiceNotAllowed')` is now thrown immediately when `supervisorAssetStatusChoice` is present in the DTO and `reasonType !== OTHER`, before any state transition or database write occurs.
 
+### Fixed — On-hold supervisor asset-status choice moved to supervisor metadata (April 28, 2026)
+
+**fix(work-orders): move supervisor asset-status choice to supervisor hold-metadata**
+- `PutOnHoldDto` no longer accepts `supervisorAssetStatusChoice`; technicians cannot propose supervisor-only asset status overrides when creating an on-hold period.
+- `UpdateHoldMetadataDto` gains an optional `supervisorAssetStatusChoice?: AssetStatus` with proper `@IsEnum` validation and API documentation.
+- `OnHoldService.updateHoldMetadata()` validates the presence and applicability of the supervisor choice (only allowed when the active hold's `reasonType` is `OTHER`), applies the `OnHoldPeriod` partial update, and when provided updates the related `Asset` status and writes an `AssetStatusLog` entry inside the same transaction to keep the state change atomic.
+
+
 **tests: reports repository unit coverage + reports controller integration coverage**
 - `reports.repository.spec.ts` — asserts `orderBy` is `[{ urgencyPerception: 'desc' }, { createdAt: 'asc' }]`, rejects the old `{ createdAt: 'desc' }` shape, and still verifies filter passthrough plus pagination.
 - `reports.controller.integration.spec.ts` — verifies `GET /reports` returns 401 without auth, 403 for non-operational roles, 200 for operational roles, and 400 for invalid query values.

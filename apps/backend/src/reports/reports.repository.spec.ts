@@ -177,13 +177,13 @@ function buildFindAllPrisma() {
 }
 
 describe('ReportsRepository.findAll — §9.1 sort order', () => {
-  it('orders by urgencyPerception ASC then createdAt ASC', async () => {
+  it('orders by urgencyPerception DESC then createdAt ASC', async () => {
     const { repo, findMany } = buildFindAllPrisma();
 
     await repo.findAll({ page: 1, limit: 20 } as never);
 
     const call = findMany.mock.calls[0][0] as { orderBy: unknown };
-    expect(call.orderBy).toEqual([{ urgencyPerception: 'asc' }, { createdAt: 'asc' }]);
+    expect(call.orderBy).toEqual([{ urgencyPerception: 'desc' }, { createdAt: 'asc' }]);
   });
 
   it('does NOT order by createdAt DESC alone', async () => {

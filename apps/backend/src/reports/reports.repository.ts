@@ -32,7 +32,7 @@ export class ReportsRepository {
           reporter: { select: { id: true, name: true } },
           asset: { select: { id: true, name: true, location: { select: { fullPath: true } } } },
         },
-        orderBy: [{ urgencyPerception: 'asc' }, { createdAt: 'asc' }],
+        orderBy: [{ urgencyPerception: 'desc' }, { createdAt: 'asc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),

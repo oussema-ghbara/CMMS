@@ -127,7 +127,7 @@ Never edit an applied migration. Always create a new one.
 |---|---|
 | Auth | Login, account setup, resend-setup, forgot/reset password |
 | Admin | Users table, system config panel, audit log with filters, analytics dashboard (user activity + system health + job status) |
-| Supervisor | Dashboard (summary cards, technician load, operational alerts, certificate risk panel), work orders board + detail dialog (full lifecycle actions, validation signals, hold management, cost summary, follow-up prompt, PDF download), validation queue, preventive plans board (list + calendar views), assets board (CRUD, certificates, documents, QR print), reports board (with asset context and duplicate WO banner), analytics board (6 tabs: asset KPIs, technician KPIs with rejection breakdown, requester stats, plan efficiency, operational overview, asset health) |
+| Supervisor | Dashboard (summary cards, technician load, operational alerts, certificate risk panel), work orders board + detail dialog (full lifecycle actions, validation signals, hold management, cost summary, follow-up prompt, PDF download), validation queue, preventive plans board (list + calendar views), assets board (CRUD, certificates, documents, QR print), reports board (with asset context, duplicate WO banner, and duplicate-warning badge on warned submissions), analytics board (6 tabs: asset KPIs, technician KPIs with rejection breakdown, requester stats, plan efficiency, operational overview, asset health) |
 | Storekeeper | Inventory catalog (with document attachments, stock operations, movement history), part requests queue, analytics (cost trend, long-waiting requests) |
 | Notifications | Live Socket.io push, unread badge, mark-read, deep-link navigation |
 

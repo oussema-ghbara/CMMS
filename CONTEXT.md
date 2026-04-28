@@ -37,7 +37,7 @@ Tech stack decisions: stack.pdf
 - [x] InventoryModule — parts catalog, part requests, stock movements, low-stock alerts, analytics
 - [x] InventoryModule — duplicate part `referenceCode` creates now return 409 Conflict instead of leaking Prisma unique-constraint 500s
 - [x] PreventivePlansModule — plan CRUD, checklist templates, BullMQ WO generator, daily @Cron scheduler
-- [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive
+- [x] ReportsModule — problem report lifecycle, comments, convert/reject/defer/reopen/archive; supervisor reports board now shows a duplicate-warning badge whenever `submittedDespiteWarning` is true
 - [x] Backend integrity hardening — WO/PR reference generation now uses transaction advisory locks to prevent duplicate references under concurrent writes
 - [x] Backend runtime compatibility — advisory lock SQL now casts lock keys to `int` to match PostgreSQL function overloads used in production
 - [x] Backend verification — live smoke test covers auth, work orders, preventive plans, and reports

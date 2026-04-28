@@ -4,6 +4,17 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Reports board duplicate-warning visibility (April 28, 2026)
+
+**fix(reports): surface duplicate-warning submissions in the supervisor reports board**
+- `submittedDespiteWarning` is now part of the frontend report list contract and is rendered as a localized warning badge in the reports table and detail view when true.
+- `reports-board.tsx` adds a small reusable badge component so the same warning presentation is used consistently in the row, summary header, and detail section.
+- French i18n keys added under `supervisorReports`: `labels.submittedDespiteWarning` and `detail.warningStatus`.
+
+**tests: 1 component spec + 1 API contract spec**
+- `reports-board.spec.tsx` covers badge rendering and the hidden state when the warning flag is false.
+- `reports-detail-enrichment.spec.ts` verifies the list payload preserves `submittedDespiteWarning`.
+
 ### Fixed — Work order priority history visibility and archive notification specificity (April 28, 2026)
 
 **fix(work-orders): expose and display priority change history in work order detail**

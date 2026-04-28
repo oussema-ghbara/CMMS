@@ -220,6 +220,53 @@ describe('OnHoldService', () => {
         service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal'),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
+
+    it('throws BadRequestException when supervisorAssetStatusChoice is sent for MISSING_PART', async () => {
+      const { service, repo } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO());
+
+      await expect(
+        service.putOnHold('wo-1', {
+          reasonType: OnHoldReasonType.MISSING_PART,
+          supervisorAssetStatusChoice: AssetStatus.OUT_OF_SERVICE,
+        }, 'tech-principal'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException when supervisorAssetStatusChoice is sent for EXTERNAL_CONTRACTOR', async () => {
+      const { service, repo } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO());
+
+      await expect(
+        service.putOnHold('wo-1', {
+          reasonType: OnHoldReasonType.EXTERNAL_CONTRACTOR,
+          supervisorAssetStatusChoice: AssetStatus.OPERATIONAL,
+        }, 'tech-principal'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException when supervisorAssetStatusChoice is sent for ACCESS_DENIED', async () => {
+      const { service, repo } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO());
+
+      await expect(
+        service.putOnHold('wo-1', {
+          reasonType: OnHoldReasonType.ACCESS_DENIED,
+          supervisorAssetStatusChoice: AssetStatus.MAINTENANCE_BLOCKED,
+        }, 'tech-principal'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('does NOT throw when supervisorAssetStatusChoice is absent for non-OTHER reason', async () => {
+      const { service, repo } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO())
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      await expect(
+        service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal'),
+      ).resolves.not.toThrow();
+    });
   });
 
   // ── resume() ───────────────────────────────────────────────────────────────

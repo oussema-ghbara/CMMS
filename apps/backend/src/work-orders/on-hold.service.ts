@@ -50,6 +50,10 @@ export class OnHoldService {
     }
     assertTransitionAllowed(wo.status, WorkOrderStatus.ON_HOLD, [Role.TECHNICIAN]);
 
+    if (dto.supervisorAssetStatusChoice !== undefined && dto.reasonType !== OnHoldReasonType.OTHER) {
+      throw new BadRequestException('workOrders.hold.supervisorChoiceNotAllowed');
+    }
+
     const targetAssetStatus = deriveAssetStatus(
       dto.reasonType, wo.type, dto.supervisorAssetStatusChoice,
     );

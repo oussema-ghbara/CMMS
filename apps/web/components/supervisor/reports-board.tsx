@@ -159,6 +159,24 @@ function FieldValue({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-foreground">{children}</p>;
 }
 
+export function DuplicateSubmissionBadge({
+  submittedDespiteWarning,
+  className,
+}: {
+  submittedDespiteWarning: boolean;
+  className?: string;
+}) {
+  const { t } = useTranslation();
+
+  if (!submittedDespiteWarning) return null;
+
+  return (
+    <Badge variant="warning" className={className}>
+      {t('supervisorReports.labels.submittedDespiteWarning')}
+    </Badge>
+  );
+}
+
 function ActionCard({
   title,
   description,
@@ -562,6 +580,10 @@ export function ReportsBoard() {
                           <Badge variant={getStatusVariant(report.status)}>
                             {t(`supervisorReports.status.${report.status}`)}
                           </Badge>
+                          <DuplicateSubmissionBadge
+                            submittedDespiteWarning={report.submittedDespiteWarning}
+                            className="text-[10px] px-1.5 py-0"
+                          />
                           {report.status === ProblemReportStatus.DEFERRED &&
                             (() => {
                               const aging = getDeferredAgingTier(report.deferredAt);
@@ -697,6 +719,7 @@ export function ReportsBoard() {
                         <Badge variant={getUrgencyVariant(report.urgencyPerception)}>
                           {t(`supervisorReports.urgency.${report.urgencyPerception}`)}
                         </Badge>
+                        <DuplicateSubmissionBadge submittedDespiteWarning={report.submittedDespiteWarning} />
                       </div>
                     </div>
                   </CardHeader>
@@ -759,6 +782,13 @@ export function ReportsBoard() {
                       <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.archiveReason')}</p>
                         <FieldValue>{report.archiveReason ? t(`supervisorReports.archiveReasons.${report.archiveReason}`) : '—'}</FieldValue>
+                      </div>
+                    )}
+
+                    {report.submittedDespiteWarning && (
+                      <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.warningStatus')}</p>
+                        <DuplicateSubmissionBadge submittedDespiteWarning />
                       </div>
                     )}
                   </CardContent>

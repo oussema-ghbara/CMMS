@@ -35,6 +35,7 @@ export interface ReportListItem {
   rejectionDetail: string | null;
   deferredAt: string | null;
   deferNote: string | null;
+  submittedDespiteWarning: boolean;
   archiveReason: ReportArchiveReason | null;
   replacedByWorkOrderRef: string | null;
   createdAt: string;

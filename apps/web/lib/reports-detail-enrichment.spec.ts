@@ -31,6 +31,7 @@ function buildDetailPayload(overrides: Partial<ReportDetailItem> = {}): ReportDe
     rejectionDetail: null,
     deferredAt: null,
     deferNote: null,
+    submittedDespiteWarning: false,
     archiveReason: null,
     replacedByWorkOrderRef: null,
     createdAt: '2026-04-20T08:00:00Z',
@@ -139,5 +140,27 @@ describe('reportsApi.getOne — §9.1 enrichment', () => {
     await reportsApi.getOne('report-99');
 
     expect(api.get).toHaveBeenCalledWith('/reports/report-99');
+  });
+});
+
+describe('reportsApi.list — duplicate warning contract', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('passes submittedDespiteWarning through on list results', async () => {
+    (api.get as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            ...buildDetailPayload(),
+            submittedDespiteWarning: true,
+          },
+        ],
+        total: 1,
+      },
+    });
+
+    const result = await reportsApi.list();
+
+    expect(result.data[0].submittedDespiteWarning).toBe(true);
   });
 });

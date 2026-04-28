@@ -432,6 +432,9 @@
       "REPLACED_BY_OTHER_WO": "Remplacé par un autre OT",
       "MANAGEMENT_DECISION": "Décision de gestion"
     },
+    "labels": {
+      "submittedDespiteWarning": "Soumis malgré l'alerte de doublon"
+    },
     "actions": {
       "view": "Voir",
       "convert": "Convertir",
@@ -474,6 +477,7 @@
       "rejectedReason": "Raison du rejet",
       "deferNote": "Note de différé",
       "archiveReason": "Motif d'archivage",
+      "warningStatus": "Avertissement de doublon",
       "comments": "Commentaires",
       "commentsDescription": "Consultez l'historique et ajoutez une note de supervision.",
       "commentAcknowledged": "Pris en compte",

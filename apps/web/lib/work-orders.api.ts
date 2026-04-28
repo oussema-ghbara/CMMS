@@ -128,7 +128,7 @@ export interface WorkOrderInterventionLog {
   result: string | null;
   resultExplanation: string | null;
   hourlyRateAtTime: number | null;
-  /** §5.3: True when this log was force-closed because the technician was promoted/replaced mid-intervention. */
+  /** True when this log was force-closed because the technician was promoted/replaced mid-intervention. */
   isReassignmentRemnant: boolean;
   actions: WorkOrderInterventionAction[];
 }
@@ -184,6 +184,15 @@ export interface WorkOrderCrossRef {
   referenceNumber: string;
 }
 
+export interface WorkOrderPriorityLogEntry {
+  id: string;
+  fromPriority: WorkOrderPriority;
+  toPriority: WorkOrderPriority;
+  isAutoEscalation: boolean;
+  createdAt: string;
+  actor: { id: string; name: string } | null;
+}
+
 export interface WorkOrderContributorWithoutLog {
   technicianId: string;
   name: string;
@@ -237,6 +246,8 @@ export interface WorkOrderDetail {
   hasNotableTimeDeviation: boolean;
   /** Detailed estimate vs actual time metrics for supervisor validation context. */
   timeDeviation: WorkOrderTimeDeviation;
+  /** Chronological record of all priority changes. */
+  priorityLogs: WorkOrderPriorityLogEntry[];
 }
 
 export interface WorkOrderSourceReport {
@@ -273,7 +284,7 @@ export interface CreateWorkOrderPayload {
   dueDate?: string;
   estimatedDurationMinutes?: number;
   forceCreate?: boolean;
-  /** Pre-assign principal technician — triggers auto-publish + assign (spec §9.2) */
+  /** Pre-assign principal technician — triggers auto-publish + assign. */
   principalTechnicianId?: string;
   /** Contributor IDs — only meaningful when principalTechnicianId is provided */
   contributorIds?: string[];
@@ -308,7 +319,7 @@ export interface ReassignTechnicianPayload {
 
 export interface PromoteTechnicianPayload {
   newPrincipalId: string;
-  /** §5.3: Reason recorded in the reassignment log. Defaults to TECHNICIAN_ABSENT when omitted. */
+  /** Reason recorded in the reassignment log. Defaults to TECHNICIAN_ABSENT when omitted. */
   reason?: WOReassignmentReason;
   reasonDetail?: string;
 }
@@ -405,7 +416,7 @@ export interface TechnicianKpiItem {
   closedCount: number;
   rejectionCount: number;
   rejectionRate: number | null;
-  /** §9.8: per-rejection-reason breakdown — key is ValidationRejectionReason enum value */
+  /** Per-rejection-reason breakdown where key is a ValidationRejectionReason enum value. */
   rejectionRateByCategory: Record<string, TechnicianRejectionCategoryEntry>;
   avgActiveDurationMinutes: number | null;
   firstPassRate: number | null;

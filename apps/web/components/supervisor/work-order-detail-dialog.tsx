@@ -889,7 +889,7 @@ export function WorkOrderDetailDialog({
             </div>
           )}
 
-          {/* ── Follow-up WO prompt — appears after a COULD_NOT_INTERVENE validation (§9.5) ── */}
+          {/* Follow-up WO prompt shown after a COULD_NOT_INTERVENE validation */}
           {followUpPrompt && (
             <div className="space-y-3 rounded-md border border-yellow-400/60 bg-yellow-50/40 p-3 dark:bg-yellow-900/10">
               <div>
@@ -1403,7 +1403,7 @@ export function WorkOrderDetailDialog({
               </div>
             )}
 
-            {/* ── Follow-up cross-references (§8.8) ── */}
+            {/* Follow-up cross-references */}
             {(detail.followUpFrom || (detail.followUps && detail.followUps.length > 0)) && (
               <div className="mt-4 rounded-md border border-muted bg-muted/30 p-4 space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1866,6 +1866,56 @@ export function WorkOrderDetailDialog({
               </>
             )}
 
+            {/* Priority history */}
+            {detail.priorityLogs.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    {t('supervisorWorkOrders.detail.priorityHistory')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('supervisorWorkOrders.detail.priorityHistoryDescription')}
+                  </p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {detail.priorityLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-start justify-between rounded-md border px-3 py-2 text-xs gap-3"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge
+                              variant={getPriorityBadgeVariant(log.fromPriority)}
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {t(`supervisorWorkOrders.priority.${log.fromPriority}`)}
+                            </Badge>
+                            <span className="text-muted-foreground">→</span>
+                            <Badge
+                              variant={getPriorityBadgeVariant(log.toPriority)}
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {t(`supervisorWorkOrders.priority.${log.toPriority}`)}
+                            </Badge>
+                            {log.isAutoEscalation && (
+                              <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                {t('supervisorWorkOrders.detail.priorityAutoEscalation')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right text-muted-foreground shrink-0">
+                          {log.actor && <p>{log.actor.name}</p>}
+                          <p>{formatDateTime(log.createdAt)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* ── Status history ── */}
             <Separator />
             <div className="space-y-2">
@@ -1918,7 +1968,7 @@ export function WorkOrderDetailDialog({
               )}
             </div>
 
-            {/* ── Documents (§11.2) ── */}
+            {/* Documents */}
             <Separator />
             <div className="space-y-3">
               <div>

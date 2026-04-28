@@ -1,7 +1,7 @@
 /**
  * Unit tests for WorkOrdersRepository.findAll — closedAfter / closedBefore filters.
  *
- * Business rule (§2.2): the supervisor dashboard "recent closures today" panel uses
+ * Business rule: the supervisor dashboard "recent closures today" panel uses
  * GET /work-orders?status=CLOSED&closedAfter=<today-start> to count WOs closed since
  * midnight. The repository must translate the ISO-8601 strings into Prisma `closedAt`
  * range predicates without altering any other query behaviour.
@@ -149,5 +149,82 @@ describe('WorkOrdersRepository.findAll — closedAfter / closedBefore', () => {
       const calledWhere = findManyMock.mock.calls[0][0].where;
       expect(Object.keys(calledWhere)).not.toContain('closedAt');
     });
+  });
+});
+
+describe('WorkOrdersRepository.findById — priorityLogs inclusion', () => {
+  let repo: WorkOrdersRepository;
+  let findUniqueMock: jest.Mock;
+
+  beforeEach(async () => {
+    findUniqueMock = jest.fn().mockResolvedValue({
+      id: 'wo-1',
+      referenceNumber: 'WO-2026-000001',
+      priorityLogs: [
+        {
+          id: 'log-1',
+          fromPriority: 'MEDIUM',
+          toPriority: 'HIGH',
+          isAutoEscalation: false,
+          createdAt: new Date('2026-04-01T10:00:00Z'),
+          actor: { id: 'user-1', name: 'Alice' },
+        },
+      ],
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkOrdersRepository,
+        {
+          provide: PrismaService,
+          useValue: {
+            workOrder: {
+              findUnique: findUniqueMock,
+              findMany: jest.fn().mockResolvedValue([]),
+              count: jest.fn().mockResolvedValue(0),
+              create: jest.fn(),
+              update: jest.fn(),
+            },
+            $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
+          },
+        },
+      ],
+    }).compile();
+
+    repo = module.get(WorkOrdersRepository);
+  });
+
+  it('includes priorityLogs with actor in the findById query', async () => {
+    await repo.findById('wo-1');
+
+    expect(findUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          priorityLogs: expect.objectContaining({
+            orderBy: { createdAt: 'asc' },
+            include: { actor: { select: { id: true, name: true } } },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('returns the priorityLogs array from the database result', async () => {
+    const result = await repo.findById('wo-1');
+
+    expect((result as any).priorityLogs).toHaveLength(1);
+    expect((result as any).priorityLogs[0]).toMatchObject({
+      id: 'log-1',
+      fromPriority: 'MEDIUM',
+      toPriority: 'HIGH',
+      isAutoEscalation: false,
+      actor: { id: 'user-1', name: 'Alice' },
+    });
+  });
+
+  it('throws NotFoundException when the work order does not exist', async () => {
+    findUniqueMock.mockResolvedValue(null);
+
+    await expect(repo.findById('nonexistent')).rejects.toThrow('Work order nonexistent not found');
   });
 });

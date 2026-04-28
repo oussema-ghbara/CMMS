@@ -140,6 +140,10 @@ export class WorkOrdersRepository {
         },
         followUpFrom: { select: { id: true, referenceNumber: true } },
         followUps: { select: { id: true, referenceNumber: true } },
+        priorityLogs: {
+          orderBy: { createdAt: 'asc' },
+          include: { actor: { select: { id: true, name: true } } },
+        },
       },
     });
     if (!wo) throw new NotFoundException(`Work order ${id} not found`);
@@ -243,7 +247,7 @@ export class WorkOrdersRepository {
   }
 
   findOverdueForEscalation(now: Date): Promise<Array<Pick<WorkOrder, 'id' | 'priority' | 'referenceNumber'>>> {
-    // §4.3: escalation only applies to WOs that have NOT yet started (OPEN or ASSIGNED).
+    // Escalation only applies to WOs that have NOT yet started (OPEN or ASSIGNED).
     // IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION are explicitly excluded — the technician
     // is already working on these and escalating would contradict the operational model.
     return this.prisma.workOrder.findMany({
@@ -256,7 +260,7 @@ export class WorkOrdersRepository {
     });
   }
 
-  // §4.3: CRITICAL WOs that become overdue do not escalate further but trigger an
+  // CRITICAL WOs that become overdue do not escalate further but trigger an
   // immediate supervisor notification.
   findOverdueCritical(now: Date): Promise<Array<Pick<WorkOrder, 'id' | 'referenceNumber'>>> {
     return this.prisma.workOrder.findMany({

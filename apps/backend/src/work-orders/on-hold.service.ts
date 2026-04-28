@@ -11,11 +11,10 @@ import {
 } from '@gmao/db';
 import { assertTransitionAllowed } from './work-orders.state-machine';
 
-function deriveAssetStatus(
+function deriveInitialHoldAssetStatus(
   reasonType: OnHoldReasonType,
   woType: WorkOrderType,
-  supervisorChoice?: AssetStatus,
-): AssetStatus {
+): AssetStatus | null {
   switch (reasonType) {
     case OnHoldReasonType.MISSING_PART:
     case OnHoldReasonType.EXTERNAL_CONTRACTOR:
@@ -25,12 +24,7 @@ function deriveAssetStatus(
         ? AssetStatus.MAINTENANCE_BLOCKED
         : AssetStatus.OPERATIONAL;
     case OnHoldReasonType.OTHER:
-      if (!supervisorChoice) {
-        throw new BadRequestException(
-          'supervisorAssetStatusChoice is required when reasonType is OTHER',
-        );
-      }
-      return supervisorChoice;
+      return null;
   }
 }
 
@@ -50,13 +44,7 @@ export class OnHoldService {
     }
     assertTransitionAllowed(wo.status, WorkOrderStatus.ON_HOLD, [Role.TECHNICIAN]);
 
-    if (dto.supervisorAssetStatusChoice !== undefined && dto.reasonType !== OnHoldReasonType.OTHER) {
-      throw new BadRequestException('workOrders.hold.supervisorChoiceNotAllowed');
-    }
-
-    const targetAssetStatus = deriveAssetStatus(
-      dto.reasonType, wo.type, dto.supervisorAssetStatusChoice,
-    );
+    const targetAssetStatus = deriveInitialHoldAssetStatus(dto.reasonType, wo.type);
     const asset = await this.prisma.asset.findUniqueOrThrow({ where: { id: wo.assetId } });
 
     await this.prisma.$transaction(async (tx) => {
@@ -72,16 +60,17 @@ export class OnHoldService {
           expectedResolutionDate: dto.expectedResolutionDate
             ? new Date(dto.expectedResolutionDate)
             : undefined,
-          supervisorAssetStatusChoice: dto.supervisorAssetStatusChoice,
         },
       });
-      await tx.asset.update({ where: { id: wo.assetId }, data: { status: targetAssetStatus } });
-      await tx.assetStatusLog.create({
-        data: {
-          assetId: wo.assetId, fromStatus: asset.status, toStatus: targetAssetStatus,
-          actorId, workOrderId: woId, reason: `Work order on hold: ${dto.reasonType}`,
-        },
-      });
+      if (targetAssetStatus !== null) {
+        await tx.asset.update({ where: { id: wo.assetId }, data: { status: targetAssetStatus } });
+        await tx.assetStatusLog.create({
+          data: {
+            assetId: wo.assetId, fromStatus: asset.status, toStatus: targetAssetStatus,
+            actorId, workOrderId: woId, reason: `Work order on hold: ${dto.reasonType}`,
+          },
+        });
+      }
       // Lock completed checklist items so they cannot be undone after resume
       await tx.workOrderChecklistItem.updateMany({
         where: { workOrderId: woId, status: { not: 'PENDING' } },
@@ -126,6 +115,21 @@ export class OnHoldService {
       throw new NotFoundException('workOrders.hold.noActiveHoldPeriod');
     }
 
+    if (
+      dto.supervisorAssetStatusChoice !== undefined
+      && activeHold.reasonType !== OnHoldReasonType.OTHER
+    ) {
+      throw new BadRequestException('workOrders.hold.supervisorChoiceNotAllowed');
+    }
+
+    if (
+      activeHold.reasonType === OnHoldReasonType.OTHER
+      && activeHold.supervisorAssetStatusChoice === null
+      && dto.supervisorAssetStatusChoice === undefined
+    ) {
+      throw new BadRequestException('workOrders.hold.supervisorChoiceRequired');
+    }
+
     const data: Parameters<typeof this.prisma.onHoldPeriod.update>[0]['data'] = {};
 
     if (dto.expectedResolutionDate !== undefined) {
@@ -137,14 +141,38 @@ export class OnHoldService {
     if (dto.resolutionNote !== undefined) {
       data.supervisorResolutionNote = dto.resolutionNote;
     }
+    if (dto.supervisorAssetStatusChoice !== undefined) {
+      data.supervisorAssetStatusChoice = dto.supervisorAssetStatusChoice;
+    }
+
+    const assetStatusUpdate = dto.supervisorAssetStatusChoice;
+    const asset = assetStatusUpdate !== undefined
+      ? await this.prisma.asset.findUniqueOrThrow({ where: { id: wo.assetId } })
+      : null;
 
     if (Object.keys(data).length === 0) {
       return wo;
     }
 
-    await this.prisma.onHoldPeriod.update({
-      where: { id: activeHold.id },
-      data,
+    await this.prisma.$transaction(async (tx) => {
+      await tx.onHoldPeriod.update({
+        where: { id: activeHold.id },
+        data,
+      });
+
+      if (assetStatusUpdate !== undefined && asset?.status !== assetStatusUpdate) {
+        await tx.asset.update({ where: { id: wo.assetId }, data: { status: assetStatusUpdate } });
+        await tx.assetStatusLog.create({
+          data: {
+            assetId: wo.assetId,
+            fromStatus: asset.status,
+            toStatus: assetStatusUpdate,
+            actorId,
+            workOrderId: woId,
+            reason: `Hold review asset status selected: ${activeHold.reasonType}`,
+          },
+        });
+      }
     });
 
     return this.repo.findById(woId);

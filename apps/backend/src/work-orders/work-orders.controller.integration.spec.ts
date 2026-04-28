@@ -104,6 +104,7 @@ describe('WorkOrdersController integration', () => {
   const onHold = {
     putOnHold: jest.fn(),
     resume: jest.fn(),
+    updateHoldMetadata: jest.fn(),
   };
 
   const validation = {
@@ -354,6 +355,41 @@ describe('WorkOrdersController integration', () => {
     expect(assignment.promote).toHaveBeenCalledWith(
       'wo-1',
       { newPrincipalId: 'tech-new' },
+      'supervisor-1',
+    );
+  });
+
+  it('PATCH /work-orders/:id/on-hold rejects technician-owned supervisorAssetStatusChoice data', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/on-hold')
+      .set('Authorization', 'Bearer TECHNICIAN')
+      .send({
+        reasonType: 'OTHER',
+        supervisorAssetStatusChoice: 'OUT_OF_SERVICE',
+      });
+
+    expect(response.status).toBe(400);
+    expect(onHold.putOnHold).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /work-orders/:id/hold-metadata lets supervisors send supervisorAssetStatusChoice', async () => {
+    onHold.updateHoldMetadata.mockResolvedValue({ id: 'wo-1' });
+
+    const response = await request(app.getHttpServer())
+      .patch('/work-orders/wo-1/hold-metadata')
+      .set('Authorization', 'Bearer SUPERVISOR')
+      .send({
+        expectedResolutionDate: '2026-05-01T10:00:00.000Z',
+        supervisorAssetStatusChoice: 'OUT_OF_SERVICE',
+      });
+
+    expect(response.status).toBe(200);
+    expect(onHold.updateHoldMetadata).toHaveBeenCalledWith(
+      'wo-1',
+      {
+        expectedResolutionDate: '2026-05-01T10:00:00.000Z',
+        supervisorAssetStatusChoice: 'OUT_OF_SERVICE',
+      },
       'supervisor-1',
     );
   });

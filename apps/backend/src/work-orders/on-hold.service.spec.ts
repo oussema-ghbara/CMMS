@@ -3,7 +3,7 @@
  *
  * Covers:
  * - putOnHold(): asset status derivation per reason type
- * - putOnHold(): supervisorAssetStatusChoice required for OTHER reason
+ * - putOnHold(): OTHER hold can be created without supervisorAssetStatusChoice
  * - putOnHold(): state machine guard (wrong current status)
  * - putOnHold(): notifySupervisors called
  * - resume(): state machine guard
@@ -55,6 +55,7 @@ function buildMocks() {
   const txWorkOrderUpdate = jest.fn().mockResolvedValue({});
   const txStatusLogCreate = jest.fn().mockResolvedValue({});
   const txOnHoldCreate = jest.fn().mockResolvedValue({});
+  const txOnHoldUpdate = jest.fn().mockResolvedValue({});
   const txOnHoldUpdateMany = jest.fn().mockResolvedValue({});
   const txAssetUpdate = jest.fn().mockResolvedValue({});
   const txAssetStatusLogCreate = jest.fn().mockResolvedValue({});
@@ -65,7 +66,7 @@ function buildMocks() {
   const tx = {
     workOrder: { update: txWorkOrderUpdate },
     workOrderStatusLog: { create: txStatusLogCreate },
-    onHoldPeriod: { create: txOnHoldCreate, updateMany: txOnHoldUpdateMany },
+    onHoldPeriod: { create: txOnHoldCreate, update: txOnHoldUpdate, updateMany: txOnHoldUpdateMany },
     asset: { update: txAssetUpdate },
     assetStatusLog: { create: txAssetStatusLogCreate },
     workOrderChecklistItem: { updateMany: txChecklistUpdateMany },
@@ -102,8 +103,10 @@ function buildMocks() {
   return { service, prisma, repo, notifications, onHoldPeriodFindFirst, onHoldPeriodUpdate, tx: {
     workOrderUpdate: txWorkOrderUpdate,
     onHoldCreate: txOnHoldCreate,
+    onHoldUpdate: txOnHoldUpdate,
     onHoldUpdateMany: txOnHoldUpdateMany,
     assetUpdate: txAssetUpdate,
+    assetStatusLogCreate: txAssetStatusLogCreate,
     interventionCreate: txInterventionCreate,
   }};
 }
@@ -164,28 +167,24 @@ describe('OnHoldService', () => {
       });
     });
 
-    it('uses supervisorAssetStatusChoice for OTHER reason', async () => {
+    it('does not write the asset status choice during putOnHold() for OTHER reason', async () => {
       const { service, repo, tx } = buildMocks();
       repo.findById.mockResolvedValueOnce(buildWO()).mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
 
       await service.putOnHold('wo-1', {
         reasonType: OnHoldReasonType.OTHER,
-        supervisorAssetStatusChoice: AssetStatus.OUT_OF_SERVICE,
       }, 'tech-principal');
 
-      expect(tx.assetUpdate).toHaveBeenCalledWith({
-        where: { id: 'asset-1' },
-        data: { status: AssetStatus.OUT_OF_SERVICE },
-      });
+      expect(tx.assetUpdate).not.toHaveBeenCalled();
     });
 
-    it('throws BadRequestException when OTHER reason without supervisorAssetStatusChoice', async () => {
+    it('does not require supervisorAssetStatusChoice when OTHER reason is first put on hold', async () => {
       const { service, repo } = buildMocks();
       repo.findById.mockResolvedValueOnce(buildWO());
 
       await expect(
         service.putOnHold('wo-1', { reasonType: OnHoldReasonType.OTHER }, 'tech-principal'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).resolves.not.toThrow();
     });
 
     it('throws ForbiddenException when actor is not the principal technician', async () => {
@@ -221,40 +220,31 @@ describe('OnHoldService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('throws BadRequestException when supervisorAssetStatusChoice is sent for MISSING_PART', async () => {
+    it('does not need supervisorAssetStatusChoice for MISSING_PART', async () => {
       const { service, repo } = buildMocks();
       repo.findById.mockResolvedValueOnce(buildWO());
 
       await expect(
-        service.putOnHold('wo-1', {
-          reasonType: OnHoldReasonType.MISSING_PART,
-          supervisorAssetStatusChoice: AssetStatus.OUT_OF_SERVICE,
-        }, 'tech-principal'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+        service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal'),
+      ).resolves.not.toThrow();
     });
 
-    it('throws BadRequestException when supervisorAssetStatusChoice is sent for EXTERNAL_CONTRACTOR', async () => {
+    it('does not need supervisorAssetStatusChoice for EXTERNAL_CONTRACTOR', async () => {
       const { service, repo } = buildMocks();
       repo.findById.mockResolvedValueOnce(buildWO());
 
       await expect(
-        service.putOnHold('wo-1', {
-          reasonType: OnHoldReasonType.EXTERNAL_CONTRACTOR,
-          supervisorAssetStatusChoice: AssetStatus.OPERATIONAL,
-        }, 'tech-principal'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+        service.putOnHold('wo-1', { reasonType: OnHoldReasonType.EXTERNAL_CONTRACTOR }, 'tech-principal'),
+      ).resolves.not.toThrow();
     });
 
-    it('throws BadRequestException when supervisorAssetStatusChoice is sent for ACCESS_DENIED', async () => {
+    it('does not need supervisorAssetStatusChoice for ACCESS_DENIED', async () => {
       const { service, repo } = buildMocks();
       repo.findById.mockResolvedValueOnce(buildWO());
 
       await expect(
-        service.putOnHold('wo-1', {
-          reasonType: OnHoldReasonType.ACCESS_DENIED,
-          supervisorAssetStatusChoice: AssetStatus.MAINTENANCE_BLOCKED,
-        }, 'tech-principal'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+        service.putOnHold('wo-1', { reasonType: OnHoldReasonType.ACCESS_DENIED }, 'tech-principal'),
+      ).resolves.not.toThrow();
     });
 
     it('does NOT throw when supervisorAssetStatusChoice is absent for non-OTHER reason', async () => {
@@ -266,6 +256,21 @@ describe('OnHoldService', () => {
       await expect(
         service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal'),
       ).resolves.not.toThrow();
+    });
+
+    it('does not write asset status logs for OTHER reason during putOnHold()', async () => {
+      const { service, repo, tx } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO()).mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      await service.putOnHold('wo-1', { reasonType: OnHoldReasonType.OTHER }, 'tech-principal');
+
+      expect(tx.assetUpdate).not.toHaveBeenCalled();
+      expect(tx.assetStatusLogCreate).not.toHaveBeenCalled();
+      expect(tx.onHoldCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ reasonType: OnHoldReasonType.OTHER }),
+        }),
+      );
     });
   });
 
@@ -375,7 +380,7 @@ describe('OnHoldService', () => {
     });
 
     it('updates expectedResolutionDate on the active hold period', async () => {
-      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      const { service, repo, tx } = buildMocks();
       repo.findById
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
@@ -383,14 +388,14 @@ describe('OnHoldService', () => {
       const isoDate = '2026-05-01T10:00:00.000Z';
       await service.updateHoldMetadata('wo-1', { expectedResolutionDate: isoDate }, 'sup-1');
 
-      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+      expect(tx.onHoldUpdate).toHaveBeenCalledWith({
         where: { id: 'hold-1' },
         data: { expectedResolutionDate: new Date(isoDate) },
       });
     });
 
     it('updates retryDate on the active hold period', async () => {
-      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      const { service, repo, tx } = buildMocks();
       repo.findById
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
@@ -398,28 +403,28 @@ describe('OnHoldService', () => {
       const isoDate = '2026-05-02T08:00:00.000Z';
       await service.updateHoldMetadata('wo-1', { retryDate: isoDate }, 'sup-1');
 
-      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+      expect(tx.onHoldUpdate).toHaveBeenCalledWith({
         where: { id: 'hold-1' },
         data: { retryDate: new Date(isoDate) },
       });
     });
 
     it('updates supervisorResolutionNote on the active hold period', async () => {
-      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      const { service, repo, tx } = buildMocks();
       repo.findById
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
 
       await service.updateHoldMetadata('wo-1', { resolutionNote: 'Plan to reroute cable access.' }, 'sup-1');
 
-      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+      expect(tx.onHoldUpdate).toHaveBeenCalledWith({
         where: { id: 'hold-1' },
         data: { supervisorResolutionNote: 'Plan to reroute cable access.' },
       });
     });
 
     it('updates all three fields when all are provided', async () => {
-      const { service, repo, onHoldPeriodUpdate } = buildMocks();
+      const { service, repo, tx } = buildMocks();
       repo.findById
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
         .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
@@ -431,7 +436,7 @@ describe('OnHoldService', () => {
       };
       await service.updateHoldMetadata('wo-1', dto, 'sup-1');
 
-      expect(onHoldPeriodUpdate).toHaveBeenCalledWith({
+      expect(tx.onHoldUpdate).toHaveBeenCalledWith({
         where: { id: 'hold-1' },
         data: {
           expectedResolutionDate: new Date(dto.expectedResolutionDate),
@@ -439,6 +444,55 @@ describe('OnHoldService', () => {
           supervisorResolutionNote: dto.resolutionNote,
         },
       });
+    });
+
+    it('updates supervisorAssetStatusChoice for OTHER holds and changes the asset status', async () => {
+      const { service, repo, onHoldPeriodFindFirst, tx } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }))
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+      onHoldPeriodFindFirst.mockResolvedValueOnce({
+        id: 'hold-1',
+        workOrderId: 'wo-1',
+        resumedAt: null,
+        reasonType: OnHoldReasonType.OTHER,
+        supervisorAssetStatusChoice: null,
+      });
+
+      await service.updateHoldMetadata('wo-1', { supervisorAssetStatusChoice: AssetStatus.OUT_OF_SERVICE }, 'sup-1');
+
+      expect(tx.onHoldUpdate).toHaveBeenCalledWith({
+        where: { id: 'hold-1' },
+        data: { supervisorAssetStatusChoice: AssetStatus.OUT_OF_SERVICE },
+      });
+      expect(tx.assetUpdate).toHaveBeenCalledWith({
+        where: { id: 'asset-1' },
+        data: { status: AssetStatus.OUT_OF_SERVICE },
+      });
+    });
+
+    it('rejects supervisorAssetStatusChoice on non-OTHER holds', async () => {
+      const { service, repo } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      await expect(
+        service.updateHoldMetadata('wo-1', { supervisorAssetStatusChoice: AssetStatus.OPERATIONAL }, 'sup-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('requires supervisorAssetStatusChoice when an OTHER hold has no stored choice yet', async () => {
+      const { service, repo, onHoldPeriodFindFirst } = buildMocks();
+      repo.findById.mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+      onHoldPeriodFindFirst.mockResolvedValueOnce({
+        id: 'hold-1',
+        workOrderId: 'wo-1',
+        resumedAt: null,
+        reasonType: OnHoldReasonType.OTHER,
+        supervisorAssetStatusChoice: null,
+      });
+
+      await expect(service.updateHoldMetadata('wo-1', {}, 'sup-1'))
+        .rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('skips DB write and returns WO when DTO is empty', async () => {

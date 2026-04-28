@@ -1,5 +1,6 @@
-import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { AssetStatus } from '@gmao/shared';
 
 export class UpdateHoldMetadataDto {
   @ApiPropertyOptional({
@@ -28,4 +29,13 @@ export class UpdateHoldMetadataDto {
   @IsOptional()
   @IsString()
   resolutionNote?: string;
+
+  @ApiPropertyOptional({
+    enum: AssetStatus,
+    description:
+      'Supervisor-selected asset status for OTHER holds. Required during supervisor review.',
+  })
+  @IsOptional()
+  @IsEnum(AssetStatus)
+  supervisorAssetStatusChoice?: AssetStatus;
 }

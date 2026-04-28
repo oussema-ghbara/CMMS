@@ -278,7 +278,7 @@ export class WorkOrdersController {
   @ApiOperation({
     summary: 'Update hold metadata (Supervisor)',
     description:
-      'Set expectedResolutionDate, retryDate, or resolution plan note on an ON_HOLD work order ' +
+      'Set expectedResolutionDate, retryDate, supervisor asset status choice, or resolution plan note on an ON_HOLD work order ' +
       'without changing its state. The resolution note must be authored by the supervisor — not ' +
       'the technician on resume (§9.4 + §6.1 fix).',
   })

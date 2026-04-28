@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsString, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OnHoldReasonType, AssetStatus } from '@gmao/shared';
+import { OnHoldReasonType } from '@gmao/shared';
 
 export class PutOnHoldDto {
   @ApiProperty({ enum: OnHoldReasonType })
@@ -17,11 +17,4 @@ export class PutOnHoldDto {
   @IsDateString()
   expectedResolutionDate?: string;
 
-  @ApiPropertyOptional({
-    enum: AssetStatus,
-    description: 'Required when reasonType is OTHER — supervisor chooses asset status',
-  })
-  @IsOptional()
-  @IsEnum(AssetStatus)
-  supervisorAssetStatusChoice?: AssetStatus;
 }

@@ -4,6 +4,31 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Work order document and photo attachments (April 28, 2026)
+
+**feat(work-orders): add document upload service methods and controller endpoints**
+- `DocumentsService.findByWorkOrder(workOrderId)` queries all `isCurrentVersion: true` documents for a given work order, ordered by creation date descending. Throws `NotFoundException` when the work order does not exist.
+- `DocumentsService.uploadForWorkOrder(workOrderId, file, documentType, actorId)` validates the document type against a seven-type allowed set (TECHNICAL_MANUAL, SCHEMATIC, SAFETY_DATA_SHEET, SPECIFICATION_SHEET, PROCEDURE_DOCUMENT, CONTRACTOR_REPORT, PHOTO) and rejects anything outside it with `BadRequestException`. Delegates to the shared `_doUpload` method which implements automatic versioning: an existing current-version document of the same type for the same work order is archived (`isCurrentVersion=false`, `replacedById`) and the new document is created at `version+1` inside a `$transaction`.
+- `assertWorkOrderExists(workOrderId)` private helper added to `DocumentsService` to keep the entity-guard pattern consistent with the existing `assertAssetExists`, `assertPartExists`, and `assertPlanExists` helpers.
+- `DocumentsService` injected into `WorkOrdersController` constructor via the already-exported `AssetsModule`.
+- Four endpoints added to `WorkOrdersController`, all restricted to `Role.SUPERVISOR`: `GET /work-orders/:id/documents` (list current-version documents), `POST /work-orders/:id/documents` (multipart upload using `FileInterceptor('file')` and a `documentType` body field), `GET /work-orders/:id/documents/:docId/download` (presigned download URL via `getDownloadUrl`), `DELETE /work-orders/:id/documents/:docId` (permanent delete returning 204).
+
+**feat(web): add document attachment panel to work order detail dialog**
+- `WorkOrderDocument` interface added to `apps/web/lib/work-orders.api.ts` with fields `id`, `documentType`, `fileName`, `fileSize`, `mimeType`, `version`, `isCurrentVersion`, `createdAt`, `uploadedBy`.
+- `workOrdersApi.listDocuments(id)`, `uploadDocument(id, file, documentType)`, `deleteDocument(id, docId)`, and `getDocumentDownloadUrl(id, docId)` API calls added.
+- Work order detail dialog (`work-order-detail-dialog.tsx`) gains a Documents section rendered immediately before the action panel, visible to supervisors on all non-null work orders. The section uses a React Query `useQuery` to fetch the document list and two `useMutation` hooks for upload and delete. Client-side validation checks that both a file and a document type are selected before submitting; errors are shown inline. Each listed document renders a file name, document type label, uploader name, and icon buttons for download and delete. Upload state (isPending) disables the submit button and shows a spinner. Download errors, upload errors, and delete errors are surfaced via `toast`.
+- `FileText`, `Trash2`, and `Upload` icons imported from `lucide-react`.
+- `WorkOrderDocument` type imported in the dialog for the download handler parameter.
+- All user-facing strings added to `apps/web/public/locales/fr/common.json` under `supervisorWorkOrders.detail`: `documents`, `documentsDescription`, `documentsEmpty`, `documentsUploadTitle`, `documentsUploadHint`, `documentType.{TECHNICAL_MANUAL,SCHEMATIC,SAFETY_DATA_SHEET,SPECIFICATION_SHEET,PROCEDURE_DOCUMENT,CONTRACTOR_REPORT,PHOTO}`, `documentsForm.{type,typePlaceholder,file,chooseFile,upload}`, `documentsValidation.{fileRequired,typeRequired}`, `documentsActions.{download,delete}`, `documentsToasts.{uploadSuccess,uploadError,deleteSuccess,deleteError,downloadError}`.
+
+**tests: 7 backend service unit tests + 6 controller integration tests + 19 frontend unit tests**
+- `documents.service.spec.ts` — `findByWorkOrder`: returns current-version docs for existing WO; throws `NotFoundException` when WO not found. `uploadForWorkOrder`: throws `BadRequestException` for `COMPLIANCE_CERTIFICATE`; throws `NotFoundException` when WO not found; creates version-1 PHOTO document when no prior version exists (verifies `$transaction` call and `document.create` args); archives prior version and creates version 2 for `CONTRACTOR_REPORT` (verifies `document.update` with `isCurrentVersion=false`); accepts all seven allowed document types in a single loop without throwing. `workOrder` mock added to Prisma provider mock. 32 total tests in suite, 0 regressions.
+- `work-orders.controller.integration.spec.ts` — `DocumentsService` mock provider added to test module. `GET /work-orders/:id/documents`: returns 401 without auth; returns 403 for TECHNICIAN role; returns 200 with empty array for SUPERVISOR. `DELETE /work-orders/:id/documents/:docId`: returns 401 without auth; returns 403 for TECHNICIAN role. `GET /work-orders/:id/documents/:docId/download`: returns presigned URL text for SUPERVISOR. 26 total tests in suite, 0 regressions.
+- `lib/work-order-documents.spec.ts` (new) — `WO_ALLOWED_DOC_TYPES`: 7 types total; includes PHOTO, CONTRACTOR_REPORT, SCHEMATIC; excludes COMPLIANCE_CERTIFICATE and INSTALLATION_REPORT. `buildUploadFormData`: file appended under "file" key; documentType appended under "documentType" key; exactly 2 entries. URL helpers: `listDocumentsUrl`, `deleteDocumentUrl`, `downloadDocumentUrl` all produce correct paths. `validateDocUploadForm`: returns `fileRequired` when file is null; returns `typeRequired` when docType is empty; returns valid when both present; returns `fileRequired` (checked first) when both missing. `formatFileSize`: bytes, KB, and MB ranges. 19 tests, all passing.
+- Backend total: 642 tests (29 pre-existing failures in `work-orders.service.spec.ts` unrelated to this change). Frontend total: 256 tests, all passing.
+
+---
+
 ### Added — Per-user login frequency classification in admin analytics (April 27, 2026)
 
 **feat(admin): add per-user login frequency list endpoint**

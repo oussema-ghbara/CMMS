@@ -248,6 +248,20 @@ export interface WorkOrderSourceReport {
   createdAt: string;
 }
 
+// ── Work order documents ──────────────────────────────────────────────────────
+
+export interface WorkOrderDocument {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  version: number;
+  isCurrentVersion: boolean;
+  createdAt: string;
+  uploadedBy: { id: string; name: string } | null;
+}
+
 // ── Payloads ──────────────────────────────────────────────────────────────────
 
 export interface CreateWorkOrderPayload {
@@ -530,4 +544,20 @@ export const workOrdersApi = {
 
   getReportUrl: (id: string) =>
     api.get<{ url: string }>(`/work-orders/${id}/report`).then((r) => r.data),
+
+  listDocuments: (id: string) =>
+    api.get<WorkOrderDocument[]>(`/work-orders/${id}/documents`).then((r) => r.data),
+
+  uploadDocument: (id: string, file: File, documentType: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('documentType', documentType);
+    return api.post<WorkOrderDocument>(`/work-orders/${id}/documents`, form).then((r) => r.data);
+  },
+
+  deleteDocument: (id: string, docId: string) =>
+    api.delete(`/work-orders/${id}/documents/${docId}`),
+
+  getDocumentDownloadUrl: (id: string, docId: string) =>
+    api.get<string>(`/work-orders/${id}/documents/${docId}/download`).then((r) => r.data),
 };

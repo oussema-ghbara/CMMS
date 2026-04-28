@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import {
   WorkOrderStatus,
   WorkOrderPriority,
@@ -18,6 +18,7 @@ import {
 } from '@gmao/shared';
 import {
   workOrdersApi,
+  type WorkOrderDocument,
   type WorkOrderListItem,
   type AssignWorkOrderPayload,
   type ReassignTechnicianPayload,
@@ -240,6 +241,66 @@ export function WorkOrderDetailDialog({
   });
 
   const technicians = techniciansData ?? [];
+
+  // ── Document state ────────────────────────────────────────────────────────
+
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState('');
+  const [docFormError, setDocFormError] = useState<string | null>(null);
+
+  const { data: documents, isLoading: isLoadingDocs } = useQuery({
+    queryKey: ['supervisor', 'work-orders', workOrder?.id, 'documents'],
+    queryFn: () => workOrdersApi.listDocuments(workOrder!.id),
+    enabled: open && !!workOrder?.id,
+  });
+
+  const uploadDocMutation = useMutation({
+    mutationFn: ({ file, type }: { file: File; type: string }) =>
+      workOrdersApi.uploadDocument(workOrder!.id, file, type),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['supervisor', 'work-orders', workOrder?.id, 'documents'],
+      });
+      setDocFile(null);
+      setDocType('');
+      setDocFormError(null);
+      toast.success(t('supervisorWorkOrders.detail.documentsToasts.uploadSuccess'));
+    },
+    onError: () => toast.error(t('supervisorWorkOrders.detail.documentsToasts.uploadError')),
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) => workOrdersApi.deleteDocument(workOrder!.id, docId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['supervisor', 'work-orders', workOrder?.id, 'documents'],
+      });
+      toast.success(t('supervisorWorkOrders.detail.documentsToasts.deleteSuccess'));
+    },
+    onError: () => toast.error(t('supervisorWorkOrders.detail.documentsToasts.deleteError')),
+  });
+
+  async function handleDocDownload(doc: WorkOrderDocument) {
+    try {
+      const url = await workOrdersApi.getDocumentDownloadUrl(workOrder!.id, doc.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error(t('supervisorWorkOrders.detail.documentsToasts.downloadError'));
+    }
+  }
+
+  function handleDocUploadSubmit() {
+    if (!docFile) {
+      setDocFormError(t('supervisorWorkOrders.detail.documentsValidation.fileRequired'));
+      return;
+    }
+    if (!docType) {
+      setDocFormError(t('supervisorWorkOrders.detail.documentsValidation.typeRequired'));
+      return;
+    }
+    setDocFormError(null);
+    uploadDocMutation.mutate({ file: docFile, type: docType });
+  }
 
   // ── Invalidation helper ────────────────────────────────────────────────────
 
@@ -1855,6 +1916,139 @@ export function WorkOrderDetailDialog({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* ── Documents (§11.2) ── */}
+            <Separator />
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {t('supervisorWorkOrders.detail.documents')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('supervisorWorkOrders.detail.documentsDescription')}
+                </p>
+              </div>
+
+              {isLoadingDocs ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : !documents?.length ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('supervisorWorkOrders.detail.documentsEmpty')}
+                </p>
+              ) : (
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{doc.fileName}</p>
+                          <p className="text-muted-foreground">
+                            {t(`supervisorWorkOrders.detail.documentType.${doc.documentType}`, {
+                              defaultValue: doc.documentType,
+                            })}
+                            {doc.uploadedBy ? ` · ${doc.uploadedBy.name}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title={t('supervisorWorkOrders.detail.documentsActions.download')}
+                          onClick={() => handleDocDownload(doc)}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          title={t('supervisorWorkOrders.detail.documentsActions.delete')}
+                          disabled={deleteDocMutation.isPending}
+                          onClick={() => deleteDocMutation.mutate(doc.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="rounded-md border border-dashed p-3 space-y-2">
+                <p className="text-xs font-medium">
+                  {t('supervisorWorkOrders.detail.documentsUploadTitle')}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {t('supervisorWorkOrders.detail.documentsUploadHint')}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">
+                      {t('supervisorWorkOrders.detail.documentsForm.typePlaceholder')}
+                    </option>
+                    {[
+                      'TECHNICAL_MANUAL',
+                      'SCHEMATIC',
+                      'SAFETY_DATA_SHEET',
+                      'SPECIFICATION_SHEET',
+                      'PROCEDURE_DOCUMENT',
+                      'CONTRACTOR_REPORT',
+                      'PHOTO',
+                    ].map((type) => (
+                      <option key={type} value={type}>
+                        {t(`supervisorWorkOrders.detail.documentType.${type}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="wo-doc-file"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-muted/50"
+                    >
+                      <Upload className="h-3 w-3" />
+                      {docFile
+                        ? docFile.name
+                        : t('supervisorWorkOrders.detail.documentsForm.chooseFile')}
+                    </Label>
+                    <input
+                      id="wo-doc-file"
+                      type="file"
+                      className="sr-only"
+                      onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7"
+                      disabled={uploadDocMutation.isPending}
+                      onClick={handleDocUploadSubmit}
+                    >
+                      {uploadDocMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        t('supervisorWorkOrders.detail.documentsForm.upload')
+                      )}
+                    </Button>
+                  </div>
+                  {docFormError && (
+                    <p className="text-[10px] text-destructive">{docFormError}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* ── Actions ── */}

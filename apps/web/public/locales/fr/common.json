@@ -770,7 +770,43 @@
       },
       "followUpChain": "Chaîne de suivi",
       "followUpFrom": "Suite à :",
-      "followUps": "OT de suivi :"
+      "followUps": "OT de suivi :",
+      "documents": "Documents de référence",
+      "documentsDescription": "Dessins techniques, devis, rapports prestataires et photos liés à cet OT.",
+      "documentsEmpty": "Aucun document attaché.",
+      "documentsUploadTitle": "Ajouter un document",
+      "documentsUploadHint": "Types autorisés : dessins, procédures, fiches sécurité, rapports prestataire, photos.",
+      "documentType": {
+        "TECHNICAL_MANUAL": "Manuel technique",
+        "SCHEMATIC": "Schéma / Dessin technique",
+        "SAFETY_DATA_SHEET": "Fiche de sécurité",
+        "SPECIFICATION_SHEET": "Fiche de spécifications",
+        "PROCEDURE_DOCUMENT": "Document de procédure",
+        "CONTRACTOR_REPORT": "Rapport prestataire",
+        "PHOTO": "Photo"
+      },
+      "documentsForm": {
+        "type": "Type de document",
+        "typePlaceholder": "Sélectionnez un type",
+        "file": "Fichier",
+        "chooseFile": "Choisir un fichier",
+        "upload": "Téléverser"
+      },
+      "documentsValidation": {
+        "fileRequired": "Veuillez sélectionner un fichier",
+        "typeRequired": "Veuillez sélectionner un type de document"
+      },
+      "documentsActions": {
+        "download": "Télécharger",
+        "delete": "Supprimer"
+      },
+      "documentsToasts": {
+        "uploadSuccess": "Document téléversé",
+        "uploadError": "Impossible de téléverser le document",
+        "deleteSuccess": "Document supprimé",
+        "deleteError": "Impossible de supprimer le document",
+        "downloadError": "Impossible de télécharger le document"
+      }
     },
     "form": {
       "createTitle": "Nouvel ordre de travail",

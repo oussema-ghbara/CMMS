@@ -349,6 +349,7 @@ export interface UpdateHoldMetadataPayload {
   expectedResolutionDate?: string;
   retryDate?: string;
   resolutionNote?: string;
+  supervisorAssetStatusChoice?: AssetStatus;
 }
 
 export interface CreateFollowUpPayload {

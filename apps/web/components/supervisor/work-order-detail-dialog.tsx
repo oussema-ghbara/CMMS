@@ -14,6 +14,7 @@ import {
   WOReassignmentReason,
   ValidationRejectionReason,
   AssetStatus,
+  OnHoldReasonType,
   Role,
 } from '@gmao/shared';
 import {
@@ -29,6 +30,10 @@ import {
   type UpdateHoldMetadataPayload,
   type CreateFollowUpPayload,
 } from '@/lib/work-orders.api';
+import {
+  buildHoldMetadataPayload,
+  requiresHoldSupervisorAssetStatusChoice,
+} from '@/lib/hold-metadata';
 import { InterventionResult } from '@gmao/shared';
 import { usersApi } from '@/lib/users.api';
 import {
@@ -222,8 +227,19 @@ export function WorkOrderDetailDialog({
     register: registerHoldMeta,
     handleSubmit: handleHoldMetaSubmit,
     reset: resetHoldMeta,
-  } = useForm<{ expectedResolutionDate: string; retryDate: string; resolutionNote: string }>({
-    defaultValues: { expectedResolutionDate: '', retryDate: '', resolutionNote: '' },
+    watch: watchHoldMeta,
+  } = useForm<{
+    expectedResolutionDate: string;
+    retryDate: string;
+    resolutionNote: string;
+    supervisorAssetStatusChoice: AssetStatus | '';
+  }>({
+    defaultValues: {
+      expectedResolutionDate: '',
+      retryDate: '',
+      resolutionNote: '',
+      supervisorAssetStatusChoice: '',
+    },
   });
 
   // ── Queries ────────────────────────────────────────────────────────────────
@@ -530,11 +546,9 @@ export function WorkOrderDetailDialog({
     expectedResolutionDate: string;
     retryDate: string;
     resolutionNote: string;
+    supervisorAssetStatusChoice: AssetStatus | '';
   }) => {
-    const payload: UpdateHoldMetadataPayload = {};
-    if (values.expectedResolutionDate) payload.expectedResolutionDate = values.expectedResolutionDate;
-    if (values.retryDate) payload.retryDate = values.retryDate;
-    if (values.resolutionNote.trim()) payload.resolutionNote = values.resolutionNote.trim();
+    const payload: UpdateHoldMetadataPayload = buildHoldMetadataPayload(values);
     updateHoldMetaMutation.mutate(payload);
   };
 
@@ -550,6 +564,10 @@ export function WorkOrderDetailDialog({
   const status =
     detail?.status ??
     (workOrder && 'status' in workOrder ? (workOrder as WorkOrderListItem).status : undefined);
+  const activeHoldPeriod = detail?.onHoldPeriods.find((hold) => hold.resumedAt === null) ?? null;
+  const requiresSupervisorAssetStatusChoice = requiresHoldSupervisorAssetStatusChoice(
+    activeHoldPeriod?.reasonType as OnHoldReasonType | null | undefined,
+  );
 
   /**
    * True when the most recently completed intervention log reported that the
@@ -1730,6 +1748,17 @@ export function WorkOrderDetailDialog({
                             {hold.supervisorResolutionNote}
                           </p>
                         )}
+                        {hold.supervisorAssetStatusChoice && (
+                          <p className="text-muted-foreground">
+                            <span className="font-medium">
+                              {t('supervisorWorkOrders.labels.holdSupervisorChoice')}: 
+                            </span>
+                            {t(
+                              `supervisorWorkOrders.labels.assetStatusOverride.${hold.supervisorAssetStatusChoice}`,
+                              { defaultValue: hold.supervisorAssetStatusChoice },
+                            )}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1742,7 +1771,17 @@ export function WorkOrderDetailDialog({
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setShowHoldMetadataForm(true)}
+                          onClick={() => {
+                            setShowHoldMetadataForm(true);
+                            resetHoldMeta({
+                              expectedResolutionDate: activeHoldPeriod?.expectedResolutionDate ?? '',
+                              retryDate: activeHoldPeriod?.retryDate ?? '',
+                              resolutionNote: activeHoldPeriod?.supervisorResolutionNote ?? '',
+                              supervisorAssetStatusChoice: (
+                                activeHoldPeriod?.supervisorAssetStatusChoice ?? ''
+                              ) as AssetStatus | '',
+                            });
+                          }}
                           disabled={isMutating}
                         >
                           {t('supervisorWorkOrders.actions.editHoldMetadata')}
@@ -1786,11 +1825,39 @@ export function WorkOrderDetailDialog({
                               {...registerHoldMeta('resolutionNote')}
                             />
                           </div>
+                          {requiresSupervisorAssetStatusChoice && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">
+                                {t('supervisorWorkOrders.labels.holdSupervisorChoice')}
+                              </Label>
+                              <select
+                                className={selectClass}
+                                required
+                                {...registerHoldMeta('supervisorAssetStatusChoice')}
+                              >
+                                <option value="">
+                                  {t('supervisorWorkOrders.actions.assetStatusOverridePlaceholder')}
+                                </option>
+                                <option value={AssetStatus.OPERATIONAL}>
+                                  {t('supervisorWorkOrders.labels.assetStatusOverride.OPERATIONAL')}
+                                </option>
+                                <option value={AssetStatus.OUT_OF_SERVICE}>
+                                  {t('supervisorWorkOrders.labels.assetStatusOverride.OUT_OF_SERVICE')}
+                                </option>
+                                <option value={AssetStatus.IN_MAINTENANCE}>
+                                  {t('supervisorWorkOrders.labels.assetStatusOverride.IN_MAINTENANCE')}
+                                </option>
+                              </select>
+                            </div>
+                          )}
                           <div className="flex gap-2">
                             <Button
                               type="submit"
                               size="sm"
-                              disabled={updateHoldMetaMutation.isPending}
+                              disabled={
+                                updateHoldMetaMutation.isPending ||
+                                (requiresSupervisorAssetStatusChoice && !watchHoldMeta('supervisorAssetStatusChoice'))
+                              }
                             >
                               {updateHoldMetaMutation.isPending && (
                                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />

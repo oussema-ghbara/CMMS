@@ -656,6 +656,7 @@
       "couldNotInterveneWarningBody": "Le technicien a signalé qu'il n'a pas pu intervenir. L'équipement n'a pas été réparé. Vous devez choisir explicitement son statut après clôture — il ne sera pas remis automatiquement en service.",
       "assetStatusOverrideLabel": "Statut de l'équipement après clôture",
       "assetStatusOverridePlaceholder": "Choisir un statut…",
+      "holdSupervisorChoice": "Statut choisi par le superviseur",
       "validateCouldNotInterveneConfirm": "Confirmer et clôturer",
       "rejectClosure": "Rejeter la clôture",
       "rejectClosureDescription": "Renvoyer l'ordre de travail En cours et notifier le technicien.",

@@ -86,6 +86,25 @@ describe('workOrdersApi.promote', () => {
   });
 });
 
+describe('workOrdersApi.updateHoldMetadata', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('sends the supervisor asset status choice with hold metadata updates', async () => {
+    const payload = { id: 'wo-1' };
+    (api.patch as jest.Mock).mockResolvedValue({ data: payload });
+
+    await workOrdersApi.updateHoldMetadata('wo-1', {
+      expectedResolutionDate: '2026-05-01T10:00:00.000Z',
+      supervisorAssetStatusChoice: 'OUT_OF_SERVICE' as never,
+    });
+
+    expect(api.patch).toHaveBeenCalledWith('/work-orders/wo-1/hold-metadata', {
+      expectedResolutionDate: '2026-05-01T10:00:00.000Z',
+      supervisorAssetStatusChoice: 'OUT_OF_SERVICE',
+    });
+  });
+});
+
 describe('workOrdersApi.list — technicianId filter', () => {
   beforeEach(() => jest.clearAllMocks());
 

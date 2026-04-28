@@ -75,7 +75,7 @@ export function LowStockView() {
       </p>
     );
   }
-
+   
   return (
     <>
       <div className="rounded-md border">

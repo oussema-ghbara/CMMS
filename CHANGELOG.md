@@ -4,6 +4,27 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Work order priority history visibility and archive notification specificity (April 28, 2026)
+
+**fix(work-orders): expose and display priority change history in work order detail**
+- `WorkOrdersRepository.findById()` now includes `priorityLogs` with `actor` data, ordered by `createdAt ASC`, so the full chronological priority history is available in the detail payload.
+- Frontend `WorkOrderDetail` type now includes `priorityLogs: WorkOrderPriorityLogEntry[]`.
+- Supervisor work order detail dialog now renders a dedicated priority history section showing from/to priority badges, actor name, timestamp, and an automatic-escalation label when `isAutoEscalation` is true.
+- French i18n keys added under `supervisorWorkOrders.detail`: `priorityHistory`, `priorityHistoryDescription`, `priorityAutoEscalation`.
+
+**fix(reports): tailor archive notifications by archive reason and persist linked replacement ref**
+- `ArchiveReportDto` now accepts optional `linkedWorkOrderRef` (string, max length 30) for replacement archives.
+- `ReportsService.archive()` now builds notification summaries based on the archive reason:
+	- `REPLACED_BY_OTHER_WO` with `linkedWorkOrderRef` -> replacement message with the referenced WO number.
+	- `REPLACED_BY_OTHER_WO` without linked ref -> fallback replacement message.
+	- `MANAGEMENT_DECISION` -> management-decision specific message.
+	- other reasons -> existing generic archived message.
+- When reason is `REPLACED_BY_OTHER_WO` and a linked reference is provided, `replacedByWorkOrderRef` is now persisted through `updateStatus` metadata.
+
+**tests: 15 backend unit tests (reports service) + 11 backend unit tests (work orders repository)**
+- `reports.service.spec.ts`: archive notification branch coverage and metadata persistence assertions; suite passes with 15/15 tests.
+- `work-orders.repository.spec.ts`: `findById` include shape and returned `priorityLogs` assertions; suite passes with 11/11 tests.
+
 ### Fixed — Problem reports list sort order and on-hold hold input validation (April 28, 2026)
 
 **fix(reports): correct default sort order for problem reports list**

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ChecklistService } from './checklist.service';
-import { WorkOrderSource, WorkOrderStatus } from '@gmao/db';
+import { WorkOrderStatus } from '@gmao/db';
 import { ChecklistItemStatus } from '@gmao/shared';
 
 const ACTOR_ID = 'tech-1';
@@ -208,7 +208,7 @@ describe('ChecklistService.completeItem', () => {
     expect(tx.workOrderCreate).not.toHaveBeenCalled();
   });
 
-  it('creates corrective WO with CHECKLIST_ANOMALY source and sourcePlanId when anomaly detected', async () => {
+  it('does NOT create corrective WO at item completion — deferred to closure submission', async () => {
     const { service, repo, prisma, tx } = buildMocks();
     repo.findById.mockResolvedValueOnce(buildWorkOrder({ sourcePlanId: 'plan-1' }) as never);
     prisma.workOrderAssignment.findFirst.mockResolvedValueOnce({ id: 'assign-1' });
@@ -229,40 +229,7 @@ describe('ChecklistService.completeItem', () => {
       ACTOR_ID,
     );
 
-    expect(tx.workOrderCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          sourceType: WorkOrderSource.CHECKLIST_ANOMALY,
-          triggeredByChecklistItemId: ITEM_ID,
-          sourcePlanId: 'plan-1',
-          assetId: 'asset-1',
-        }),
-      }),
-    );
-  });
-
-  it('creates corrective WO without sourcePlanId when parent WO has none', async () => {
-    const { service, repo, prisma, tx } = buildMocks();
-    repo.findById.mockResolvedValueOnce(buildWorkOrder({ sourcePlanId: null }) as never);
-    prisma.workOrderAssignment.findFirst.mockResolvedValueOnce({ id: 'assign-1' });
-    prisma.workOrderChecklistItem.findUnique.mockResolvedValueOnce(
-      buildItem({ autoCreateCorrectiveWO: true }) as never,
-    );
-    prisma.workOrderChecklistItem.update.mockResolvedValueOnce({
-      ...buildItem(),
-      status: ChecklistItemStatus.ANOMALY_DETECTED,
-    } as never);
-
-    await service.completeItem(
-      WO_ID,
-      ITEM_ID,
-      { status: ChecklistItemStatus.ANOMALY_DETECTED, anomalyDescription: 'Crack detected' },
-      ACTOR_ID,
-    );
-
-    const createCall = tx.workOrderCreate.mock.calls[0][0];
-    expect(createCall.data.sourceType).toBe(WorkOrderSource.CHECKLIST_ANOMALY);
-    expect(createCall.data.sourcePlanId).toBeUndefined();
+    expect(tx.workOrderCreate).not.toHaveBeenCalled();
   });
 
   it('does NOT create corrective WO when ANOMALY_DETECTED but autoCreateCorrectiveWO is false', async () => {

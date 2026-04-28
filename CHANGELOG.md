@@ -4,6 +4,22 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Problem reports list sort order and on-hold hold input validation (April 28, 2026)
+
+**fix(reports): correct default sort order for problem reports list**
+- `ReportsRepository.findAll()` was ordering results by `createdAt DESC`, which caused high-urgency reports to be buried below more recent low-urgency submissions and broke the triage workflow.
+- Sort changed to `[{ urgencyPerception: 'asc' }, { createdAt: 'asc' }]`. The `UrgencyPerception` enum is declared in order from most to least urgent (`MACHINE_STOPPED`, `ABNORMAL_BEHAVIOR`, `MINOR_ISSUE`), so `ASC` places `MACHINE_STOPPED` reports at the top. Within the same urgency tier, the oldest report appears first.
+
+**fix(work-orders): reject supervisorAssetStatusChoice when reasonType is not OTHER**
+- `OnHoldService.putOnHold()` accepted `supervisorAssetStatusChoice` for any `reasonType` and silently stored a semantically invalid value on `OnHoldPeriod` records where the field has no meaning (only applicable when `reasonType` is `OTHER`).
+- A `BadRequestException('workOrders.hold.supervisorChoiceNotAllowed')` is now thrown immediately when `supervisorAssetStatusChoice` is present in the DTO and `reasonType !== OTHER`, before any state transition or database write occurs.
+
+**tests: 4 backend unit tests (reports repository) + 4 backend unit tests (on-hold service)**
+- `reports.repository.spec.ts` — new `describe` block: `orderBy` is `[{ urgencyPerception: 'asc' }, { createdAt: 'asc' }]`; rejects previous `{ createdAt: 'desc' }` form; filter params pass through to `where`; pagination `skip`/`take` computed correctly.
+- `on-hold.service.spec.ts` — `throws BadRequestException when supervisorAssetStatusChoice is sent for MISSING_PART`; `throws BadRequestException when supervisorAssetStatusChoice is sent for EXTERNAL_CONTRACTOR`; `throws BadRequestException when supervisorAssetStatusChoice is sent for ACCESS_DENIED`; `does NOT throw when supervisorAssetStatusChoice is absent for non-OTHER reason` (regression guard). All existing 30 on-hold tests continue to pass.
+
+---
+
 ### Added — Work order document and photo attachments (April 28, 2026)
 
 **feat(work-orders): add document upload service methods and controller endpoints**

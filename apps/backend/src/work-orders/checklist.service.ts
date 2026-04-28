@@ -4,10 +4,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { CompleteChecklistItemDto } from './dto/complete-checklist-item.dto';
-import {
-  ChecklistItemStatus, WorkOrderStatus, WorkOrderType, WorkOrderSource,
-} from '@gmao/db';
-import { nextWorkOrderReference } from '../common/reference-number.util';
+import { ChecklistItemStatus, WorkOrderStatus } from '@gmao/db';
 
 @Injectable()
 export class ChecklistService {
@@ -62,7 +59,7 @@ export class ChecklistService {
       }
     }
 
-    const updated = await this.prisma.workOrderChecklistItem.update({
+    return this.prisma.workOrderChecklistItem.update({
       where: { id: itemId },
       data: {
         status: dto.status,
@@ -72,35 +69,5 @@ export class ChecklistService {
         completedAt: new Date(),
       },
     });
-
-    // Auto-create corrective WO when anomaly detected and configured
-    if (dto.status === ChecklistItemStatus.ANOMALY_DETECTED && item.autoCreateCorrectiveWO) {
-      const asset = await this.prisma.asset.findUniqueOrThrow({
-        where: { id: wo.assetId },
-        include: { location: true },
-      });
-
-      await this.prisma.$transaction(async (tx) => {
-        const referenceNumber = await nextWorkOrderReference(tx);
-
-        await tx.workOrder.create({
-          data: {
-            referenceNumber,
-            type: WorkOrderType.CORRECTIVE,
-            status: WorkOrderStatus.OPEN,
-            priority: wo.priority,
-            sourceType: WorkOrderSource.CHECKLIST_ANOMALY,
-            description: `Auto-created: anomaly on checklist item "${item.description}"`,
-            capturedLocationPath: asset.location.fullPath,
-            assetId: wo.assetId,
-            triggeredByChecklistItemId: itemId,
-            sourcePlanId: wo.sourcePlanId ?? undefined,
-            createdById: actorId,
-          },
-        });
-      });
-    }
-
-    return updated;
   }
 }

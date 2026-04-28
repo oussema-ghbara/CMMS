@@ -4,8 +4,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WorkOrdersRepository } from './work-orders.repository';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubmitClosureDto } from './dto/submit-closure.dto';
-import { WorkOrderStatus, AssetStatus, NotificationType, Role } from '@gmao/db';
+import {
+  WorkOrderStatus, AssetStatus, NotificationType, Role,
+  WorkOrderSource, WorkOrderType, ChecklistItemStatus,
+} from '@gmao/db';
 import { assertTransitionAllowed } from './work-orders.state-machine';
+import { nextWorkOrderReference } from '../common/reference-number.util';
 
 @Injectable()
 export class InterventionService {
@@ -76,9 +80,21 @@ export class InterventionService {
       );
     }
 
-    const technician = await this.prisma.user.findUniqueOrThrow({
-      where: { id: actorId }, select: { hourlyRate: true },
-    });
+    const [technician, anomalyItems, asset] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: actorId }, select: { hourlyRate: true } }),
+      this.prisma.workOrderChecklistItem.findMany({
+        where: {
+          workOrderId: woId,
+          status: ChecklistItemStatus.ANOMALY_DETECTED,
+          autoCreateCorrectiveWO: true,
+        },
+        select: { id: true, description: true },
+      }),
+      this.prisma.asset.findUniqueOrThrow({
+        where: { id: wo.assetId },
+        select: { location: { select: { fullPath: true } } },
+      }),
+    ]);
 
     await this.prisma.$transaction(async (tx) => {
       const activeLog = await tx.interventionLog.findFirst({
@@ -112,6 +128,25 @@ export class InterventionService {
       await tx.workOrderStatusLog.create({
         data: { workOrderId: woId, fromStatus: wo.status, toStatus: WorkOrderStatus.PENDING_VALIDATION, actorId },
       });
+
+      for (const item of anomalyItems) {
+        const referenceNumber = await nextWorkOrderReference(tx);
+        await tx.workOrder.create({
+          data: {
+            referenceNumber,
+            type: WorkOrderType.CORRECTIVE,
+            status: WorkOrderStatus.OPEN,
+            priority: wo.priority,
+            sourceType: WorkOrderSource.CHECKLIST_ANOMALY,
+            description: `Auto-created: anomaly on checklist item "${item.description}"`,
+            capturedLocationPath: asset.location.fullPath,
+            assetId: wo.assetId,
+            triggeredByChecklistItemId: item.id,
+            sourcePlanId: (wo as any).sourcePlanId ?? undefined,
+            createdById: actorId,
+          },
+        });
+      }
     });
 
     await this.notifications.notifySupervisors(

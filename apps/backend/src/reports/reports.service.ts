@@ -200,17 +200,33 @@ export class ReportsService {
     if (report.status !== ProblemReportStatus.PENDING && report.status !== ProblemReportStatus.DEFERRED) {
       throw new BadRequestException(`Only PENDING or DEFERRED reports can be archived. Current status: ${report.status}`);
     }
-    await this.repo.updateStatus(reportId, ProblemReportStatus.ARCHIVED, actorId, {
-      archiveReason: dto.archiveReason ?? dto.reason,
-    });
+    const reason = dto.archiveReason ?? dto.reason;
+    const extraData: Record<string, any> = { archiveReason: reason };
+    if (reason === 'REPLACED_BY_OTHER_WO' && dto.linkedWorkOrderRef) {
+      extraData.replacedByWorkOrderRef = dto.linkedWorkOrderRef;
+    }
+    await this.repo.updateStatus(reportId, ProblemReportStatus.ARCHIVED, actorId, extraData);
+    const notificationSummary = this.buildArchiveNotificationSummary(report.referenceNumber, reason, dto.linkedWorkOrderRef);
     await this.notifications.notify({
       recipientId: report.reporterId,
       type: NotificationType.REPORT_ARCHIVED,
       title: 'Problem report archived',
-      summary: `Your report ${report.referenceNumber} has been archived`,
+      summary: notificationSummary,
       entityType: 'ProblemReport',
       entityId: reportId,
     });
     return this.repo.findById(reportId);
+  }
+
+  private buildArchiveNotificationSummary(ref: string, reason: string | undefined, woRef?: string): string {
+    if (reason === 'REPLACED_BY_OTHER_WO') {
+      return woRef
+        ? `Your report ${ref} has been replaced by work order #${woRef}`
+        : `Your report ${ref} has been replaced by another work order`;
+    }
+    if (reason === 'MANAGEMENT_DECISION') {
+      return `Your report ${ref} has been closed following an internal management decision`;
+    }
+    return `Your report ${ref} has been archived`;
   }
 }

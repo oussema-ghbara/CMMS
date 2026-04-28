@@ -44,7 +44,7 @@ describe('ReportsService edge cases', () => {
       problemReportComment: {
         findUnique: jest.fn(),
       },
-      $transaction: jest.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx)),
+      $transaction: jest.fn(async (callback) => callback(tx)),
     };
 
     const service = new ReportsService(
@@ -178,5 +178,96 @@ describe('ReportsService edge cases', () => {
 
     await service.reopen('report-1', 'user-1');
     await expect(service.archive('report-1', { reason: ReportArchiveReason.MANAGEMENT_DECISION }, 'user-1')).rejects.toThrow('Only PENDING or DEFERRED reports can be archived');
+  });
+
+  describe('archive notification content', () => {
+    const pendingReport = { id: 'report-1', status: ProblemReportStatus.PENDING, referenceNumber: 'PR-2026-000001', reporterId: 'reporter-1' };
+
+    it('sends a WO-specific message for REPLACED_BY_OTHER_WO with a linked ref', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.REPLACED_BY_OTHER_WO, linkedWorkOrderRef: 'WO-2026-000042' }, 'user-1');
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: 'Your report PR-2026-000001 has been replaced by work order #WO-2026-000042',
+        }),
+      );
+    });
+
+    it('sends a fallback message for REPLACED_BY_OTHER_WO without a linked ref', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.REPLACED_BY_OTHER_WO }, 'user-1');
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: 'Your report PR-2026-000001 has been replaced by another work order',
+        }),
+      );
+    });
+
+    it('sends a management-decision message for MANAGEMENT_DECISION', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.MANAGEMENT_DECISION }, 'user-1');
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: 'Your report PR-2026-000001 has been closed following an internal management decision',
+        }),
+      );
+    });
+
+    it('sends the generic message for other archive reasons', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.RESOLVED_SPONTANEOUSLY }, 'user-1');
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: 'Your report PR-2026-000001 has been archived',
+        }),
+      );
+    });
+
+    it('stores linkedWorkOrderRef in the update when reason is REPLACED_BY_OTHER_WO', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.REPLACED_BY_OTHER_WO, linkedWorkOrderRef: 'WO-2026-000042' }, 'user-1');
+
+      expect(repo.updateStatus).toHaveBeenCalledWith(
+        'report-1',
+        ProblemReportStatus.ARCHIVED,
+        'user-1',
+        expect.objectContaining({ replacedByWorkOrderRef: 'WO-2026-000042' }),
+      );
+      expect(notifications.notify).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not store replacedByWorkOrderRef for non-REPLACED reasons', async () => {
+      const { service, repo } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.SUBMITTED_IN_ERROR }, 'user-1');
+
+      expect(repo.updateStatus).toHaveBeenCalledWith(
+        'report-1',
+        ProblemReportStatus.ARCHIVED,
+        'user-1',
+        expect.not.objectContaining({ replacedByWorkOrderRef: expect.anything() }),
+      );
+    });
   });
 });

@@ -162,3 +162,55 @@ describe('ReportsRepository.findById — §9.1 enrichment', () => {
     expect(certsWhere.status.in).toContain(CertificateStatus.EXPIRED);
   });
 });
+
+// ── §9.1 — findAll sort order ─────────────────────────────────────────────────
+
+function buildFindAllPrisma() {
+  const findMany = jest.fn().mockResolvedValue([]);
+  const count = jest.fn().mockResolvedValue(0);
+  const prisma = {
+    problemReport: { findMany, count },
+    $transaction: jest.fn().mockImplementation((calls: Promise<unknown>[]) => Promise.all(calls)),
+  };
+  const repo = new ReportsRepository(prisma as never);
+  return { repo, prisma, findMany };
+}
+
+describe('ReportsRepository.findAll — §9.1 sort order', () => {
+  it('orders by urgencyPerception ASC then createdAt ASC', async () => {
+    const { repo, findMany } = buildFindAllPrisma();
+
+    await repo.findAll({ page: 1, limit: 20 } as never);
+
+    const call = findMany.mock.calls[0][0] as { orderBy: unknown };
+    expect(call.orderBy).toEqual([{ urgencyPerception: 'asc' }, { createdAt: 'asc' }]);
+  });
+
+  it('does NOT order by createdAt DESC alone', async () => {
+    const { repo, findMany } = buildFindAllPrisma();
+
+    await repo.findAll({ page: 1, limit: 20 } as never);
+
+    const call = findMany.mock.calls[0][0] as { orderBy: unknown };
+    expect(call.orderBy).not.toEqual({ createdAt: 'desc' });
+  });
+
+  it('passes through filter parameters to where clause', async () => {
+    const { repo, findMany } = buildFindAllPrisma();
+
+    await repo.findAll({ status: 'PENDING' as never, page: 1, limit: 10 } as never);
+
+    const call = findMany.mock.calls[0][0] as { where: { status?: string } };
+    expect(call.where.status).toBe('PENDING');
+  });
+
+  it('applies pagination correctly', async () => {
+    const { repo, findMany } = buildFindAllPrisma();
+
+    await repo.findAll({ page: 3, limit: 10 } as never);
+
+    const call = findMany.mock.calls[0][0] as { skip: number; take: number };
+    expect(call.skip).toBe(20);
+    expect(call.take).toBe(10);
+  });
+});

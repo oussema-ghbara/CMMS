@@ -192,7 +192,8 @@ describe('ReportsService edge cases', () => {
 
       expect(notifications.notify).toHaveBeenCalledWith(
         expect.objectContaining({
-          summary: 'Your report PR-2026-000001 has been replaced by work order #WO-2026-000042',
+          title: 'Rapport de problème archivé',
+          summary: "Votre rapport PR-2026-000001 a été remplacé par l'OT #WO-2026-000042",
         }),
       );
     });
@@ -206,7 +207,7 @@ describe('ReportsService edge cases', () => {
 
       expect(notifications.notify).toHaveBeenCalledWith(
         expect.objectContaining({
-          summary: 'Your report PR-2026-000001 has been replaced by another work order',
+          summary: 'Votre rapport PR-2026-000001 a été remplacé par un autre ordre de travail',
         }),
       );
     });
@@ -220,12 +221,12 @@ describe('ReportsService edge cases', () => {
 
       expect(notifications.notify).toHaveBeenCalledWith(
         expect.objectContaining({
-          summary: 'Your report PR-2026-000001 has been closed following an internal management decision',
+          summary: 'Votre rapport PR-2026-000001 a été clôturé suite à une décision interne',
         }),
       );
     });
 
-    it('sends the generic message for other archive reasons', async () => {
+    it('sends a spontaneous-resolution message for RESOLVED_SPONTANEOUSLY', async () => {
       const { service, repo, notifications } = createService();
       repo.findById.mockResolvedValue(pendingReport);
       repo.updateStatus.mockResolvedValue({});
@@ -234,7 +235,35 @@ describe('ReportsService edge cases', () => {
 
       expect(notifications.notify).toHaveBeenCalledWith(
         expect.objectContaining({
-          summary: 'Your report PR-2026-000001 has been archived',
+          summary: "Votre rapport PR-2026-000001 a été archivé : le problème s'est résolu spontanément",
+        }),
+      );
+    });
+
+    it('sends a decommission message for EQUIPMENT_DECOMMISSIONED', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.EQUIPMENT_DECOMMISSIONED }, 'user-1');
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: "Votre rapport PR-2026-000001 a été archivé : l'équipement a été mis hors service",
+        }),
+      );
+    });
+
+    it('sends an error-submission message for SUBMITTED_IN_ERROR', async () => {
+      const { service, repo, notifications } = createService();
+      repo.findById.mockResolvedValue(pendingReport);
+      repo.updateStatus.mockResolvedValue({});
+
+      await service.archive('report-1', { archiveReason: ReportArchiveReason.SUBMITTED_IN_ERROR }, 'user-1');
+
+      expect(notifications.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          summary: 'Votre rapport PR-2026-000001 a été archivé : soumis par erreur',
         }),
       );
     });

@@ -6,6 +6,7 @@ import {
   AssetStatus,
   NotificationType,
   ProblemReportStatus,
+  ReportArchiveReason,
   WorkOrderType,
   WorkOrderStatus,
   WorkOrderPriority,
@@ -210,7 +211,7 @@ export class ReportsService {
     await this.notifications.notify({
       recipientId: report.reporterId,
       type: NotificationType.REPORT_ARCHIVED,
-      title: 'Problem report archived',
+      title: 'Rapport de problème archivé',
       summary: notificationSummary,
       entityType: 'ProblemReport',
       entityId: reportId,
@@ -219,14 +220,21 @@ export class ReportsService {
   }
 
   private buildArchiveNotificationSummary(ref: string, reason: string | undefined, woRef?: string): string {
-    if (reason === 'REPLACED_BY_OTHER_WO') {
-      return woRef
-        ? `Your report ${ref} has been replaced by work order #${woRef}`
-        : `Your report ${ref} has been replaced by another work order`;
+    switch (reason as ReportArchiveReason) {
+      case ReportArchiveReason.REPLACED_BY_OTHER_WO:
+        return woRef
+          ? `Votre rapport ${ref} a été remplacé par l'OT #${woRef}`
+          : `Votre rapport ${ref} a été remplacé par un autre ordre de travail`;
+      case ReportArchiveReason.MANAGEMENT_DECISION:
+        return `Votre rapport ${ref} a été clôturé suite à une décision interne`;
+      case ReportArchiveReason.RESOLVED_SPONTANEOUSLY:
+        return `Votre rapport ${ref} a été archivé : le problème s'est résolu spontanément`;
+      case ReportArchiveReason.EQUIPMENT_DECOMMISSIONED:
+        return `Votre rapport ${ref} a été archivé : l'équipement a été mis hors service`;
+      case ReportArchiveReason.SUBMITTED_IN_ERROR:
+        return `Votre rapport ${ref} a été archivé : soumis par erreur`;
+      default:
+        return `Votre rapport ${ref} a été archivé`;
     }
-    if (reason === 'MANAGEMENT_DECISION') {
-      return `Your report ${ref} has been closed following an internal management decision`;
-    }
-    return `Your report ${ref} has been archived`;
   }
 }

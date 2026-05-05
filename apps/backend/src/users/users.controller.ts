@@ -41,6 +41,13 @@ export class UsersController {
     return this.usersService.listActiveTechnicians();
   }
 
+  @Get('me')
+  @Roles(Role.ADMIN, Role.SUPERVISOR, Role.STOREKEEPER, Role.TECHNICIAN, Role.REQUESTER)
+  @ApiOperation({ summary: 'Get own profile (all authenticated roles) — spec §11' })
+  getMe(@Req() req: AuthenticatedRequest): Promise<UserResponseDto> {
+    return this.usersService.getMe(req.user.sub);
+  }
+
   @Get('me/preferences')
   @Roles(Role.ADMIN, Role.SUPERVISOR, Role.STOREKEEPER, Role.TECHNICIAN, Role.REQUESTER)
   @ApiOperation({ summary: 'Get own notification preferences (all authenticated roles) — spec §12.1' })

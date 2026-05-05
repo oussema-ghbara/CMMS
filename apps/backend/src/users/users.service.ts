@@ -352,6 +352,10 @@ export class UsersService {
     return { emailNotificationsEnabled: user.emailNotificationsEnabled };
   }
 
+  async getMe(userId: string): Promise<UserResponseDto> {
+    return this.findOne(userId);
+  }
+
   async listActiveTechnicians(): Promise<UserResponseDto[]> {
     return this.findAll({ role: Role.TECHNICIAN, isActive: true });
   }

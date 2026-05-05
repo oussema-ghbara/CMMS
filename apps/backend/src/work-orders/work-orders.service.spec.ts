@@ -513,6 +513,8 @@ describe('WorkOrdersService.getAnalytics', () => {
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
     prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
+    prisma.workOrder.findMany.mockResolvedValueOnce([]); // preventiveWOsPerPlan
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]); // checklistItemsPerPlanItem
 
     const analytics = await service.getAnalytics(30);
 
@@ -601,6 +603,8 @@ describe('WorkOrdersService.getAnalytics — assetKpis.perAsset', () => {
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
     prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
+    prisma.workOrder.findMany.mockResolvedValueOnce([]); // preventiveWOsPerPlan
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]); // checklistItemsPerPlanItem
   }
 
   it('returns empty perAsset when no corrective WOs or cost data exist', async () => {
@@ -779,6 +783,8 @@ describe('WorkOrdersService.getAnalytics — technicianKpis.rejectionRateByCateg
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
     prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
+    prisma.workOrder.findMany.mockResolvedValueOnce([]); // preventiveWOsPerPlan
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]); // checklistItemsPerPlanItem
   }
 
   beforeEach(async () => {
@@ -1464,6 +1470,8 @@ describe('WorkOrdersService.getAnalytics — requesterAnalytics §9.8', () => {
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
     prisma.systemConfig.findUnique.mockResolvedValueOnce(null);
+    prisma.workOrder.findMany.mockResolvedValueOnce([]); // preventiveWOsPerPlan
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]); // checklistItemsPerPlanItem
   }
 
   beforeEach(async () => {
@@ -1740,6 +1748,9 @@ describe('WorkOrdersService.getAnalytics — postPreventiveCorrectiveRate §1.2'
     prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]);
     prisma.workOrderValidation.groupBy.mockResolvedValueOnce([]);
     prisma.workOrderReassignment.count.mockResolvedValueOnce(0);
+    // systemConfig.findUnique is mocked per test (window config varies)
+    prisma.workOrder.findMany.mockResolvedValueOnce([]); // preventiveWOsPerPlan
+    prisma.workOrderChecklistItem.findMany.mockResolvedValueOnce([]); // checklistItemsPerPlanItem
   }
 
   beforeEach(async () => {

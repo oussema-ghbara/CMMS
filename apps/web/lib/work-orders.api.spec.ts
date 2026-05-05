@@ -129,6 +129,29 @@ describe('workOrdersApi.list — technicianId filter', () => {
   });
 });
 
+describe('workOrdersApi.exportAnalyticsPdf', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls GET /work-orders/analytics/export-pdf with blob response type', async () => {
+    const payload = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+    (api.get as jest.Mock).mockResolvedValue({ data: payload });
+
+    const result = await workOrdersApi.exportAnalyticsPdf({ periodDays: 30, categoryId: 'cat-1' });
+
+    expect(api.get).toHaveBeenCalledWith('/work-orders/analytics/export-pdf', {
+      params: { periodDays: 30, categoryId: 'cat-1' },
+      responseType: 'blob',
+    });
+    expect(result).toBe(payload);
+  });
+
+  it('propagates API failures for export requests', async () => {
+    (api.get as jest.Mock).mockRejectedValue(new Error('network down'));
+
+    await expect(workOrdersApi.exportAnalyticsPdf({ periodDays: 15 })).rejects.toThrow('network down');
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // §9.8 — workOrdersApi.getAnalytics: technicianKpis.rejectionRateByCategory
 // ─────────────────────────────────────────────────────────────────────────────

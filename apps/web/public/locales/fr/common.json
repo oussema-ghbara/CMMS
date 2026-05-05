@@ -298,6 +298,11 @@
       "apply": "Appliquer",
       "reset": "Réinitialiser"
     },
+    "export": {
+      "action": "Exporter en PDF",
+      "loading": "Export en cours...",
+      "error": "Impossible d'exporter le PDF analytique. Veuillez réessayer."
+    },
     "tabs": {
       "overview": "Vue d'ensemble",
       "assets": "Équipements",

@@ -542,6 +542,9 @@ export const workOrdersApi = {
   getAnalytics: (params?: { periodDays?: number; categoryId?: string }) =>
     api.get<WorkOrderAnalyticsResponse>('/work-orders/analytics', { params }).then((r) => r.data),
 
+  exportAnalyticsPdf: (params?: { periodDays?: number; categoryId?: string }) =>
+    api.get<Blob>('/work-orders/analytics/export-pdf', { params, responseType: 'blob' }).then((r) => r.data),
+
   getAssetHealth: (params?: { thresholdCount?: number; periodDays?: number }) =>
     api.get<AssetHealthItem[]>('/work-orders/asset-health', { params }).then((r) => r.data),
 

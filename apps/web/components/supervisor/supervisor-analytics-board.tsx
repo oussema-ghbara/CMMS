@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart2, ClipboardCheck, Loader2,
-  TrendingDown, TrendingUp, Users, Wrench,
+  Download, TrendingDown, TrendingUp, Users, Wrench,
 } from 'lucide-react';
 import { WorkOrderStatus, WorkOrderType, WorkOrderPriority } from '@gmao/shared';
 import { workOrdersApi, type TechnicianKpiItem, type AssetBreakdownItem, type PlanComplianceEntry, type ChecklistItemAnomalyEntry } from '@/lib/work-orders.api';
@@ -31,6 +31,26 @@ function fmtDec(value: number): string {
 }
 function fmtCur(value: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
+}
+
+export function buildAnalyticsExportFileName(periodDays: number, now = new Date()): string {
+  const datePart = now.toISOString().slice(0, 10);
+  return `supervisor-analytics-${periodDays}d-${datePart}.pdf`;
+}
+
+export async function exportAnalyticsPdf(
+  params: { periodDays: number; categoryId?: string },
+  now = new Date(),
+) {
+  const pdfBlob = await workOrdersApi.exportAnalyticsPdf(params);
+  const objectUrl = window.URL.createObjectURL(pdfBlob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = buildAnalyticsExportFileName(params.periodDays, now);
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(objectUrl);
 }
 
 const STATUS_ORDER: WorkOrderStatus[] = [
@@ -198,6 +218,8 @@ export function SupervisorAnalyticsBoard() {
   const [periodDays, setPeriodDays] = useState(DEFAULT_PERIOD_DAYS);
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportErrorKey, setExportErrorKey] = useState<string | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', 'list'],
@@ -215,6 +237,18 @@ export function SupervisorAnalyticsBoard() {
     const parsed = Math.max(1, Number.parseInt(periodInput, 10) || DEFAULT_PERIOD_DAYS);
     setPeriodInput(String(parsed));
     setPeriodDays(parsed);
+  };
+
+  const handleExportPdf = async () => {
+    setExportErrorKey(null);
+    setIsExporting(true);
+    try {
+      await exportAnalyticsPdf({ periodDays, ...(categoryId ? { categoryId } : {}) });
+    } catch {
+      setExportErrorKey('supervisorAnalytics.export.error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const summary = data?.summary;
@@ -282,7 +316,17 @@ export function SupervisorAnalyticsBoard() {
         }}>
           {t('supervisorAnalytics.filters.reset')}
         </Button>
+        <Button size="sm" variant="default" onClick={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+          {isExporting ? t('supervisorAnalytics.export.loading') : t('supervisorAnalytics.export.action')}
+        </Button>
       </div>
+
+      {exportErrorKey && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {t(exportErrorKey)}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center">

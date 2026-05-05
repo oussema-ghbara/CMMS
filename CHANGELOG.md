@@ -4,6 +4,19 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Intervention duration auto-computed from timestamps (May 5, 2026)
+
+**fix(work-orders): remove manual activeDurationMinutes from SubmitClosureDto and compute duration from InterventionLog timestamps**
+- `SubmitClosureDto.activeDurationMinutes` removed; the field was accepted from technicians at closure time and took precedence over the real elapsed time, making labor cost and overrun calculations unreliable.
+- `InterventionService.submitClosure()` now always computes `durationMinutes` as `floor((now - activeLog.startedAt) / 60_000)`; no caller-supplied value can influence it.
+- `OnHoldService.putOnHold()` previously ended the active `InterventionLog` with only `endedAt: new Date()` and never persisted `activeDurationMinutes`, causing the hold-period work time to contribute zero to cost aggregations in `calculateWorkOrderCostSummary`; the `interventionLog.updateMany` call replaced with `findFirst + update` that also stores the computed duration.
+
+**tests: 4 tests added, 1 updated**
+- `intervention.service.spec.ts`: "computes activeDurationMinutes from elapsed time and never accepts a manual value" asserts the stored value falls within one minute of the 45-minute-old `startedAt`; "skips log update when no active intervention log is found" verifies `update` is never called when `findFirst` returns `null`.
+- `on-hold.service.spec.ts`: "stores activeDurationMinutes computed from startedAt when pausing the intervention log" verifies `findFirst` is called with correct `where` and `update` receives a computed numeric duration within one minute of the 30-minute-old mock; "skips intervention log update when no active log exists at hold time" verifies `update` is not called when `findFirst` returns `null`; tx mock extended with `interventionLog.findFirst` and `interventionLog.update`.
+
+---
+
 ### Fixed — Archive notification messages extended to all five archive reasons (May 5, 2026)
 
 **fix(reports): provide French-language notification for every archive reason**

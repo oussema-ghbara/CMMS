@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, IsArray, ValidateNested, IsInt, Min } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { InterventionResult, InterventionActionType } from '@gmao/shared';
@@ -30,10 +30,4 @@ export class SubmitClosureDto {
   @ValidateNested({ each: true })
   @Type(() => InterventionActionDto)
   actions?: InterventionActionDto[];
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  activeDurationMinutes?: number;
 }

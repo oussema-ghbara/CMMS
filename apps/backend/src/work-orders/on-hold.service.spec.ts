@@ -62,6 +62,11 @@ function buildMocks() {
   const txChecklistUpdateMany = jest.fn().mockResolvedValue({});
   const txInterventionUpdateMany = jest.fn().mockResolvedValue({});
   const txInterventionCreate = jest.fn().mockResolvedValue({});
+  const txInterventionLogFindFirst = jest.fn().mockResolvedValue({
+    id: 'intlog-1',
+    startedAt: new Date(Date.now() - 60_000 * 30),
+  });
+  const txInterventionLogUpdate = jest.fn().mockResolvedValue({});
 
   const tx = {
     workOrder: { update: txWorkOrderUpdate },
@@ -70,7 +75,12 @@ function buildMocks() {
     asset: { update: txAssetUpdate },
     assetStatusLog: { create: txAssetStatusLogCreate },
     workOrderChecklistItem: { updateMany: txChecklistUpdateMany },
-    interventionLog: { updateMany: txInterventionUpdateMany, create: txInterventionCreate },
+    interventionLog: {
+      updateMany: txInterventionUpdateMany,
+      findFirst: txInterventionLogFindFirst,
+      update: txInterventionLogUpdate,
+      create: txInterventionCreate,
+    },
   };
 
   type TxShape = typeof tx;
@@ -108,6 +118,8 @@ function buildMocks() {
     assetUpdate: txAssetUpdate,
     assetStatusLogCreate: txAssetStatusLogCreate,
     interventionCreate: txInterventionCreate,
+    interventionLogFindFirst: txInterventionLogFindFirst,
+    interventionLogUpdate: txInterventionLogUpdate,
   }};
 }
 
@@ -256,6 +268,39 @@ describe('OnHoldService', () => {
       await expect(
         service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal'),
       ).resolves.not.toThrow();
+    });
+
+    it('stores activeDurationMinutes computed from startedAt when pausing the intervention log', async () => {
+      const { service, repo, tx } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO())
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+
+      await service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal');
+
+      expect(tx.interventionLogFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ workOrderId: 'wo-1', technicianId: 'tech-principal', endedAt: null }),
+        }),
+      );
+      const updateCall = tx.interventionLogUpdate.mock.calls[0][0];
+      expect(updateCall.where).toEqual({ id: 'intlog-1' });
+      expect(updateCall.data.endedAt).toBeInstanceOf(Date);
+      expect(typeof updateCall.data.activeDurationMinutes).toBe('number');
+      expect(updateCall.data.activeDurationMinutes).toBeGreaterThanOrEqual(29);
+      expect(updateCall.data.activeDurationMinutes).toBeLessThanOrEqual(31);
+    });
+
+    it('skips intervention log update when no active log exists at hold time', async () => {
+      const { service, repo, tx } = buildMocks();
+      repo.findById
+        .mockResolvedValueOnce(buildWO())
+        .mockResolvedValueOnce(buildWO({ status: WorkOrderStatus.ON_HOLD }));
+      tx.interventionLogFindFirst.mockResolvedValueOnce(null);
+
+      await service.putOnHold('wo-1', { reasonType: OnHoldReasonType.MISSING_PART }, 'tech-principal');
+
+      expect(tx.interventionLogUpdate).not.toHaveBeenCalled();
     });
 
     it('does not write asset status logs for OTHER reason during putOnHold()', async () => {

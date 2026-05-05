@@ -228,13 +228,16 @@ describe('InterventionService.submitClosure', () => {
     expect(tx.wOCreate).not.toHaveBeenCalled();
   });
 
-  it('closes active intervention log with correct duration on closure', async () => {
+  it('computes activeDurationMinutes from elapsed time and never accepts a manual value', async () => {
     const { service, repo, prisma } = buildMocks();
     repo.findById
       .mockResolvedValueOnce(buildWorkOrder() as never)
       .mockResolvedValueOnce(buildWorkOrder() as never);
 
-    const startedAt = new Date(Date.now() - 60_000 * 30);
+    const elapsedMs = 60_000 * 45;
+    const startedAt = new Date(Date.now() - elapsedMs);
+    const expectedMinutes = 45;
+
     prisma.$transaction.mockImplementationOnce(async (cb: any) => {
       const txWithLog = {
         workOrder: { create: jest.fn(), update: jest.fn() },
@@ -247,14 +250,38 @@ describe('InterventionService.submitClosure', () => {
         $executeRaw: jest.fn().mockResolvedValue(1),
       };
       await cb(txWithLog);
-      expect(txWithLog.interventionLog.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'log-1' },
-          data: expect.objectContaining({ endedAt: expect.any(Date) }),
-        }),
-      );
+      const updateCall = txWithLog.interventionLog.update.mock.calls[0][0];
+      expect(updateCall.where).toEqual({ id: 'log-1' });
+      expect(updateCall.data.endedAt).toBeInstanceOf(Date);
+      expect(updateCall.data.activeDurationMinutes).toBeGreaterThanOrEqual(expectedMinutes - 1);
+      expect(updateCall.data.activeDurationMinutes).toBeLessThanOrEqual(expectedMinutes + 1);
     });
 
     await service.submitClosure(WO_ID, { result: 'COMPLETED' } as never, ACTOR_ID);
+  });
+
+  it('skips log update when no active intervention log is found', async () => {
+    const { service, repo, prisma } = buildMocks();
+    repo.findById
+      .mockResolvedValueOnce(buildWorkOrder() as never)
+      .mockResolvedValueOnce(buildWorkOrder() as never);
+
+    let interventionUpdateCalled = false;
+    prisma.$transaction.mockImplementationOnce(async (cb: any) => {
+      const txWithLog = {
+        workOrder: { create: jest.fn(), update: jest.fn() },
+        workOrderStatusLog: { create: jest.fn() },
+        interventionLog: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn().mockImplementation(() => { interventionUpdateCalled = true; }),
+        },
+        interventionAction: { createMany: jest.fn() },
+        $executeRaw: jest.fn().mockResolvedValue(1),
+      };
+      await cb(txWithLog);
+    });
+
+    await service.submitClosure(WO_ID, { result: 'COMPLETED' } as never, ACTOR_ID);
+    expect(interventionUpdateCalled).toBe(false);
   });
 });

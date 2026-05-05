@@ -102,9 +102,7 @@ export class InterventionService {
       });
 
       if (activeLog) {
-        const durationMinutes =
-          dto.activeDurationMinutes ??
-          Math.floor((Date.now() - activeLog.startedAt.getTime()) / 60_000);
+        const durationMinutes = Math.floor((Date.now() - activeLog.startedAt.getTime()) / 60_000);
 
         await tx.interventionLog.update({
           where: { id: activeLog.id },

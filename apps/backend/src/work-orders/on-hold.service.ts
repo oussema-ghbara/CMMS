@@ -76,11 +76,18 @@ export class OnHoldService {
         where: { workOrderId: woId, status: { not: 'PENDING' } },
         data: { isLockedByHold: true },
       });
-      // End current intervention log period
-      await tx.interventionLog.updateMany({
+      const activeInterventionLog = await tx.interventionLog.findFirst({
         where: { workOrderId: woId, technicianId: actorId, endedAt: null },
-        data: { endedAt: new Date() },
       });
+      if (activeInterventionLog) {
+        const activeDurationMinutes = Math.floor(
+          (Date.now() - activeInterventionLog.startedAt.getTime()) / 60_000,
+        );
+        await tx.interventionLog.update({
+          where: { id: activeInterventionLog.id },
+          data: { endedAt: new Date(), activeDurationMinutes },
+        });
+      }
     });
 
     await this.notifications.notifySupervisors(

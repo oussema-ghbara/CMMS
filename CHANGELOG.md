@@ -4,6 +4,25 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Archive notification messages extended to all five archive reasons (May 5, 2026)
+
+**fix(reports): provide French-language notification for every archive reason**
+- `ReportsService.archive()` previously sent a generic English summary for `RESOLVED_SPONTANEOUSLY`, `EQUIPMENT_DECOMMISSIONED`, and `SUBMITTED_IN_ERROR` archive reasons; the two explicitly handled cases (`REPLACED_BY_OTHER_WO` and `MANAGEMENT_DECISION`) also used English strings.
+- `buildArchiveNotificationSummary()` rewritten as a `switch` statement covering all five `ReportArchiveReason` values with French messages:
+  - `REPLACED_BY_OTHER_WO` with linked ref: "Votre rapport {ref} a ete remplace par l'OT #{woRef}"
+  - `REPLACED_BY_OTHER_WO` without linked ref: "...remplace par un autre ordre de travail"
+  - `MANAGEMENT_DECISION`: "...cloture suite a une decision interne"
+  - `RESOLVED_SPONTANEOUSLY`: "...archive : le probleme s'est resolu spontanement"
+  - `EQUIPMENT_DECOMMISSIONED`: "...archive : l'equipement a ete mis hors service"
+  - `SUBMITTED_IN_ERROR`: "...archive : soumis par erreur"
+- Notification title changed from `'Problem report archived'` to `'Rapport de probleme archive'`.
+- `ReportArchiveReason` enum now imported from `@gmao/db` to eliminate string literal comparisons in the switch.
+
+**tests: 17 backend unit tests**
+- `reports.service.spec.ts`: three existing tests updated to assert French strings and the corrected title; three new tests for `RESOLVED_SPONTANEOUSLY`, `EQUIPMENT_DECOMMISSIONED`, and `SUBMITTED_IN_ERROR` reason-specific messages; full archive suite passes 17/17 (0 regressions).
+
+---
+
 ### Added — Dedicated profile page with personal info, preferences, and password change (May 5, 2026)
 
 **feat(users): expose own profile via GET /users/me**

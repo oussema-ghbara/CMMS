@@ -4,6 +4,36 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Added — Dedicated profile page with personal info, preferences, and password change (May 5, 2026)
+
+**feat(users): expose own profile via GET /users/me**
+- `UsersService.getMe(userId)` delegates to the existing `findOne` method and is reachable by all authenticated roles.
+- `GET /users/me` added to `UsersController` with an all-roles `@Roles` override; returns the same `UserResponseDto` shape used by admin user management (id, name, email, roles, isActive, hourlyRate, lastLoginAt, createdAt).
+
+**feat(auth): add authenticated change-password endpoint**
+- `AuthService.changePassword(userId, currentPassword, newPassword)` verifies the current password hash with bcrypt, runs the new password through `SystemConfigService.validatePassword` (same policy as setup/reset), and updates the stored hash.
+- Returns `BadRequestException('auth.changePassword.noPasswordSet')` when the account has no hash (invited but not yet activated).
+- Returns `BadRequestException('auth.changePassword.incorrectCurrentPassword')` when the current password does not match.
+- `POST /auth/change-password` added to `AuthController`; protected by the global `JwtAuthGuard` applied via `APP_GUARD`; body validated by `ChangePasswordDto` (`@IsString currentPassword`, `@IsString @MinLength(8) newPassword`).
+
+**feat(web): add profile page with personal info, notification preferences, and in-app password change**
+- New route `/profile` under the existing protected layout, accessible to all authenticated roles.
+- Personal info card: name, email, role badges, last login timestamp, member-since timestamp; formatted in French locale.
+- Notification preferences card: same email-notification toggle available in the sidebar, now also reachable from the profile page; reads from `GET /users/me/preferences` and updates via `PATCH /users/me/email-notifications`.
+- Security card: "Changer le mot de passe" button reveals an inline form (current password, new password, confirm); mismatch between new and confirm fields is caught client-side before any API call; incorrect current password error is surfaced as a field-level validation message; success resets the form and collapses the section.
+- Profile link added to the sidebar user dropdown menu ("Mon profil").
+- `usersApi.getMe()` and `authApi.changePassword()` added to the respective API modules.
+- `profile-utils.ts` contains `formatDate` and `getChangePasswordErrorMessage` as exported pure functions.
+- 36 i18n keys added under the `profile.*` namespace in `locales/fr/common.json`.
+
+**tests: 33 backend + 9 frontend tests**
+- `auth.service.spec.ts` (4 new): correct current password updates hash; wrong current password throws; policy violation throws; no password set throws.
+- `auth.controller.integration.spec.ts` (3 new): `POST /auth/change-password` returns 204 on success; 400 on missing body field; 400 when service throws `BadRequestException`; `APP_GUARD` mock added to populate `req.user` across all integration test routes.
+- `users.service.spec.ts` (2 new): `getMe` returns the user profile; throws `NotFoundException` when user does not exist.
+- `profile-page.spec.tsx` (9): `formatDate` handles null, undefined, and valid ISO strings; `getChangePasswordErrorMessage` extracts string messages, first array element, returns empty string for missing data, empty array, and null/undefined.
+
+---
+
 ### Fixed — Work order creation form draft and assign intent (April 28, 2026)
 
 **fix(web): make draft vs. assign intent explicit in work order creation form**

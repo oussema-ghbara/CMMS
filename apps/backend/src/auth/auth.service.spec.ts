@@ -304,3 +304,52 @@ describe('AuthService session timeout enforcement', () => {
     );
   });
 });
+
+describe('AuthService.changePassword', () => {
+  const USER_ID = 'user-cp-1';
+
+  it('throws BadRequestException when current password is incorrect', async () => {
+    const { service, prisma, systemConfig } = createService();
+    const realHash = await import('bcryptjs').then((m) => m.hash('correct-pass', 12));
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: realHash });
+    systemConfig.validatePassword.mockResolvedValue(null);
+
+    await expect(
+      service.changePassword(USER_ID, 'wrong-pass', 'NewPass@123'),
+    ).rejects.toThrow('auth.changePassword.incorrectCurrentPassword');
+  });
+
+  it('throws BadRequestException when new password fails policy', async () => {
+    const { service, prisma, systemConfig } = createService();
+    const realHash = await import('bcryptjs').then((m) => m.hash('current-pass', 12));
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: realHash });
+    systemConfig.validatePassword.mockResolvedValue('password.tooShort');
+
+    await expect(
+      service.changePassword(USER_ID, 'current-pass', 'weak'),
+    ).rejects.toThrow('password.tooShort');
+  });
+
+  it('updates the password hash when current password is correct and new password passes policy', async () => {
+    const { service, prisma, systemConfig } = createService();
+    const realHash = await import('bcryptjs').then((m) => m.hash('current-pass', 12));
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: realHash });
+    prisma.user.update.mockResolvedValue({});
+    systemConfig.validatePassword.mockResolvedValue(null);
+
+    await service.changePassword(USER_ID, 'current-pass', 'NewStrongPass@123');
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: USER_ID }, data: expect.objectContaining({ passwordHash: expect.any(String) }) }),
+    );
+  });
+
+  it('throws BadRequestException when user has no password set', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: null });
+
+    await expect(
+      service.changePassword(USER_ID, 'current-pass', 'NewPass@123'),
+    ).rejects.toThrow('auth.changePassword.noPasswordSet');
+  });
+});

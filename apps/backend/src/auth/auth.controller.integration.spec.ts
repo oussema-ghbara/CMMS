@@ -1,4 +1,5 @@
-import { CanActivate, ExecutionContext, INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
+import { CanActivate, ExecutionContext, INestApplication, UnauthorizedException, ValidationPipe, BadRequestException } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import * as cookieParser from 'cookie-parser';
 import request = require('supertest');
@@ -29,6 +30,7 @@ describe('AuthController integration', () => {
     resendSetup: jest.fn(),
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
+    changePassword: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -37,6 +39,7 @@ describe('AuthController integration', () => {
       providers: [
         { provide: AuthService, useValue: authService },
         { provide: JwtAuthGuard, useClass: MockJwtAuthGuard },
+        { provide: APP_GUARD, useClass: MockJwtAuthGuard },
       ],
     }).compile();
 
@@ -116,5 +119,37 @@ describe('AuthController integration', () => {
 
     expect(response.status).toBe(400);
     expect(authService.resendSetup).not.toHaveBeenCalled();
+  });
+
+  it('POST /auth/change-password returns 204 and delegates to AuthService.changePassword', async () => {
+    authService.changePassword.mockResolvedValue(undefined);
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/change-password')
+      .send({ currentPassword: 'OldPass@1', newPassword: 'NewPass@2' });
+
+    expect(response.status).toBe(204);
+    expect(authService.changePassword).toHaveBeenCalledWith('user-1', 'OldPass@1', 'NewPass@2');
+  });
+
+  it('POST /auth/change-password returns 400 when body is invalid (missing fields)', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/change-password')
+      .send({ currentPassword: 'OldPass@1' });
+
+    expect(response.status).toBe(400);
+    expect(authService.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('POST /auth/change-password returns 400 when service throws BadRequestException', async () => {
+    authService.changePassword.mockRejectedValue(
+      new BadRequestException('auth.changePassword.incorrectCurrentPassword'),
+    );
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/change-password')
+      .send({ currentPassword: 'wrong', newPassword: 'NewPass@2' });
+
+    expect(response.status).toBe(400);
   });
 });

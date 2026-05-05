@@ -214,3 +214,38 @@ describe('UsersService.resendSetupByEmail', () => {
     expect(mail.enqueue).not.toHaveBeenCalled();
   });
 });
+
+describe('UsersService.getMe', () => {
+  it('returns the own user profile via findOne', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: USER_ID,
+          email: 'me@gmao.local',
+          name: 'Me User',
+          roles: ['SUPERVISOR'],
+          isActive: true,
+          hourlyRate: null,
+          lastLoginAt: null,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      },
+    };
+    const module: TestingModule = await buildModule(prisma as never);
+    const service = module.get(UsersService);
+
+    const result = await service.getMe(USER_ID);
+
+    expect(result.id).toBe(USER_ID);
+    expect(result.email).toBe('me@gmao.local');
+    expect(result.name).toBe('Me User');
+  });
+
+  it('throws NotFoundException when user does not exist', async () => {
+    const prisma = { user: { findUnique: jest.fn().mockResolvedValue(null) } };
+    const module: TestingModule = await buildModule(prisma as never);
+    const service = module.get(UsersService);
+
+    await expect(service.getMe('nonexistent')).rejects.toThrow(NotFoundException);
+  });
+});

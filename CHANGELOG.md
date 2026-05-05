@@ -4,6 +4,14 @@ All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Analytics spec mock queue exhaustion for compliance queries (May 5, 2026)
+
+**test(work-orders): add missing Promise.all mock entries for preventiveWOsPerPlan and checklistItemsPerPlanItem**
+- Five mock-helper functions in `work-orders.service.spec.ts` were missing `mockResolvedValueOnce` entries for the `preventiveWOsPerPlan` (`workOrder.findMany`) and `checklistItemsPerPlanItem` (`workOrderChecklistItem.findMany`) calls added when `getAnalytics()` Promise.all grew from 18 to 20 items. Exhausted queues returned `undefined`, causing `TypeError: wos is not iterable` in 29 tests across all analytics describe blocks.
+- Fixed in: direct "returns analytics with a computed cost summary" test, `setupMinimalMocks` (perAsset), `setupMocks` (technicianKpis.rejectionRateByCategory), `setupMocks` (requesterAnalytics), `setupBasePromiseAll` (postPreventiveCorrectiveRate). 68 tests now pass (previously 29 failures).
+
+---
+
 ### Fixed — Intervention duration auto-computed from timestamps (May 5, 2026)
 
 **fix(work-orders): remove manual activeDurationMinutes from SubmitClosureDto and compute duration from InterventionLog timestamps**

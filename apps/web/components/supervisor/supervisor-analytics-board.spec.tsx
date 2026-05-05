@@ -4,6 +4,7 @@ import { workOrdersApi } from '@/lib/work-orders.api';
 jest.mock('@/lib/work-orders.api', () => ({
   workOrdersApi: {
     exportAnalyticsPdf: jest.fn(),
+    getAnalytics: jest.fn(),
   },
 }));
 

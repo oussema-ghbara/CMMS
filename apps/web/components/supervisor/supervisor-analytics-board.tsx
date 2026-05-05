@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 const DEFAULT_PERIOD_DAYS = 30;
 
@@ -244,6 +245,7 @@ export function SupervisorAnalyticsBoard() {
     setIsExporting(true);
     try {
       await exportAnalyticsPdf({ periodDays, ...(categoryId ? { categoryId } : {}) });
+      toast.success(t('supervisorAnalytics.export.success'));
     } catch {
       setExportErrorKey('supervisorAnalytics.export.error');
     } finally {

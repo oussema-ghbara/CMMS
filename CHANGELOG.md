@@ -3,6 +3,12 @@
 All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
+### Fixed — Analytics PDF content completeness and formatting (May 5, 2026)
+- PDF generation extracted to `work-orders.analytics-pdf.ts`; expanded from 3 to 8 sections: global KPIs with MTBF/MTTR, costs with EUR currency formatting, top assets by failure and by cost, technician KPIs, requester analytics, preventive plan efficiency, and operational overview.
+- All French text corrected throughout (accents restored).
+- `toast.success` feedback added on successful download; `supervisorAnalytics.export.success` i18n key added.
+- 8 backend unit tests cover valid PDF, delegation, error propagation, null KPIs, multiple technicians, and asset capping (705 backend / 281 frontend tests total, 0 regressions).
+
 ### Added — Supervisor analytics PDF export (May 5, 2026)
 - Added `GET /work-orders/analytics/export-pdf` (Supervisor), frontend export action in `SupervisorAnalyticsBoard`, and full backend/frontend test coverage for export flow.
 

@@ -301,6 +301,7 @@
     "export": {
       "action": "Exporter en PDF",
       "loading": "Export en cours...",
+      "success": "PDF analytique téléchargé avec succès.",
       "error": "Impossible d'exporter le PDF analytique. Veuillez réessayer."
     },
     "tabs": {

@@ -1,7 +1,7 @@
 import { WorkOrder } from '@gmao/db';
 import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
-import PDFDocument = require('pdfkit');
 import { WorkOrdersRepository } from './work-orders.repository';
+import { buildAnalyticsPdf } from './work-orders.analytics-pdf';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PartRequestsService } from '../inventory/part-requests.service';
@@ -961,62 +961,7 @@ export class WorkOrdersService {
 
   async getAnalyticsPdf(periodDays: number, categoryId?: string): Promise<Buffer> {
     const analytics = await this.getAnalytics(periodDays, categoryId);
-
-    return new Promise<Buffer>((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 40, size: 'A4' });
-      const chunks: Buffer[] = [];
-
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-
-      doc.fontSize(18).text('Synthese analytique maintenance', { align: 'left' });
-      doc.moveDown(0.5);
-      doc.fontSize(10).fillColor('#666666').text(`Periode: ${analytics.periodDays} jours`);
-      doc.text(`Categorie: ${analytics.categoryId ?? 'Toutes'}`);
-      doc.text(`Genere le: ${new Date().toISOString()}`);
-      doc.fillColor('#000000');
-
-      doc.moveDown();
-      doc.fontSize(13).text('Indicateurs globaux', { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(11)
-        .text(`Total OT: ${analytics.summary.total}`)
-        .text(`OT ouverts: ${analytics.summary.open}`)
-        .text(`OT en retard: ${analytics.summary.overdue}`)
-        .text(`OT clos (periode): ${analytics.summary.closedThisPeriod}`)
-        .text(`OT annules (periode): ${analytics.summary.cancelledThisPeriod}`)
-        .text(
-          `Taux de resolution: ${analytics.summary.resolutionRate !== null
-            ? `${Math.round(analytics.summary.resolutionRate * 1000) / 10}%`
-            : 'N/A'}`,
-        );
-
-      doc.moveDown();
-      doc.fontSize(13).text('Couts maintenance', { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(11)
-        .text(`Main d'oeuvre: ${analytics.costSummary.laborCost}`)
-        .text(`Pieces: ${analytics.costSummary.partsCost}`)
-        .text(`Sous-traitance: ${analytics.costSummary.contractorCost}`)
-        .text(`Total: ${analytics.costSummary.totalCost}`);
-
-      doc.moveDown();
-      doc.fontSize(13).text('Top actifs en panne (max 10)', { underline: true });
-      doc.moveDown(0.5);
-
-      if (analytics.assetKpis.topByFailureFrequency.length === 0) {
-        doc.fontSize(11).text('Aucune donnee sur la periode.');
-      } else {
-        analytics.assetKpis.topByFailureFrequency.forEach((item, index) => {
-          doc.fontSize(10).text(
-            `${index + 1}. ${item.assetName} — pannes: ${item.failureCount} — derniere panne: ${new Date(item.lastFailureDate).toLocaleDateString('fr-FR')}`,
-          );
-        });
-      }
-
-      doc.end();
-    });
+    return buildAnalyticsPdf(analytics as any);
   }
 
   async getRecurringFailureAssets(thresholdCount: number, periodDays: number) {

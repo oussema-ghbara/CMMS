@@ -257,4 +257,22 @@ export class AuthService {
     await this.usersService.markTokenUsed('reset:', userId, jti);
     this.logger.log(`Password reset complete for user ${userId}`);
   }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!user?.passwordHash) throw new BadRequestException('auth.changePassword.noPasswordSet');
+
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) throw new BadRequestException('auth.changePassword.incorrectCurrentPassword');
+
+    const violation = await this.systemConfig.validatePassword(newPassword);
+    if (violation) throw new BadRequestException(violation);
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    this.logger.log(`Password changed for user ${userId}`);
+  }
 }

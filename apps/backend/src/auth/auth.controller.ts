@@ -22,6 +22,7 @@ import { SetupAccountDto } from './dto/setup-account.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendSetupDto } from './dto/resend-setup.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import type { AccessTokenPayload } from './types/jwt-payload.type';
 
@@ -117,5 +118,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Set new password using reset token from email' })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change password for the authenticated user (spec §11)' })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<void> {
+    await this.authService.changePassword(req.user.sub, dto.currentPassword, dto.newPassword);
   }
 }

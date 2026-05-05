@@ -3,6 +3,8 @@
 All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
+### Added — Supervisor analytics PDF export (May 5, 2026)
+- Added `GET /work-orders/analytics/export-pdf` (Supervisor), frontend export action in `SupervisorAnalyticsBoard`, and full backend/frontend test coverage for export flow.
 
 ### Fixed — Analytics spec mock queue exhaustion for compliance queries (May 5, 2026)
 

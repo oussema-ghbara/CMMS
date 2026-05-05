@@ -9,6 +9,40 @@
       "updateError": "Erreur lors de la mise à jour des préférences"
     }
   },
+  "profile": {
+    "title": "Mon profil",
+    "subtitle": "Informations personnelles et paramètres du compte",
+    "profileLink": "Mon profil",
+    "sections": {
+      "info": "Informations personnelles",
+      "infoDescription": "Vos informations de compte telles qu'enregistrées dans le système.",
+      "preferences": "Préférences",
+      "preferencesDescription": "Gérez vos préférences de notification.",
+      "security": "Sécurité",
+      "securityDescription": "Modifiez votre mot de passe de connexion."
+    },
+    "fields": {
+      "name": "Nom",
+      "email": "Adresse e-mail",
+      "roles": "Rôle(s)",
+      "lastLogin": "Dernière connexion",
+      "memberSince": "Membre depuis",
+      "never": "Jamais"
+    },
+    "changePassword": {
+      "title": "Changer le mot de passe",
+      "currentPassword": "Mot de passe actuel",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le nouveau mot de passe",
+      "submit": "Mettre à jour le mot de passe",
+      "submitting": "Mise à jour...",
+      "success": "Mot de passe mis à jour avec succès",
+      "errorMismatch": "Les mots de passe ne correspondent pas",
+      "errorCurrent": "Mot de passe actuel incorrect",
+      "errorGeneric": "Erreur lors de la mise à jour du mot de passe",
+      "incorrectCurrentPassword": "Le mot de passe actuel est incorrect"
+    }
+  },
   "auth": {
     "login": "Connexion",
     "logout": "Déconnexion",

@@ -9,6 +9,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  UserCircle,
   Wrench,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -301,6 +302,13 @@ export function AppSidebar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="top" className="w-64 border-sidebar-border bg-sidebar text-sidebar-foreground">
             <DropdownMenuLabel>{user?.name}</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-sidebar-border" />
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link href="/profile">
+                <UserCircle className="mr-2 h-4 w-4" />
+                {t('profile.profileLink')}
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-sidebar-border" />
             <DropdownMenuItem
               onClick={() =>

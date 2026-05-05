@@ -29,6 +29,8 @@ export const usersApi = {
 
   resendSetup: (id: string) => api.post(`/users/${id}/resend-setup`),
 
+  getMe: () => api.get<UserDto>('/users/me').then((r) => r.data),
+
   getMyPreferences: () =>
     api.get<{ emailNotificationsEnabled: boolean }>('/users/me/preferences').then((r) => r.data),
 

@@ -1,7 +1,8 @@
 import {
   Controller, Get, Post, Patch, Delete, Param, Body, Query, Request,
-  HttpCode, HttpStatus, UseInterceptors, UploadedFile,
+  HttpCode, HttpStatus, UseInterceptors, UploadedFile, Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentType } from '@gmao/db';
 import { DocumentsService } from '../assets/documents.service';
@@ -69,6 +70,25 @@ export class WorkOrdersController {
   getAnalytics(@Query('periodDays') periodDays?: string, @Query('categoryId') categoryId?: string) {
     const period = Math.max(1, parseInt(periodDays ?? '30', 10) || 30);
     return this.workOrders.getAnalytics(period, categoryId || undefined);
+  }
+
+  @Get('analytics/export-pdf')
+  @Roles(Role.SUPERVISOR)
+  @ApiOperation({ summary: 'Export supervisor analytics as PDF (Supervisor)' })
+  @ApiQuery({ name: 'periodDays', required: false, type: Number, description: 'Analytics window in days (default 30)' })
+  @ApiQuery({ name: 'categoryId', required: false, type: String, description: 'Filter by asset category ID' })
+  async exportAnalyticsPdf(
+    @Query('periodDays') periodDays: string | undefined,
+    @Query('categoryId') categoryId: string | undefined,
+    @Res() res: Response,
+  ) {
+    const period = Math.max(1, parseInt(periodDays ?? '30', 10) || 30);
+    const pdf = await this.workOrders.getAnalyticsPdf(period, categoryId || undefined);
+    const fileName = `supervisor-analytics-${period}d.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdf);
   }
 
   @Get('asset-health')

@@ -79,6 +79,7 @@ describe('WorkOrdersController integration', () => {
   const workOrders = {
     findAll: jest.fn(),
     getAnalytics: jest.fn(),
+    getAnalyticsPdf: jest.fn(),
     findById: jest.fn(),
     create: jest.fn(),
     publish: jest.fn(),
@@ -515,6 +516,54 @@ describe('WorkOrdersController integration', () => {
       partsCost: 40,
       totalCost: 240.5,
     });
+  });
+
+  it('GET /work-orders/analytics/export-pdf returns a PDF for supervisors', async () => {
+    workOrders.getAnalyticsPdf.mockResolvedValue(Buffer.from('%PDF-1.4 mock'));
+
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/analytics/export-pdf?periodDays=45&categoryId=cat-1')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(response.status).toBe(200);
+    expect(workOrders.getAnalyticsPdf).toHaveBeenCalledWith(45, 'cat-1');
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toContain('attachment; filename="supervisor-analytics-45d.pdf"');
+  });
+
+  it('GET /work-orders/analytics/export-pdf coerces invalid period to 30 and minimum 1', async () => {
+    workOrders.getAnalyticsPdf.mockResolvedValue(Buffer.from('%PDF-1.4 mock'));
+
+    const responseInvalid = await request(app.getHttpServer())
+      .get('/work-orders/analytics/export-pdf?periodDays=oops')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(responseInvalid.status).toBe(200);
+    expect(workOrders.getAnalyticsPdf).toHaveBeenCalledWith(30, undefined);
+
+    const responseMin = await request(app.getHttpServer())
+      .get('/work-orders/analytics/export-pdf?periodDays=0')
+      .set('Authorization', 'Bearer SUPERVISOR');
+
+    expect(responseMin.status).toBe(200);
+    expect(workOrders.getAnalyticsPdf).toHaveBeenCalledWith(30, undefined);
+  });
+
+  it('GET /work-orders/analytics/export-pdf returns 403 for non-supervisor roles', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/analytics/export-pdf')
+      .set('Authorization', 'Bearer TECHNICIAN');
+
+    expect(response.status).toBe(403);
+    expect(workOrders.getAnalyticsPdf).not.toHaveBeenCalled();
+  });
+
+  it('GET /work-orders/analytics/export-pdf returns 401 when auth is missing', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/work-orders/analytics/export-pdf');
+
+    expect(response.status).toBe(401);
+    expect(workOrders.getAnalyticsPdf).not.toHaveBeenCalled();
   });
 
   // ── GET /work-orders/:id/documents (§11.2) ────────────────────────────────

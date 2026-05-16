@@ -41,7 +41,8 @@
       "errorCurrent": "Mot de passe actuel incorrect",
       "errorGeneric": "Erreur lors de la mise à jour du mot de passe",
       "incorrectCurrentPassword": "Le mot de passe actuel est incorrect"
-    }
+    },
+    "switchRole": "Activer"
   },
   "auth": {
     "login": "Connexion",

@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '@/store/auth.store';
 
-let socketInstance: Socket | null = null;
+export let socketInstance: Socket | null = null;
 
 /**
  * Returns the singleton Socket.io connection.

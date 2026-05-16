@@ -11,11 +11,12 @@ interface AuthState {
   accessToken: string | null;
   user: UserSession | null;
   isInitialized: boolean;
-  /** Session idle timeout in hours returned by the server (§3.4). Null until first auth. */
   idleTimeoutHours: number | null;
+  activeRole: Role | null;
   setAuth: (token: string, user: UserSession, idleTimeoutHours?: number) => void;
   clearAuth: () => void;
   setInitialized: () => void;
+  setActiveRole: (role: Role) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -23,8 +24,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isInitialized: false,
   idleTimeoutHours: null,
+  activeRole: null,
   setAuth: (token, user, idleTimeoutHours) =>
-    set({ accessToken: token, user, ...(idleTimeoutHours != null && { idleTimeoutHours }) }),
-  clearAuth: () => set({ accessToken: null, user: null }),
+    set({
+      accessToken: token,
+      user,
+      activeRole: user.roles[0] ?? null,
+      ...(idleTimeoutHours != null && { idleTimeoutHours }),
+    }),
+  clearAuth: () => set({ accessToken: null, user: null, activeRole: null }),
   setInitialized: () => set({ isInitialized: true }),
+  setActiveRole: (role) => set({ activeRole: role }),
 }));

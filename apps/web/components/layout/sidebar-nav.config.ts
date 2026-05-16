@@ -22,12 +22,14 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
     labelKey: 'roles.SUPERVISOR',
     icon: LayoutDashboard,
     items: [
+      // Overview first
       {
         labelKey: 'nav.dashboard',
         href: '/supervisor',
         icon: LayoutDashboard,
         match: 'exact',
       },
+      // Active operations
       {
         labelKey: 'nav.workOrders',
         href: '/supervisor/work-orders',
@@ -38,25 +40,28 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         href: '/supervisor/validation-queue',
         icon: ShieldCheck,
       },
+      // Planning
+      {
+        labelKey: 'nav.preventivePlans',
+        href: '/supervisor/preventive-plans',
+        icon: CalendarClock,
+      },
+      // Reference data
       {
         labelKey: 'nav.assets',
         href: '/supervisor/assets',
         icon: Wrench,
       },
       {
-        labelKey: 'nav.reports',
-        href: '/supervisor/reports',
-        icon: AlertCircle,
-      },
-      {
-        labelKey: 'nav.preventivePlans',
-        href: '/supervisor/preventive-plans',
-        icon: CalendarClock,
-      },
-      {
         labelKey: 'nav.categories',
         href: '/supervisor/categories',
         icon: ListChecks,
+      },
+      // Reporting last
+      {
+        labelKey: 'nav.reports',
+        href: '/supervisor/reports',
+        icon: AlertCircle,
       },
       {
         labelKey: 'nav.analytics',
@@ -70,22 +75,26 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
     labelKey: 'roles.STOREKEEPER',
     icon: Package,
     items: [
+      // Primary stock view
       {
         labelKey: 'nav.inventory',
         href: '/storekeeper',
         icon: Package,
         match: 'exact',
       },
-      {
-        labelKey: 'nav.lowStock',
-        href: '/storekeeper/low-stock',
-        icon: AlertTriangle,
-      },
+      // Incoming work
       {
         labelKey: 'nav.partRequests',
         href: '/storekeeper/part-requests',
         icon: ClipboardList,
       },
+      // Alerts
+      {
+        labelKey: 'nav.lowStock',
+        href: '/storekeeper/low-stock',
+        icon: AlertTriangle,
+      },
+      // Reporting last
       {
         labelKey: 'nav.analytics',
         href: '/storekeeper/analytics',
@@ -98,6 +107,7 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
     labelKey: 'roles.ADMIN',
     icon: Users,
     items: [
+      // Core entity management
       {
         labelKey: 'nav.users',
         href: '/admin',
@@ -114,20 +124,22 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         href: '/admin/categories',
         icon: Tags,
       },
+      // System configuration
       {
         labelKey: 'nav.systemConfig',
         href: '/admin/system-config',
         icon: Settings,
       },
-      {
-        labelKey: 'nav.auditLog',
-        href: '/admin/audit-log',
-        icon: BarChart3,
-      },
+      // Monitoring and reporting last
       {
         labelKey: 'nav.analytics',
         href: '/admin/analytics',
         icon: Activity,
+      },
+      {
+        labelKey: 'nav.auditLog',
+        href: '/admin/audit-log',
+        icon: BarChart3,
       },
     ],
   },

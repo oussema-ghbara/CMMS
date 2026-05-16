@@ -1,20 +1,11 @@
-'use client';
-
 import { Suspense } from 'react';
-import { useTranslation } from 'react-i18next';
 import { WorkOrdersBoard } from '@/components/supervisor/work-orders-board';
 
 export default function SupervisorWorkOrdersPage() {
-  const { t } = useTranslation();
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('supervisorWorkOrders.title')}</h1>
-        <p className="text-muted-foreground">{t('supervisorWorkOrders.subtitle')}</p>
-      </div>
-
-      {/* Suspense required because WorkOrdersBoard uses useSearchParams (§2.3 deep-link support) */}
+    // Negative margin cancels AppShell main's 24px padding so the board fills
+    // the full chrome-free height (100vh - 34px rail - 40px module-bar = 74px total).
+    <div style={{ margin: '-24px', height: 'calc(100vh - 74px)' }}>
       <Suspense>
         <WorkOrdersBoard />
       </Suspense>

@@ -3,12 +3,95 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Loader2, ListChecks, Tags } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { categoriesApi, type CategoryItem } from '@/lib/categories.api';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Mono } from '@/components/ui/mono';
 import { CategoryChecklistDialog } from '@/components/supervisor/category-checklist-dialog';
+
+const COL = '1fr 2fr 100px 140px';
+
+function HeaderCell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ padding: '0 14px' }}>
+      <Mono size={9} color="var(--sb-text-tertiary)">{children}</Mono>
+    </div>
+  );
+}
+
+function CategoryRow({
+  category,
+  onOpenChecklist,
+}: {
+  category: CategoryItem;
+  onOpenChecklist: (category: CategoryItem) => void;
+}) {
+  const { t } = useTranslation();
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: COL,
+        alignItems: 'center',
+        borderBottom: '1px solid var(--sb-border)',
+        background: hovered ? 'var(--sb-surface)' : 'transparent',
+        minHeight: 44,
+        transition: 'background 80ms',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div style={{ padding: '10px 14px' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-primary)' }}>
+          {category.name}
+        </span>
+      </div>
+      <div style={{ padding: '10px 14px' }}>
+        <span style={{ fontSize: 12, color: 'var(--sb-text-secondary)' }}>
+          {category.description ?? <span style={{ color: 'var(--sb-text-tertiary)' }}>—</span>}
+        </span>
+      </div>
+      <div style={{ padding: '10px 14px' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+            background: category.isActive ? 'var(--sb-s-done)' : 'var(--sb-text-tertiary)',
+          }} />
+          <Mono size={9} color={category.isActive ? 'var(--sb-s-done)' : 'var(--sb-text-tertiary)'}>
+            {category.isActive ? t('common.active').toUpperCase() : t('common.inactive').toUpperCase()}
+          </Mono>
+        </span>
+      </div>
+      <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          onClick={() => onOpenChecklist(category)}
+          style={{
+            padding: '4px 10px',
+            background: 'transparent',
+            border: '1px solid var(--sb-border)',
+            cursor: 'pointer',
+            fontSize: 11,
+            color: 'var(--sb-text-secondary)',
+            borderRadius: 2,
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--sb-hover)';
+            e.currentTarget.style.borderColor = 'var(--sb-border-strong)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'var(--sb-border)';
+          }}
+        >
+          {t('supervisorCategories.actions.manageChecklist')}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function SupervisorCategoriesPage() {
   const { t } = useTranslation();
@@ -26,76 +109,77 @@ export default function SupervisorCategoriesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('supervisorCategories.title')}</h1>
-          <p className="text-muted-foreground">{t('supervisorCategories.subtitle')}</p>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em', marginBottom: 3 }}>
+            {t('supervisorCategories.title')}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)' }}>
+            {t('supervisorCategories.subtitle')}
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Tags className="h-4 w-4" />
-          {!isLoading && (
-            <span>{t('supervisorCategories.total', { count: categories.length })}</span>
-          )}
-        </div>
+        {!isLoading && categories.length > 0 && (
+          <Mono size={10} color="var(--sb-text-tertiary)">
+            {t('supervisorCategories.total', { count: categories.length })}
+          </Mono>
+        )}
       </div>
 
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('supervisorCategories.columns.name')}</TableHead>
-              <TableHead>{t('supervisorCategories.columns.description')}</TableHead>
-              <TableHead>{t('supervisorCategories.columns.status')}</TableHead>
-              <TableHead className="text-right">{t('common.actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-destructive">
-                  {t('supervisorCategories.states.error')}
-                </TableCell>
-              </TableRow>
-            ) : categories.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                  {t('supervisorCategories.states.empty')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              categories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {category.description ?? t('supervisorCategories.labels.noDescription')}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={category.isActive ? 'success' : 'destructive'}>
-                      {category.isActive ? t('common.active') : t('common.inactive')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openChecklist(category)}
-                    >
-                      <ListChecks className="mr-2 h-4 w-4" />
-                      {t('supervisorCategories.actions.manageChecklist')}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      {/* List panel */}
+      <div style={{ border: '1px solid var(--sb-border)', background: 'white' }}>
+        {/* Column headers */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: COL,
+          height: 32,
+          background: 'var(--sb-surface)',
+          borderBottom: '1px solid var(--sb-border)',
+          alignItems: 'center',
+        }}>
+          <HeaderCell>{t('supervisorCategories.columns.name').toUpperCase()}</HeaderCell>
+          <HeaderCell>{t('supervisorCategories.columns.description').toUpperCase()}</HeaderCell>
+          <HeaderCell>{t('supervisorCategories.columns.status').toUpperCase()}</HeaderCell>
+          <div />
+        </div>
+
+        {/* Rows */}
+        {isLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}>
+            <Loader2 style={{ width: 20, height: 20, color: 'var(--sb-text-tertiary)', animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : isError ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}>
+            <Mono size={10} color="var(--sb-p-crit)">{t('supervisorCategories.states.error').toUpperCase()}</Mono>
+          </div>
+        ) : categories.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}>
+            <Mono size={10} color="var(--sb-text-tertiary)">{t('supervisorCategories.states.empty').toUpperCase()}</Mono>
+          </div>
+        ) : (
+          categories.map((category) => (
+            <CategoryRow key={category.id} category={category} onOpenChecklist={openChecklist} />
+          ))
+        )}
+
+        {/* Footer count bar */}
+        {!isLoading && !isError && categories.length > 0 && (
+          <div style={{ height: 32, background: 'var(--sb-surface)', borderTop: '1px solid var(--sb-border)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 12 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--sb-s-done)' }} />
+              <Mono size={8} color="var(--sb-text-tertiary)">
+                {categories.filter((c) => c.isActive).length} {t('common.active').toUpperCase()}
+              </Mono>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--sb-text-tertiary)' }} />
+              <Mono size={8} color="var(--sb-text-tertiary)">
+                {categories.filter((c) => !c.isActive).length} {t('common.inactive').toUpperCase()}
+              </Mono>
+            </span>
+          </div>
+        )}
       </div>
 
       <CategoryChecklistDialog

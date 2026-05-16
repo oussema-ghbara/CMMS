@@ -32,6 +32,56 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 221.2 83.2% 53.3%;
+
+    /* Sandbox design tokens */
+    --sb-bg: #F8F9FA;
+    --sb-surface: #F1F2F4;
+    --sb-hover: #E8EAED;
+    --sb-rail: #181613;
+    --sb-border: #DDE0E5;
+    --sb-border-strong: #B8BCC4;
+    --sb-text-primary: #18161A;
+    --sb-text-secondary: #6B6863;
+    --sb-text-tertiary: #9E9A95;
+    --sb-text-on-rail: #E8E5E0;
+    --sb-text-dim-rail: #7A7771;
+    --sb-accent: #C49820;
+
+    /* Status colors */
+    --sb-s-active: #B08B10;
+    --sb-s-active-bg: #FDF6DC;
+    --sb-s-active-border: rgba(176, 139, 16, 0.3);
+    --sb-s-open: #4A7A9C;
+    --sb-s-open-bg: #EDF4F9;
+    --sb-s-done: #2E7A4E;
+    --sb-s-done-bg: #EAF5EF;
+    --sb-s-done-border: rgba(46, 122, 78, 0.3);
+    --sb-s-wait: #7A6020;
+    --sb-s-wait-bg: #FDF8E8;
+    --sb-s-cancel: #8A8680;
+    --sb-s-cancel-bg: #F0EEEB;
+
+    /* Priority colors */
+    --sb-p-crit: #B53525;
+    --sb-p-crit-bg: #FDF0EE;
+    --sb-p-high: #A06020;
+    --sb-p-high-bg: #FDF5E8;
+    --sb-p-norm: #3A6A8C;
+    --sb-p-norm-bg: #EDF3F8;
+    --sb-p-low: #8A8680;
+    --sb-p-low-bg: #F0EEEB;
+
+    /* Role colors */
+    --sb-role-admin: #3A3055;
+    --sb-role-admin-bg: #EEECF6;
+    --sb-role-supervisor: #5A3FA0;
+    --sb-role-supervisor-bg: #F0ECFC;
+    --sb-role-storekeeper: #1A6B55;
+    --sb-role-storekeeper-bg: #E6F5F0;
+    --sb-role-technician: #3A6A8C;
+    --sb-role-technician-bg: #EDF3F8;
+    --sb-role-requester: #7A5535;
+    --sb-role-requester-bg: #FAF0E8;
   }
 
   .dark {

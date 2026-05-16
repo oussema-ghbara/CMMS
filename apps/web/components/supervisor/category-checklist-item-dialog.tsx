@@ -3,17 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Mono } from '@/components/ui/mono';
 import type { CategoryChecklistTemplateItem, ChecklistTaskType } from '@/lib/categories.api';
 
 export type CategoryChecklistFormValues = {
@@ -33,6 +23,20 @@ const TASK_TYPES: ChecklistTaskType[] = [
   'CALIBRATION',
   'ADJUSTMENT',
 ];
+
+const inputS: React.CSSProperties = {
+  display: 'block', width: '100%', height: 32, padding: '0 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2,
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  outline: 'none', boxSizing: 'border-box',
+};
+
+const selectS: React.CSSProperties = {
+  display: 'block', width: '100%', height: 32, padding: '0 4px 0 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2,
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  cursor: 'pointer', outline: 'none', boxSizing: 'border-box',
+};
 
 interface CategoryChecklistItemDialogProps {
   open: boolean;
@@ -65,13 +69,21 @@ export function CategoryChecklistItemDialog({
     setAutoCreateCorrectiveWO(item?.autoCreateCorrectiveWO ?? false);
   }, [item, open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
+
   const handleSubmit = () => {
     const trimmedDescription = description.trim();
     if (!trimmedDescription) {
       toast.error(t('supervisorCategories.checklist.validation.descriptionRequired'));
       return;
     }
-
     onSubmit({
       description: trimmedDescription,
       taskType,
@@ -81,56 +93,69 @@ export function CategoryChecklistItemDialog({
     });
   };
 
-  const selectClass =
-    'h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+  if (!open) return null;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        onOpenChange(nextOpen);
-        if (!nextOpen) {
-          setDescription('');
-          setExpectedCondition('');
-        }
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.55)',
+        zIndex: 10002,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
+      onClick={(e) => { if (e.target === e.currentTarget) onOpenChange(false); }}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit
-              ? t('supervisorCategories.checklist.editTitle')
-              : t('supervisorCategories.checklist.addTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? t('supervisorCategories.checklist.editDescription')
-              : t('supervisorCategories.checklist.addDescription')}
-          </DialogDescription>
-        </DialogHeader>
+      <div style={{
+        background: 'var(--sb-bg)',
+        border: '1px solid var(--sb-border)',
+        padding: 24,
+        width: 500,
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
+              {isEdit ? t('supervisorCategories.checklist.editTitle') : t('supervisorCategories.checklist.addTitle')}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', marginTop: 3 }}>
+              {isEdit ? t('supervisorCategories.checklist.editDescription') : t('supervisorCategories.checklist.addDescription')}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            style={{ background: 'transparent', border: '1px solid var(--sb-border)', padding: '3px 8px', cursor: 'pointer', flexShrink: 0, marginLeft: 16 }}
+          >
+            <Mono size={8} color="var(--sb-text-tertiary)">✕</Mono>
+          </button>
+        </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="cat-checklist-description">
-              {t('supervisorCategories.checklist.fields.description')}
-            </Label>
-            <Input
-              id="cat-checklist-description"
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorCategories.checklist.fields.description')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+            </Mono>
+            <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={500}
+              style={inputS}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cat-checklist-task-type">
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorCategories.checklist.fields.taskType')}
-            </Label>
+            </Mono>
             <select
-              id="cat-checklist-task-type"
-              className={selectClass}
               value={taskType}
               onChange={(e) => setTaskType(e.target.value as ChecklistTaskType)}
+              style={selectS}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
             >
               {TASK_TYPES.map((type) => (
                 <option key={type} value={type}>
@@ -140,46 +165,67 @@ export function CategoryChecklistItemDialog({
             </select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cat-checklist-expected-condition">
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorCategories.checklist.fields.expectedCondition')}
-            </Label>
-            <Input
-              id="cat-checklist-expected-condition"
+            </Mono>
+            <input
               value={expectedCondition}
               onChange={(e) => setExpectedCondition(e.target.value)}
               maxLength={200}
+              style={inputS}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
             />
           </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={isMandatory}
-              onChange={(e) => setIsMandatory(e.target.checked)}
-            />
-            {t('supervisorCategories.checklist.fields.isMandatory')}
-          </label>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={autoCreateCorrectiveWO}
-              onChange={(e) => setAutoCreateCorrectiveWO(e.target.checked)}
-            />
-            {t('supervisorCategories.checklist.fields.autoCreateCorrectiveWO')}
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isMandatory}
+                onChange={(e) => setIsMandatory(e.target.checked)}
+                style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--sb-text-primary)' }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--sb-text-primary)' }}>
+                {t('supervisorCategories.checklist.fields.isMandatory')}
+              </span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoCreateCorrectiveWO}
+                onChange={(e) => setAutoCreateCorrectiveWO(e.target.checked)}
+                style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--sb-text-primary)' }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--sb-text-primary)' }}>
+                {t('supervisorCategories.checklist.fields.autoCreateCorrectiveWO')}
+              </span>
+            </label>
+          </div>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 22, paddingTop: 16, borderTop: '1px solid var(--sb-border)' }}>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--sb-border)', cursor: 'pointer', fontSize: 12, color: 'var(--sb-text-secondary)', borderRadius: 2 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--sb-surface)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
             {t('common.cancel')}
-          </Button>
-          <Button type="button" onClick={handleSubmit}>
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            style={{ padding: '6px 14px', background: 'var(--sb-text-primary)', border: '1px solid var(--sb-text-primary)', cursor: 'pointer', fontSize: 12, color: 'var(--sb-bg)', fontWeight: 600, borderRadius: 2 }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+          >
             {isEdit ? t('common.save') : t('common.add')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,36 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import {
-  Eye,
-  Loader2,
-  Pencil,
-  Plus,
-  QrCode,
-  Search,
-} from 'lucide-react';
+import { QrCode, Search } from 'lucide-react';
+import { TableLoading } from '@/components/ui/table-loading';
+import { TableEmpty } from '@/components/ui/table-empty';
+import { TableError } from '@/components/ui/table-error';
 import { AssetCriticality, AssetStatus } from '@gmao/shared';
 import { assetsApi, type AssetListItem, type QrLookupResult } from '@/lib/assets.api';
 import { AxiosError } from 'axios';
 import { categoriesApi } from '@/lib/categories.api';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { MasterDetail } from '@/components/ui/master-detail';
+import { Mono } from '@/components/ui/mono';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AssetFormDialog } from './asset-form-dialog';
-import { AssetDetailDialog } from './asset-detail-dialog';
+import { AssetDetailPanel } from './asset-detail-panel';
 
 const LIMIT = 20;
 
@@ -48,24 +33,33 @@ const CRITICALITY_OPTIONS = [
   AssetCriticality.NON_CRITICAL,
 ] as const;
 
-function getStatusBadgeVariant(
-  status: AssetStatus,
-): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' {
-  if (status === AssetStatus.OPERATIONAL) return 'success';
-  if (status === AssetStatus.IN_MAINTENANCE) return 'warning';
-  if (status === AssetStatus.MAINTENANCE_BLOCKED) return 'warning';
-  if (status === AssetStatus.OUT_OF_SERVICE) return 'destructive';
-  if (status === AssetStatus.DECOMMISSIONED) return 'secondary';
-  return 'secondary';
-}
+const STATUS_DOT: Record<AssetStatus, string> = {
+  [AssetStatus.OPERATIONAL]:         'var(--sb-s-done)',
+  [AssetStatus.IN_MAINTENANCE]:      'var(--sb-s-active)',
+  [AssetStatus.MAINTENANCE_BLOCKED]: 'var(--sb-p-high)',
+  [AssetStatus.OUT_OF_SERVICE]:      'var(--sb-p-crit)',
+  [AssetStatus.DECOMMISSIONED]:      'var(--sb-text-tertiary)',
+};
 
-function getCriticalityBadgeVariant(
-  criticality: AssetCriticality,
-): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' {
-  if (criticality === AssetCriticality.CRITICAL) return 'destructive';
-  if (criticality === AssetCriticality.STANDARD) return 'secondary';
-  return 'outline';
-}
+const CRITICALITY_COLOR: Record<AssetCriticality, string> = {
+  [AssetCriticality.CRITICAL]:    'var(--sb-p-crit)',
+  [AssetCriticality.STANDARD]:    'var(--sb-text-secondary)',
+  [AssetCriticality.NON_CRITICAL]:'var(--sb-text-tertiary)',
+};
+
+const filterSelectStyle: React.CSSProperties = {
+  height: 26,
+  border: '1px solid var(--sb-border)',
+  borderRadius: 2,
+  padding: '0 4px 0 8px',
+  fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+  fontSize: 10,
+  letterSpacing: '0.08em',
+  color: 'var(--sb-text-secondary)',
+  background: 'var(--sb-bg)',
+  cursor: 'pointer',
+  outline: 'none',
+};
 
 export function AssetsBoard() {
   const { t } = useTranslation();
@@ -77,13 +71,10 @@ export function AssetsBoard() {
   const [criticalityFilter, setCriticalityFilter] = useState<AssetCriticality | ''>('');
   const [categoryFilter, setCategoryFilter] = useState('');
 
+  const [selected, setSelected] = useState<AssetListItem | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<AssetListItem | null>(null);
 
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<AssetListItem | null>(null);
-
-  // QR lookup state
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrInput, setQrInput] = useState('');
   const [qrLookupPending, setQrLookupPending] = useState(false);
@@ -112,8 +103,9 @@ export function AssetsBoard() {
   });
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
+  const panelOpen = selected !== null;
 
-  const handleApplyFilters = () => {
+  const handleCommitSearch = () => {
     setSearch(searchInput);
     setPage(1);
   };
@@ -127,26 +119,22 @@ export function AssetsBoard() {
     setPage(1);
   };
 
-  const openCreateDialog = () => {
+  const hasActiveFilters = !!(searchInput || search || statusFilter || criticalityFilter || categoryFilter);
+
+  const openCreate = () => {
     setEditingAsset(null);
     setFormOpen(true);
   };
 
-  const openEditDialog = (asset: AssetListItem) => {
+  const openEdit = (asset: AssetListItem) => {
     setEditingAsset(asset);
-    setDetailOpen(false);
     setFormOpen(true);
   };
 
-  const openDetailDialog = (asset: AssetListItem) => {
-    setSelectedAsset(asset);
-    setDetailOpen(true);
-  };
-
-  const openQrDialog = () => {
+  const handleQrClose = () => {
+    setQrDialogOpen(false);
     setQrInput('');
     setQrError(null);
-    setQrDialogOpen(true);
   };
 
   const handleQrLookup = async () => {
@@ -156,312 +144,497 @@ export function AssetsBoard() {
     setQrLookupPending(true);
     try {
       const result: QrLookupResult = await assetsApi.lookupByQrCode(code);
-      setQrDialogOpen(false);
-      setQrInput('');
-      // Open the detail dialog directly — it fetches the full asset by id
-      setSelectedAsset(result as AssetListItem);
-      setDetailOpen(true);
+      handleQrClose();
+      setSelected(result as AssetListItem);
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
-      if (axiosErr.response?.status === 404) {
-        setQrError(t('supervisorAssets.qrLookup.notFound'));
-      } else {
-        setQrError(t('supervisorAssets.qrLookup.error'));
-      }
+      setQrError(axiosErr.response?.status === 404
+        ? t('supervisorAssets.qrLookup.notFound')
+        : t('supervisorAssets.qrLookup.error'));
     } finally {
       setQrLookupPending(false);
     }
   };
 
-  const selectClass =
-    'h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+  useEffect(() => {
+    if (!qrDialogOpen) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleQrClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKey);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qrDialogOpen]);
+
+  // ── List column ────────────────────────────────────────────────────────────
+
+  const listContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+      {/* Toolbar */}
+      <div
+        style={{
+          minHeight: 44,
+          borderBottom: '1px solid var(--sb-border)',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          gap: 8,
+          flexWrap: 'wrap',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+        }}
+      >
+        {/* Search */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Search
+            size={13}
+            style={{
+              position: 'absolute',
+              left: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--sb-text-tertiary)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('supervisorAssets.filters.searchPlaceholder')}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommitSearch(); } }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+            style={{
+              height: 26,
+              paddingLeft: 26,
+              paddingRight: 8,
+              width: 200,
+              border: '1px solid var(--sb-border)',
+              borderRadius: 2,
+              fontFamily: 'inherit',
+              fontSize: 12,
+              color: 'var(--sb-text-primary)',
+              background: 'var(--sb-bg)',
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        <div style={{ width: 1, height: 16, background: 'var(--sb-border)', flexShrink: 0 }} />
+
+        {/* Status filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value as AssetStatus | ''); setPage(1); }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+          style={filterSelectStyle}
+        >
+          <option value="">{t('supervisorAssets.filters.allStatuses')}</option>
+          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{t(`supervisorAssets.status.${s}`)}</option>)}
+        </select>
+
+        {/* Criticality filter */}
+        <select
+          value={criticalityFilter}
+          onChange={(e) => { setCriticalityFilter(e.target.value as AssetCriticality | ''); setPage(1); }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+          style={filterSelectStyle}
+        >
+          <option value="">{t('supervisorAssets.filters.allCriticalities')}</option>
+          {CRITICALITY_OPTIONS.map((c) => <option key={c} value={c}>{t(`supervisorAssets.criticality.${c}`)}</option>)}
+        </select>
+
+        {/* Category filter */}
+        <select
+          value={categoryFilter}
+          onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+          style={filterSelectStyle}
+        >
+          <option value="">{t('supervisorAssets.filters.allCategories')}</option>
+          {(categories ?? []).map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+        </select>
+
+        {/* Reset — only when filters are active */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+              fontSize: 9,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              color: 'var(--sb-text-tertiary)',
+              padding: '0 2px',
+              flexShrink: 0,
+            }}
+          >
+            {t('supervisorAssets.filters.reset')}
+          </button>
+        )}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Count */}
+        {data && (
+          <Mono size={9} color="var(--sb-text-tertiary)">
+            {t('supervisorAssets.total', { count: data.total })}
+          </Mono>
+        )}
+
+        {/* QR button */}
+        <button
+          type="button"
+          onClick={() => { setQrInput(''); setQrError(null); setQrDialogOpen(true); }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+            fontSize: 9,
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            color: 'var(--sb-text-secondary)',
+            background: 'transparent',
+            border: '1px solid var(--sb-border-strong)',
+            borderRadius: 2,
+            padding: '5px 12px',
+            cursor: 'pointer',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <QrCode size={11} />
+          {t('supervisorAssets.qrLookup.button')}
+        </button>
+
+        {/* Create button */}
+        <button
+          type="button"
+          onClick={openCreate}
+          style={{
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+            fontSize: 9,
+            letterSpacing: '0.13em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            color: 'var(--sb-bg)',
+            background: 'var(--sb-text-primary)',
+            border: 'none',
+            borderRadius: 2,
+            padding: '6px 14px',
+            cursor: 'pointer',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          + {t('supervisorAssets.actions.create')}
+        </button>
+      </div>
+
+      {/* Column headers */}
+      {!isLoading && !isError && !!data?.data.length && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: panelOpen ? '1fr 80px 80px' : '1fr 130px 180px 80px 80px',
+            padding: '0 16px',
+            height: 28,
+            alignItems: 'center',
+            borderBottom: '1px solid var(--sb-border)',
+            background: 'var(--sb-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <Mono size={8} tracking="0.13em">{t('supervisorAssets.columns.asset')}</Mono>
+          {!panelOpen && <Mono size={8} tracking="0.13em">{t('supervisorAssets.columns.category')}</Mono>}
+          {!panelOpen && <Mono size={8} tracking="0.13em">{t('supervisorAssets.columns.location')}</Mono>}
+          <Mono size={8} tracking="0.13em">{t('supervisorAssets.columns.criticality')}</Mono>
+          <Mono size={8} tracking="0.13em">{t('supervisorAssets.columns.status')}</Mono>
+        </div>
+      )}
+
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {isLoading ? (
+          <TableLoading label={t('common.loading')} />
+        ) : isError ? (
+          <TableError label={t('supervisorAssets.states.error')} />
+        ) : !data?.data.length ? (
+          <TableEmpty label={t('supervisorAssets.states.empty')} />
+        ) : (
+          data.data.map((asset) => {
+            const isSelected = selected?.id === asset.id;
+            const statusDot = STATUS_DOT[asset.status as AssetStatus] ?? 'var(--sb-text-tertiary)';
+            const critColor = CRITICALITY_COLOR[asset.criticality as AssetCriticality] ?? 'var(--sb-text-secondary)';
+            return (
+              <div
+                key={asset.id}
+                onClick={() => setSelected(isSelected ? null : asset)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: panelOpen ? '1fr 80px 80px' : '1fr 130px 180px 80px 80px',
+                  padding: '0 16px',
+                  height: 44,
+                  alignItems: 'center',
+                  borderBottom: '1px solid var(--sb-border)',
+                  background: isSelected ? 'var(--sb-s-active-bg)' : 'transparent',
+                  outline: isSelected ? '1px solid var(--sb-border-strong)' : 'none',
+                  outlineOffset: -1,
+                  cursor: 'pointer',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sb-hover)'; }}
+                onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+              >
+                {/* Asset name + serial */}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {asset.name}
+                  </div>
+                  {asset.serialNumber && (
+                    <Mono size={9} color="var(--sb-text-tertiary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {asset.serialNumber}
+                    </Mono>
+                  )}
+                </div>
+
+                {/* Category (hidden when panel open) */}
+                {!panelOpen && (
+                  <Mono size={10} color="var(--sb-text-secondary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {asset.category.name}
+                  </Mono>
+                )}
+
+                {/* Location (hidden when panel open) */}
+                {!panelOpen && (
+                  <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {asset.location.fullPath}
+                  </div>
+                )}
+
+                {/* Criticality */}
+                <span
+                  style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    padding: '1px 6px', border: `1px solid ${critColor}44`,
+                    borderRadius: 2, fontSize: 9,
+                    fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                    fontWeight: 600, color: critColor, textTransform: 'uppercase', letterSpacing: '0.08em',
+                  }}
+                >
+                  {t(`supervisorAssets.criticality.${asset.criticality}`)}
+                </span>
+
+                {/* Status */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot, flexShrink: 0 }} />
+                  {!panelOpen && (
+                    <Mono size={9} color="var(--sb-text-secondary)">
+                      {t(`supervisorAssets.status.${asset.status}`)}
+                    </Mono>
+                  )}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer: count + pagination */}
+      <div
+        style={{
+          height: 36,
+          padding: '0 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderTop: '1px solid var(--sb-border)',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+        }}
+      >
+        {data && (
+          <Mono size={9} color="var(--sb-text-tertiary)">
+            {t('supervisorAssets.total', { count: data.total })}
+          </Mono>
+        )}
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          onPrevious={() => setPage((p) => p - 1)}
+          onNext={() => setPage((p) => p + 1)}
+        />
+      </div>
+    </div>
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
-      {/* ── Filters ── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t('supervisorAssets.filters.searchPlaceholder')}
-              className="w-[280px] pl-8"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleApplyFilters();
-                }
-              }}
-            />
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as AssetStatus | '');
-              setPage(1);
-            }}
-            className={selectClass}
-          >
-            <option value="">{t('supervisorAssets.filters.allStatuses')}</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {t(`supervisorAssets.status.${s}`)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={criticalityFilter}
-            onChange={(e) => {
-              setCriticalityFilter(e.target.value as AssetCriticality | '');
-              setPage(1);
-            }}
-            className={selectClass}
-          >
-            <option value="">{t('supervisorAssets.filters.allCriticalities')}</option>
-            {CRITICALITY_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {t(`supervisorAssets.criticality.${c}`)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setPage(1);
-            }}
-            className={selectClass}
-          >
-            <option value="">{t('supervisorAssets.filters.allCategories')}</option>
-            {(categories ?? []).map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-
-          <Button type="button" variant="outline" onClick={handleApplyFilters}>
-            {t('supervisorAssets.filters.apply')}
-          </Button>
-
-          <Button type="button" variant="ghost" onClick={handleResetFilters}>
-            {t('supervisorAssets.filters.reset')}
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {data && (
-            <span className="text-sm text-muted-foreground">
-              {t('supervisorAssets.total', { count: data.total })}
-            </span>
-          )}
-          <Button size="sm" variant="outline" onClick={openQrDialog}>
-            <QrCode className="h-4 w-4" />
-            {t('supervisorAssets.qrLookup.button')}
-          </Button>
-          <Button size="sm" onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            {t('supervisorAssets.actions.create')}
-          </Button>
-        </div>
+    <>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <MasterDetail
+          list={listContent}
+          panel={
+            selected ? (
+              <AssetDetailPanel
+                key={selected.id}
+                asset={selected}
+                onClose={() => setSelected(null)}
+                onEdit={(asset) => { openEdit(asset); }}
+              />
+            ) : null
+          }
+          panelOpen={panelOpen}
+        />
       </div>
 
-      {/* ── Table ── */}
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('supervisorAssets.columns.asset')}</TableHead>
-              <TableHead>{t('supervisorAssets.columns.category')}</TableHead>
-              <TableHead>{t('supervisorAssets.columns.location')}</TableHead>
-              <TableHead>{t('supervisorAssets.columns.criticality')}</TableHead>
-              <TableHead>{t('supervisorAssets.columns.status')}</TableHead>
-              <TableHead className="text-right">{t('common.actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-destructive">
-                  {t('supervisorAssets.states.error')}
-                </TableCell>
-              </TableRow>
-            ) : !data || data.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  {t('supervisorAssets.states.empty')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.data.map((asset) => (
-                <TableRow key={asset.id}>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium">{asset.name}</p>
-                      {asset.serialNumber && (
-                        <p className="text-xs text-muted-foreground font-mono">{asset.serialNumber}</p>
-                      )}
-                      {asset.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">{asset.description}</p>
-                      )}
-                    </div>
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge variant="secondary">{asset.category.name}</Badge>
-                  </TableCell>
-
-                  <TableCell>
-                    <p className="text-sm text-muted-foreground max-w-[220px] truncate">
-                      {asset.location.fullPath}
-                    </p>
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge variant={getCriticalityBadgeVariant(asset.criticality as AssetCriticality)}>
-                      {t(`supervisorAssets.criticality.${asset.criticality}`)}
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge variant={getStatusBadgeVariant(asset.status as AssetStatus)}>
-                      {t(`supervisorAssets.status.${asset.status}`)}
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title={t('supervisorAssets.actions.view')}
-                        onClick={() => openDetailDialog(asset)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title={t('supervisorAssets.actions.edit')}
-                        disabled={asset.status === AssetStatus.DECOMMISSIONED}
-                        onClick={() => openEditDialog(asset)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <PaginationControls
-        page={page}
-        totalPages={totalPages}
-        onPrevious={() => setPage((p) => p - 1)}
-        onNext={() => setPage((p) => p + 1)}
-      />
-
-      {/* ── Dialogs ── */}
       <AssetFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
         asset={editingAsset}
-        onSuccess={() => {
-          setEditingAsset(null);
-        }}
+        onSuccess={() => setEditingAsset(null)}
       />
 
-      <AssetDetailDialog
-        open={detailOpen}
-        onOpenChange={(open) => {
-          setDetailOpen(open);
-          if (!open) setSelectedAsset(null);
-        }}
-        asset={selectedAsset}
-        onEdit={(asset) => {
-          openEditDialog(asset);
-        }}
-      />
+      {/* QR Lookup Modal */}
+      {qrDialogOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 10001,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget && !qrLookupPending) handleQrClose(); }}
+        >
+          <div
+            style={{
+              background: 'var(--sb-bg)',
+              border: '1px solid var(--sb-border)',
+              padding: 24,
+              width: 360,
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
+                {t('supervisorAssets.qrLookup.dialogTitle')}
+              </div>
+              <button
+                type="button"
+                onClick={handleQrClose}
+                disabled={qrLookupPending}
+                style={{ background: 'transparent', border: '1px solid var(--sb-border)', padding: '2px 7px', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Mono size={8} color="var(--sb-text-tertiary)">✕</Mono>
+              </button>
+            </div>
 
-      {/* ── QR Lookup Dialog ── */}
-      <Dialog
-        open={qrDialogOpen}
-        onOpenChange={(open) => {
-          setQrDialogOpen(open);
-          if (!open) {
-            setQrInput('');
-            setQrError(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('supervisorAssets.qrLookup.dialogTitle')}</DialogTitle>
-            <DialogDescription>{t('supervisorAssets.qrLookup.dialogDescription')}</DialogDescription>
-          </DialogHeader>
+            <div style={{ fontSize: 13, color: 'var(--sb-text-secondary)', lineHeight: 1.55, marginBottom: 16 }}>
+              {t('supervisorAssets.qrLookup.dialogDescription')}
+            </div>
 
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="qr-input">{t('supervisorAssets.qrLookup.inputLabel')}</Label>
-              <Input
+            {/* Input */}
+            <div style={{ marginBottom: qrError ? 8 : 20 }}>
+              <Mono size={9} color="var(--sb-text-tertiary)" style={{ display: 'block', marginBottom: 6 }}>
+                {t('supervisorAssets.qrLookup.inputLabel')}
+              </Mono>
+              <input
                 id="qr-input"
                 value={qrInput}
-                onChange={(e) => {
-                  setQrInput(e.target.value);
-                  setQrError(null);
-                }}
+                onChange={(e) => { setQrInput(e.target.value); setQrError(null); }}
                 placeholder={t('supervisorAssets.qrLookup.inputPlaceholder')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void handleQrLookup();
-                  }
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleQrLookup(); } }}
                 autoFocus
+                style={{
+                  width: '100%',
+                  height: 34,
+                  padding: '0 10px',
+                  border: '1px solid var(--sb-border)',
+                  borderRadius: 2,
+                  fontFamily: 'inherit',
+                  fontSize: 13,
+                  color: 'var(--sb-text-primary)',
+                  background: 'var(--sb-bg)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
               />
             </div>
 
             {qrError && (
-              <p className="text-sm text-destructive">{qrError}</p>
+              <div style={{ marginBottom: 16, fontSize: 12, color: 'var(--sb-p-crit)' }}>
+                {qrError}
+              </div>
             )}
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setQrDialogOpen(false)}
-              disabled={qrLookupPending}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              type="button"
-              disabled={qrLookupPending || !qrInput.trim()}
-              onClick={() => { void handleQrLookup(); }}
-            >
-              {qrLookupPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('supervisorAssets.qrLookup.submit')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={handleQrClose}
+                disabled={qrLookupPending}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--sb-border-strong)',
+                  color: 'var(--sb-text-secondary)',
+                  padding: '6px 14px',
+                  borderRadius: 2,
+                  cursor: qrLookupPending ? 'default' : 'pointer',
+                  fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                  fontSize: 10,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  opacity: qrLookupPending ? 0.5 : 1,
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { void handleQrLookup(); }}
+                disabled={qrLookupPending || !qrInput.trim()}
+                style={{
+                  background: 'var(--sb-text-primary)',
+                  border: 'none',
+                  color: 'var(--sb-bg)',
+                  padding: '6px 14px',
+                  borderRadius: 2,
+                  cursor: qrLookupPending || !qrInput.trim() ? 'default' : 'pointer',
+                  fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                  fontSize: 10,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  opacity: qrLookupPending || !qrInput.trim() ? 0.5 : 1,
+                }}
+              >
+                {qrLookupPending ? '...' : t('supervisorAssets.qrLookup.submit')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

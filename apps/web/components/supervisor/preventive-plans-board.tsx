@@ -1,47 +1,54 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  CalendarDays, Eye, Loader2, List, PauseCircle, Pencil, PlayCircle, Plus, Search, User,
-} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarDays, List, Search } from 'lucide-react';
+import { TableLoading } from '@/components/ui/table-loading';
+import { TableEmpty } from '@/components/ui/table-empty';
+import { TableError } from '@/components/ui/table-error';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { assetsApi } from '@/lib/assets.api';
 import { preventivePlansApi, type PreventivePlanItem, type CalendarPreviewItem } from '@/lib/preventive-plans.api';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { MasterDetail } from '@/components/ui/master-detail';
+import { Mono } from '@/components/ui/mono';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PreventivePlanDetailDialog } from './preventive-plan-detail-dialog';
+import { PreventivePlanDetailPanel } from './preventive-plan-detail-panel';
 import { PreventivePlanFormDialog } from './preventive-plan-form-dialog';
 
 const LIMIT = 20;
 
+const filterSelectStyle: React.CSSProperties = {
+  height: 26,
+  border: '1px solid var(--sb-border)',
+  borderRadius: 2,
+  padding: '0 4px 0 8px',
+  fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+  fontSize: 10,
+  letterSpacing: '0.08em',
+  color: 'var(--sb-text-secondary)',
+  background: 'var(--sb-bg)',
+  cursor: 'pointer',
+  outline: 'none',
+};
+
 function formatDateTime(value: string | null): string {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(new Date(value));
 }
 
 export function PreventivePlansBoard() {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
   const [assetFilterId, setAssetFilterId] = useState('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | ''>('');
   const [assetSearch, setAssetSearch] = useState('');
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'list' | 'calendar'>('list');
+  const [selected, setSelected] = useState<PreventivePlanItem | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PreventivePlanItem | null>(null);
-  const [activeView, setActiveView] = useState<'list' | 'calendar'>('list');
 
   const queryParams = useMemo(
     () => ({
@@ -83,342 +90,388 @@ export function PreventivePlansBoard() {
   }, [calendarData]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
-  const selectedPlan = data?.data.find((plan) => plan.id === selectedPlanId) ?? null;
+  const panelOpen = selected !== null;
 
-  const activateMutation = useMutation({
-    mutationFn: (planId: string) => preventivePlansApi.activate(planId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'preventive-plans'] });
-      toast.success(t('supervisorPreventivePlans.toasts.activateSuccess'));
-    },
-    onError: () => toast.error(t('supervisorPreventivePlans.toasts.activateError')),
-  });
+  const hasActiveFilters = !!(assetSearch || assetFilterId || statusFilter);
 
-  const deactivateMutation = useMutation({
-    mutationFn: (planId: string) => preventivePlansApi.deactivate(planId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'preventive-plans'] });
-      toast.success(t('supervisorPreventivePlans.toasts.deactivateSuccess'));
-    },
-    onError: () => toast.error(t('supervisorPreventivePlans.toasts.deactivateError')),
-  });
-
-  const triggerMutation = useMutation({
-    mutationFn: (planId: string) => preventivePlansApi.triggerNow(planId),
-    onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'preventive-plans'] });
-      toast.success(
-        data.jobId
-          ? t('supervisorPreventivePlans.toasts.triggerSuccessWithJob', { jobId: data.jobId })
-          : t('supervisorPreventivePlans.toasts.triggerSuccess'),
-      );
-    },
-    onError: () => toast.error(t('supervisorPreventivePlans.toasts.triggerError')),
-  });
-
-  const openCreateDialog = () => {
-    setEditingPlan(null);
-    setPlanDialogOpen(true);
+  const handleResetFilters = () => {
+    setAssetSearch('');
+    setAssetFilterId('');
+    setStatusFilter('');
+    setPage(1);
   };
 
-  const openEditDialog = (plan: PreventivePlanItem) => {
-    setEditingPlan(plan);
-    setPlanDialogOpen(true);
-  };
+  const openCreateDialog = () => { setEditingPlan(null); setPlanDialogOpen(true); };
+  const openEditDialog = (plan: PreventivePlanItem) => { setEditingPlan(plan); setPlanDialogOpen(true); };
 
-  const selectClass = 'h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+  // ── List content ───────────────────────────────────────────────────────────
+
+  const listContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+      {/* Column headers */}
+      {!isLoading && !isError && !!data?.data.length && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 60px' : 'minmax(0, 1fr) 120px 140px 130px 60px',
+          padding: '0 16px', height: 28, alignItems: 'center',
+          borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0,
+        }}>
+          <Mono size={8} tracking="0.13em">{t('supervisorPreventivePlans.columns.title')}</Mono>
+          {!panelOpen && <Mono size={8} tracking="0.13em">{t('supervisorPreventivePlans.columns.asset')}</Mono>}
+          {!panelOpen && <Mono size={8} tracking="0.13em">{t('supervisorPreventivePlans.columns.frequency')}</Mono>}
+          {!panelOpen && <Mono size={8} tracking="0.13em">{t('supervisorPreventivePlans.columns.nextDueAt')}</Mono>}
+          <Mono size={8} tracking="0.13em">{t('supervisorPreventivePlans.columns.status')}</Mono>
+        </div>
+      )}
+
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {isLoading ? (
+          <TableLoading label={t('common.loading')} />
+        ) : isError ? (
+          <TableError label={t('supervisorPreventivePlans.states.error')} />
+        ) : !data?.data.length ? (
+          <TableEmpty label={t('supervisorPreventivePlans.states.empty')} />
+        ) : (
+          data.data.map((plan) => {
+            const isSelected = selected?.id === plan.id;
+            return (
+              <div
+                key={plan.id}
+                onClick={() => setSelected(isSelected ? null : plan)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 60px' : 'minmax(0, 1fr) 120px 140px 130px 60px',
+                  padding: '0 16px', height: 48, alignItems: 'center',
+                  borderBottom: '1px solid var(--sb-border)',
+                  background: isSelected ? 'var(--sb-s-active-bg)' : 'transparent',
+                  outline: isSelected ? '1px solid var(--sb-border-strong)' : 'none',
+                  outlineOffset: -1,
+                  cursor: 'pointer', transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sb-hover)'; }}
+                onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+              >
+                {/* Title */}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {plan.title}
+                  </div>
+                  {plan.description && !panelOpen && (
+                    <Mono size={9} color="var(--sb-text-tertiary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {plan.description}
+                    </Mono>
+                  )}
+                </div>
+
+                {/* Asset (hidden when panel open) */}
+                {!panelOpen && (
+                  <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {plan.asset.name}
+                  </div>
+                )}
+
+                {/* Frequency (hidden when panel open) */}
+                {!panelOpen && (
+                  <span style={{
+                    display: 'inline-flex', padding: '1px 6px', border: '1px solid var(--sb-border)', borderRadius: 2,
+                    fontSize: 9, fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                    fontWeight: 600, color: 'var(--sb-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                  }}>
+                    {t(`supervisorPreventivePlans.frequencyType.${plan.frequencyType}`)}
+                  </span>
+                )}
+
+                {/* Next due (hidden when panel open) */}
+                {!panelOpen && (
+                  <Mono size={10} color="var(--sb-text-secondary)">{formatDateTime(plan.nextDueAt)}</Mono>
+                )}
+
+                {/* Status dot */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: plan.isActive ? 'var(--sb-s-done)' : 'var(--sb-text-tertiary)' }} />
+                  {!panelOpen && (
+                    <Mono size={9} color="var(--sb-text-secondary)">
+                      {plan.isActive ? t('common.active') : t('common.inactive')}
+                    </Mono>
+                  )}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer: pagination */}
+      <div style={{
+        height: 36, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        borderTop: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0,
+      }}>
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          onPrevious={() => setPage((p) => p - 1)}
+          onNext={() => setPage((p) => p + 1)}
+        />
+      </div>
+    </div>
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+    <>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Board-level toolbar */}
+        <div style={{
+          minHeight: 44,
+          borderBottom: '1px solid var(--sb-border)',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          gap: 8,
+          flexWrap: 'wrap',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+        }}>
+          {/* Asset search */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Search
+              size={13}
+              style={{
+                position: 'absolute',
+                left: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--sb-text-tertiary)',
+                pointerEvents: 'none',
+              }}
+            />
+            <input
               value={assetSearch}
-              onChange={(event) => setAssetSearch(event.target.value)}
+              onChange={(e) => setAssetSearch(e.target.value)}
               placeholder={t('supervisorPreventivePlans.filters.assetSearchPlaceholder')}
-              className="w-[280px] pl-8"
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+              style={{
+                height: 26,
+                paddingLeft: 26,
+                paddingRight: 8,
+                width: 200,
+                border: '1px solid var(--sb-border)',
+                borderRadius: 2,
+                fontFamily: 'inherit',
+                fontSize: 12,
+                color: 'var(--sb-text-primary)',
+                background: 'var(--sb-bg)',
+                outline: 'none',
+              }}
             />
           </div>
 
+          <div style={{ width: 1, height: 16, background: 'var(--sb-border)', flexShrink: 0 }} />
+
+          {/* Asset filter */}
           <select
-            className={selectClass}
             value={assetFilterId}
-            onChange={(event) => setAssetFilterId(event.target.value)}
+            onChange={(e) => { setAssetFilterId(e.target.value); setPage(1); }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+            style={filterSelectStyle}
           >
             <option value="">{t('supervisorPreventivePlans.filters.allAssets')}</option>
             {(assetPickerQuery.data?.data ?? []).map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.name} · {asset.location.fullPath}
-              </option>
+              <option key={asset.id} value={asset.id}>{asset.name} · {asset.location.fullPath}</option>
             ))}
           </select>
 
+          {/* Status filter */}
           <select
-            className={selectClass}
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+            onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+            style={filterSelectStyle}
           >
             <option value="">{t('supervisorPreventivePlans.filters.allStatuses')}</option>
             <option value="active">{t('supervisorPreventivePlans.filters.active')}</option>
             <option value="inactive">{t('supervisorPreventivePlans.filters.inactive')}</option>
           </select>
 
-          <Button type="button" variant="ghost" onClick={() => {
-            setAssetSearch('');
-            setAssetFilterId('');
-            setStatusFilter('');
-            setPage(1);
-          }}>
-            {t('supervisorPreventivePlans.filters.reset')}
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-input overflow-hidden">
+          {/* Reset — only when filters are active */}
+          {hasActiveFilters && (
             <button
               type="button"
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${
-                activeView === 'list'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
-              }`}
-              onClick={() => setActiveView('list')}
+              onClick={handleResetFilters}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                fontSize: 9,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                color: 'var(--sb-text-tertiary)',
+                padding: '0 2px',
+                flexShrink: 0,
+              }}
             >
-              <List className="h-3.5 w-3.5" />
-              {t('supervisorPreventivePlans.views.list')}
+              {t('supervisorPreventivePlans.filters.reset')}
+            </button>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          {/* Count */}
+          {data && activeView === 'list' && (
+            <Mono size={9} color="var(--sb-text-tertiary)">
+              {t('supervisorPreventivePlans.total', { count: data.total })}
+            </Mono>
+          )}
+
+          {/* View toggle */}
+          <div style={{ display: 'flex', border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setActiveView('list')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
+                border: 'none', cursor: 'pointer',
+                background: activeView === 'list' ? 'var(--sb-text-primary)' : 'transparent',
+              }}
+            >
+              <List size={12} style={{ color: activeView === 'list' ? 'var(--sb-bg)' : 'var(--sb-text-secondary)', flexShrink: 0 }} />
+              <Mono size={9} color={activeView === 'list' ? 'var(--sb-bg)' : 'var(--sb-text-secondary)'}>
+                {t('supervisorPreventivePlans.views.list')}
+              </Mono>
             </button>
             <button
               type="button"
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors ${
-                activeView === 'calendar'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
-              }`}
               onClick={() => setActiveView('calendar')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
+                border: 'none', borderLeft: '1px solid var(--sb-border)', cursor: 'pointer',
+                background: activeView === 'calendar' ? 'var(--sb-text-primary)' : 'transparent',
+              }}
             >
-              <CalendarDays className="h-3.5 w-3.5" />
-              {t('supervisorPreventivePlans.views.calendar')}
+              <CalendarDays size={12} style={{ color: activeView === 'calendar' ? 'var(--sb-bg)' : 'var(--sb-text-secondary)', flexShrink: 0 }} />
+              <Mono size={9} color={activeView === 'calendar' ? 'var(--sb-bg)' : 'var(--sb-text-secondary)'}>
+                {t('supervisorPreventivePlans.views.calendar')}
+              </Mono>
             </button>
           </div>
-          <Button type="button" onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('supervisorPreventivePlans.actions.create')}
-          </Button>
-        </div>
-      </div>
 
-      {activeView === 'list' && data && (
-        <div className="text-sm text-muted-foreground">
-          {t('supervisorPreventivePlans.total', { count: data.total })}
+          {/* Create button */}
+          <button
+            type="button"
+            onClick={openCreateDialog}
+            style={{
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+              fontSize: 9,
+              letterSpacing: '0.13em',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              color: 'var(--sb-bg)',
+              background: 'var(--sb-text-primary)',
+              border: 'none',
+              borderRadius: 2,
+              padding: '6px 14px',
+              cursor: 'pointer',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            + {t('supervisorPreventivePlans.actions.create')}
+          </button>
         </div>
-      )}
 
-      {activeView === 'list' && (
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('supervisorPreventivePlans.columns.title')}</TableHead>
-              <TableHead>{t('supervisorPreventivePlans.columns.asset')}</TableHead>
-              <TableHead>{t('supervisorPreventivePlans.columns.frequency')}</TableHead>
-              <TableHead>{t('supervisorPreventivePlans.columns.nextDueAt')}</TableHead>
-              <TableHead>{t('supervisorPreventivePlans.columns.defaultTechnician')}</TableHead>
-              <TableHead>{t('supervisorPreventivePlans.columns.status')}</TableHead>
-              <TableHead className="text-right">{t('common.actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-destructive">
-                  {t('supervisorPreventivePlans.states.error')}
-                </TableCell>
-              </TableRow>
-            ) : !data || data.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  {t('supervisorPreventivePlans.states.empty')}
-                </TableCell>
-              </TableRow>
+        {/* List view */}
+        {activeView === 'list' && (
+          <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+            <MasterDetail
+              list={listContent}
+              panel={
+                selected ? (
+                  <PreventivePlanDetailPanel
+                    key={selected.id}
+                    plan={selected}
+                    onClose={() => setSelected(null)}
+                    onEdit={(plan) => openEditDialog(plan)}
+                  />
+                ) : null
+              }
+              panelOpen={panelOpen}
+            />
+          </div>
+        )}
+
+        {/* Calendar view */}
+        {activeView === 'calendar' && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+            {calendarLoading ? (
+              <TableLoading label={t('common.loading')} />
+            ) : !calendarData || calendarData.length === 0 ? (
+              <TableEmpty label={t('supervisorPreventivePlans.calendar.empty')} />
             ) : (
-              data.data.map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-medium">{plan.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{plan.description ?? t('common.noData')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Mono size={9} color="var(--sb-text-tertiary)">
+                  {t('supervisorPreventivePlans.calendar.total', { count: calendarData.length })}
+                </Mono>
+                {[...calendarByDate.entries()].map(([day, items]) => (
+                  <div key={day} style={{ border: '1px solid var(--sb-border)', overflow: 'hidden' }}>
+                    <div style={{
+                      background: 'var(--sb-surface)', borderBottom: '1px solid var(--sb-border)',
+                      padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      <CalendarDays size={13} style={{ color: 'var(--sb-text-secondary)', flexShrink: 0 }} />
+                      <Mono size={10} weight={600}>
+                        {new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(day))}
+                      </Mono>
+                      <Mono size={9} color="var(--sb-text-secondary)" style={{ marginLeft: 'auto' }}>
+                        {t('supervisorPreventivePlans.calendar.itemCount', { count: items.length })}
+                      </Mono>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">{plan.asset.name}</p>
-                      <p className="text-xs text-muted-foreground">{plan.asset.location?.fullPath ?? '—'}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <Badge variant="secondary">{t(`supervisorPreventivePlans.frequencyType.${plan.frequencyType}`)}</Badge>
-                      <p className="text-xs text-muted-foreground">
-                        {plan.frequencyType === 'FIXED_INTERVAL_DAYS'
-                          ? t('supervisorPreventivePlans.labels.intervalDays', { count: plan.intervalDays ?? 0 })
-                          : plan.calendarExpression ?? '—'}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{formatDateTime(plan.nextDueAt)}</TableCell>
-                  <TableCell className="text-sm">{plan.defaultTechnician?.name ?? t('supervisorPreventivePlans.labels.unassigned')}</TableCell>
-                  <TableCell>
-                    <Badge variant={plan.isActive ? 'success' : 'destructive'}>
-                      {plan.isActive ? t('common.active') : t('common.inactive')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button type="button" variant="ghost" size="icon" title={t('supervisorPreventivePlans.actions.view')} onClick={() => setSelectedPlanId(plan.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEditDialog(plan)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title={plan.isActive ? t('supervisorPreventivePlans.actions.deactivate') : t('supervisorPreventivePlans.actions.activate')}
-                        onClick={() => (plan.isActive ? deactivateMutation.mutate(plan.id) : activateMutation.mutate(plan.id))}
-                        disabled={activateMutation.isPending || deactivateMutation.isPending}
-                      >
-                        {plan.isActive ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title={t('supervisorPreventivePlans.actions.triggerNow')}
-                        onClick={() => triggerMutation.mutate(plan.id)}
-                        disabled={triggerMutation.isPending || !plan.isActive}
-                      >
-                        <PlayCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      )}
-
-      {activeView === 'list' && (
-      <PaginationControls
-        page={page}
-        totalPages={totalPages}
-        onPrevious={() => setPage((current) => current - 1)}
-        onNext={() => setPage((current) => current + 1)}
-      />
-      )}
-
-      {activeView === 'calendar' && (
-        <div className="space-y-4">
-          {calendarLoading ? (
-            <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : !calendarData || calendarData.length === 0 ? (
-            <div className="flex h-32 items-center justify-center rounded-md border text-sm text-muted-foreground">
-              {t('supervisorPreventivePlans.calendar.empty')}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {t('supervisorPreventivePlans.calendar.total', { count: calendarData.length })}
-              </p>
-              {[...calendarByDate.entries()].map(([day, items]) => (
-                <div key={day} className="rounded-md border bg-card overflow-hidden">
-                  <div className="bg-muted/40 border-b px-4 py-2 flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      {new Intl.DateTimeFormat('fr-FR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      }).format(new Date(day))}
-                    </span>
-                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                      {t('supervisorPreventivePlans.calendar.itemCount', { count: items.length })}
-                    </span>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                      {items.map((item: CalendarPreviewItem, index: number) => (
+                        <li key={`${item.planId}-${index}`} style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 14px',
+                          borderBottom: index < items.length - 1 ? '1px solid var(--sb-border)' : 'none',
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.planTitle}
+                            </div>
+                            <Mono size={9} color="var(--sb-text-secondary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.assetName}
+                            </Mono>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                            {item.estimatedDurationMinutes && (
+                              <Mono size={9} color="var(--sb-text-secondary)">{item.estimatedDurationMinutes}min</Mono>
+                            )}
+                            <Mono size={9} color={item.defaultTechnicianName ? 'var(--sb-text-secondary)' : 'var(--sb-text-tertiary)'}>
+                              {item.defaultTechnicianName ?? t('supervisorPreventivePlans.labels.unassigned')}
+                            </Mono>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="divide-y">
-                    {items.map((item, index) => (
-                      <li
-                        key={`${item.planId}-${index}`}
-                        className="flex items-start gap-3 px-4 py-3"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{item.planTitle}</p>
-                          <p className="text-xs text-muted-foreground truncate">{item.assetName}</p>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {item.estimatedDurationMinutes && (
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              {item.estimatedDurationMinutes}min
-                            </span>
-                          )}
-                          {item.defaultTechnicianName ? (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <User className="h-3 w-3" />
-                              {item.defaultTechnicianName}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              {t('supervisorPreventivePlans.labels.unassigned')}
-                            </span>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <PreventivePlanFormDialog
         open={planDialogOpen}
-        onOpenChange={(open) => {
-          setPlanDialogOpen(open);
-          if (!open) setEditingPlan(null);
-        }}
+        onOpenChange={(open) => { setPlanDialogOpen(open); if (!open) setEditingPlan(null); }}
         plan={editingPlan}
-        onSuccess={() => {
-          setPlanDialogOpen(false);
-          setEditingPlan(null);
-        }}
+        onSuccess={() => { setPlanDialogOpen(false); setEditingPlan(null); }}
       />
-
-      <PreventivePlanDetailDialog
-        open={!!selectedPlan}
-        onOpenChange={(open) => {
-          if (!open) setSelectedPlanId(null);
-        }}
-        plan={selectedPlan}
-        onEditPlan={(plan) => {
-          setSelectedPlanId(null);
-          openEditDialog(plan);
-        }}
-      />
-    </div>
+    </>
   );
 }

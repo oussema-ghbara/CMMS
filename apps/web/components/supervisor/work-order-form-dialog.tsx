@@ -8,30 +8,43 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { AlertCircle, Clock, Info, Loader2, TriangleAlert, UserCheck } from 'lucide-react';
+import { AlertCircle, Clock, Loader2, TriangleAlert, UserCheck } from 'lucide-react';
 import { WorkOrderType, WorkOrderPriority } from '@gmao/shared';
 import { workOrdersApi, type DuplicateWoConflict } from '@/lib/work-orders.api';
 import { assetsApi } from '@/lib/assets.api';
 import { usersApi } from '@/lib/users.api';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/auth.store';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Mono } from '@/components/ui/mono';
 
-const selectClass =
-  'h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
 
-const textareaClass =
-  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none';
+const inputS: React.CSSProperties = {
+  display: 'block', width: '100%', height: 32, padding: '0 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2, fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  outline: 'none', boxSizing: 'border-box',
+};
+
+const selectS: React.CSSProperties = {
+  display: 'block', width: '100%', height: 32, padding: '0 4px 0 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2, fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  cursor: 'pointer', outline: 'none', boxSizing: 'border-box',
+};
+
+const textareaS: React.CSSProperties = {
+  display: 'block', width: '100%', padding: '8px 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2, fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  outline: 'none', boxSizing: 'border-box', resize: 'vertical',
+};
+
+const PRIORITY_COLOR: Record<WorkOrderPriority, string> = {
+  [WorkOrderPriority.CRITICAL]: 'var(--sb-p-crit)',
+  [WorkOrderPriority.HIGH]:     'var(--sb-p-high)',
+  [WorkOrderPriority.MEDIUM]:   'var(--sb-p-norm)',
+  [WorkOrderPriority.LOW]:      'var(--sb-p-low)',
+};
 
 interface DuplicateConflictResponse {
   message: string;
@@ -69,9 +82,7 @@ const workOrderSchema = z.object({
   estimatedDurationMinutes: z
     .string()
     .optional()
-    .refine((v) => !v || (Number.isInteger(Number(v)) && Number(v) > 0), {
-      message: 'invalid',
-    }),
+    .refine((v) => !v || (Number.isInteger(Number(v)) && Number(v) > 0), { message: 'invalid' }),
 });
 
 type WorkOrderFormValues = z.infer<typeof workOrderSchema>;
@@ -201,6 +212,13 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
     }
   }, [open, reset]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !createMutation.isPending) onOpenChange(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, createMutation.isPending, onOpenChange]);
+
   const onSubmit = (values: WorkOrderFormValues) => {
     setPendingValues(values);
     setDuplicateConflict(null);
@@ -224,100 +242,134 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
     );
   };
 
-  const principalLoad = techLoadData?.find((t) => t.technicianId === principalTechnicianId);
+  const principalLoad = techLoadData?.find((tl) => tl.technicianId === principalTechnicianId);
+  const availableContributors = (techniciansData ?? []).filter((tech) => tech.id !== principalTechnicianId);
+  const isPending = createMutation.isPending;
 
-  const availableContributors = (techniciansData ?? []).filter(
-    (tech) => tech.id !== principalTechnicianId,
-  );
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t('supervisorWorkOrders.form.createTitle')}</DialogTitle>
-          <DialogDescription>{t('supervisorWorkOrders.form.createDescription')}</DialogDescription>
-        </DialogHeader>
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 10001,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget && !isPending) onOpenChange(false); }}
+    >
+      <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
 
-        {/* Duplicate WO warning panel */}
-        {duplicateConflict && (
-          <div
-            role="alert"
-            className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3 dark:border-amber-800 dark:bg-amber-950/30"
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
+            {t('supervisorWorkOrders.form.createTitle')}
+          </div>
+          <button
+            type="button"
+            onClick={() => { if (!isPending) onOpenChange(false); }}
+            disabled={isPending}
+            style={{ background: 'transparent', border: '1px solid var(--sb-border)', padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
           >
-            <div className="flex items-start gap-2">
-              <TriangleAlert className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            <Mono size={8} color="var(--sb-text-tertiary)">✕</Mono>
+          </button>
+        </div>
+
+        {/* Duplicate conflict warning */}
+        {duplicateConflict && (
+          <div style={{ border: '1px solid var(--sb-p-high)', background: 'rgba(234,88,12,0.06)', borderRadius: 2, padding: '12px 14px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <TriangleAlert style={{ width: 14, height: 14, color: 'var(--sb-p-high)', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-p-high)', marginBottom: 3 }}>
                   {t('supervisorWorkOrders.duplicateWarning.title')}
-                </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', lineHeight: 1.5 }}>
                   {t('supervisorWorkOrders.duplicateWarning.body', {
                     reference: duplicateConflict.referenceNumber,
                     status: t(`supervisorWorkOrders.status.${duplicateConflict.status}`),
                     type: t(`supervisorWorkOrders.types.${duplicateConflict.type}`),
                   })}
-                </p>
+                </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={onCancelForce}
-                disabled={createMutation.isPending}
+                disabled={isPending}
+                style={{
+                  background: 'transparent', border: '1px solid var(--sb-border-strong)',
+                  borderRadius: 2, padding: '5px 12px',
+                  fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                  color: 'var(--sb-text-secondary)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.5 : 1,
+                }}
               >
                 {t('common.cancel')}
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                variant="default"
-                size="sm"
                 onClick={onForceCreate}
-                disabled={createMutation.isPending}
+                disabled={isPending}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: isPending ? 'var(--sb-border)' : 'var(--sb-p-high)',
+                  color: isPending ? 'var(--sb-text-tertiary)' : '#fff',
+                  border: 'none', borderRadius: 2, padding: '5px 12px',
+                  fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                  cursor: isPending ? 'not-allowed' : 'pointer',
+                }}
               >
-                {createMutation.isPending && (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                )}
+                {isPending && <Loader2 style={{ width: 11, height: 11, animation: 'spin 1s linear infinite' }} />}
                 {t('supervisorWorkOrders.duplicateWarning.createAnyway')}
-              </Button>
+              </button>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Type */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-type">{t('supervisorWorkOrders.form.type')}</Label>
-            <select id="wo-type" className={selectClass} {...register('type')}>
-              {TYPE_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {t(`supervisorWorkOrders.types.${opt}`)}
-                </option>
-              ))}
-            </select>
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-priority">{t('supervisorWorkOrders.form.priority')}</Label>
-            <select id="wo-priority" className={selectClass} {...register('priority')}>
-              {PRIORITY_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {t(`supervisorWorkOrders.priority.${opt}`)}
-                </option>
-              ))}
-            </select>
+          {/* Type + Priority (2-col) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+                {t('supervisorWorkOrders.form.type')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+              </Mono>
+              <select {...register('type')} style={selectS}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+              >
+                {TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{t(`supervisorWorkOrders.types.${opt}`)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+                {t('supervisorWorkOrders.form.priority')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+              </Mono>
+              <select {...register('priority')} style={selectS}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+              >
+                {PRIORITY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt} style={{ color: PRIORITY_COLOR[opt] }}>
+                    {t(`supervisorWorkOrders.priority.${opt}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Asset */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-asset">{t('supervisorWorkOrders.form.asset')}</Label>
-            <select
-              id="wo-asset"
-              className={selectClass}
-              {...register('assetId')}
-              disabled={assetsLoading}
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorWorkOrders.form.asset')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+            </Mono>
+            <select {...register('assetId')} disabled={assetsLoading}
+              style={{ ...selectS, opacity: assetsLoading ? 0.6 : 1 }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = errors.assetId ? 'var(--sb-p-crit)' : 'var(--sb-border)'; }}
             >
               <option value="">{t('supervisorWorkOrders.form.assetPlaceholder')}</option>
               {assetsData?.data.map((asset) => (
@@ -327,139 +379,105 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
               ))}
             </select>
             {errors.assetId && (
-              <p className="text-xs text-destructive">
-                {t('supervisorWorkOrders.validation.assetRequired')}
-              </p>
+              <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorWorkOrders.validation.assetRequired')}</Mono>
             )}
           </div>
 
-          {/* Duration hints panel — shown once asset + type are selected */}
+          {/* Duration hints */}
           {hintsEnabled && (
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/20">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                  {t('supervisorWorkOrders.form.durationHints.title')}
-                </p>
-                {hintsFetching && <Loader2 className="h-3 w-3 animate-spin text-blue-500" />}
+            <div style={{ border: '1px solid var(--sb-border)', background: 'var(--sb-surface)', borderRadius: 2, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Clock style={{ width: 12, height: 12, color: 'var(--sb-text-secondary)' }} />
+                <Mono size={8} color="var(--sb-text-secondary)">{t('supervisorWorkOrders.form.durationHints.title')}</Mono>
+                {hintsFetching && <Loader2 style={{ width: 10, height: 10, color: 'var(--sb-text-tertiary)', animation: 'spin 1s linear infinite' }} />}
               </div>
-              <dl className="grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <dt className="text-muted-foreground">
-                    {t('supervisorWorkOrders.form.durationHints.last5Asset')}
-                  </dt>
-                  <dd className="font-medium tabular-nums">
-                    {formatDays(hintsData?.last5AssetAvgDays ?? null)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">
-                    {t('supervisorWorkOrders.form.durationHints.categoryAvg')}
-                  </dt>
-                  <dd className="font-medium tabular-nums">
-                    {formatDays(hintsData?.categoryAvgDays ?? null)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">
-                    {t('supervisorWorkOrders.form.durationHints.techAvg')}
-                  </dt>
-                  <dd className="font-medium tabular-nums">
-                    {principalTechnicianId
-                      ? formatDays(hintsData?.technicianAvgDays ?? null)
-                      : '—'}
-                  </dd>
-                </div>
-              </dl>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                {[
+                  { label: t('supervisorWorkOrders.form.durationHints.last5Asset'), value: formatDays(hintsData?.last5AssetAvgDays ?? null) },
+                  { label: t('supervisorWorkOrders.form.durationHints.categoryAvg'), value: formatDays(hintsData?.categoryAvgDays ?? null) },
+                  { label: t('supervisorWorkOrders.form.durationHints.techAvg'), value: principalTechnicianId ? formatDays(hintsData?.technicianAvgDays ?? null) : '—' },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <Mono size={7} color="var(--sb-text-tertiary)" block style={{ marginBottom: 2 }}>{label}</Mono>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sb-text-primary)', fontFamily: MONO }}>{value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Principal technician */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-principal">
+          {/* Principal Technician */}
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorWorkOrders.form.principalTechnician')}
-              <span className="ml-1 text-muted-foreground text-xs">
-                ({t('common.optional')})
-              </span>
-            </Label>
+            </Mono>
             <select
-              id="wo-principal"
-              className={selectClass}
               value={principalTechnicianId}
               onChange={(e) => {
                 setPrincipalTechnicianId(e.target.value);
                 setContributorIds((prev) => prev.filter((id) => id !== e.target.value));
               }}
               disabled={techniciansLoading}
+              style={{ ...selectS, opacity: techniciansLoading ? 0.6 : 1 }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
             >
               <option value="">{t('supervisorWorkOrders.form.technicianPlaceholder')}</option>
               {(techniciansData ?? []).map((tech) => (
-                <option key={tech.id} value={tech.id}>
-                  {tech.name}
-                </option>
+                <option key={tech.id} value={tech.id}>{tech.name}</option>
               ))}
             </select>
-
-            {/* Technician load indicator */}
-            {principalLoad && (
-              <div className="flex items-center gap-2 px-1">
-                <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  {t('supervisorWorkOrders.form.techLoad', {
-                    count: principalLoad.openWoCount,
-                  })}
-                </span>
-                {principalLoad.hasCritical && (
-                  <Badge variant="destructive" className="text-[10px] h-4 px-1">
-                    {t('supervisorWorkOrders.priority.CRITICAL')}
-                  </Badge>
-                )}
-              </div>
-            )}
-            {principalTechnicianId && !principalLoad && (
-              <p className="text-xs text-muted-foreground px-1 flex items-center gap-1">
-                <UserCheck className="h-3.5 w-3.5" />
-                {t('supervisorWorkOrders.form.techNoLoad')}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground px-1 flex items-start gap-1 pt-1">
-              <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              {principalTechnicianId
-                ? t('supervisorWorkOrders.form.assignedHint')
-                : t('supervisorWorkOrders.form.draftHint')}
-            </p>
           </div>
 
-          {/* Contributors — only shown if principal is selected */}
-          {principalTechnicianId && availableContributors.length > 0 && (
-            <div className="space-y-1.5">
-              <Label>
-                {t('supervisorWorkOrders.form.contributors')}
-                <span className="ml-1 text-muted-foreground text-xs">
-                  ({t('common.optional')})
+          {/* Technician load */}
+          {(principalLoad || principalTechnicianId) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px' }}>
+              <UserCheck style={{ width: 12, height: 12, color: 'var(--sb-text-tertiary)', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--sb-text-secondary)' }}>
+                {principalLoad
+                  ? t('supervisorWorkOrders.form.techLoad', { count: principalLoad.openWoCount })
+                  : t('supervisorWorkOrders.form.techNoLoad')}
+              </span>
+              {principalLoad?.hasCritical && (
+                <span style={{ fontSize: 9, fontFamily: MONO, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700, color: 'var(--sb-p-crit)', border: '1px solid var(--sb-p-crit)', borderRadius: 2, padding: '1px 5px' }}>
+                  {t('supervisorWorkOrders.priority.CRITICAL')}
                 </span>
-              </Label>
-              <div className="rounded-md border border-input p-2 space-y-1 max-h-32 overflow-y-auto">
+              )}
+            </div>
+          )}
+
+          {/* Draft/Assign hint */}
+          <Mono size={8} color="var(--sb-text-tertiary)" block>
+            {principalTechnicianId
+              ? t('supervisorWorkOrders.form.assignedHint')
+              : t('supervisorWorkOrders.form.draftHint')}
+          </Mono>
+
+          {/* Contributors */}
+          {principalTechnicianId && availableContributors.length > 0 && (
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 6 }}>
+                {t('supervisorWorkOrders.form.contributors')}
+              </Mono>
+              <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, padding: '6px 8px', maxHeight: 128, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {availableContributors.map((tech) => {
                   const load = techLoadData?.find((l) => l.technicianId === tech.id);
                   return (
                     <label
                       key={tech.id}
-                      className="flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer hover:bg-accent"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer' }}
                     >
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5"
+                        style={{ width: 12, height: 12, flexShrink: 0, cursor: 'pointer' }}
                         checked={contributorIds.includes(tech.id)}
                         onChange={() => toggleContributor(tech.id)}
                       />
-                      <span className="text-sm flex-1">{tech.name}</span>
+                      <span style={{ fontSize: 13, color: 'var(--sb-text-primary)', flex: 1 }}>{tech.name}</span>
                       {load && (
-                        <span className="text-xs text-muted-foreground tabular-nums">
+                        <span style={{ fontSize: 11, fontFamily: MONO, color: 'var(--sb-text-tertiary)' }}>
                           {load.openWoCount} OT
-                          {load.hasCritical && (
-                            <AlertCircle className="inline h-3 w-3 text-destructive ml-0.5" />
-                          )}
+                          {load.hasCritical && <AlertCircle style={{ display: 'inline', width: 11, height: 11, color: 'var(--sb-p-crit)', marginLeft: 3 }} />}
                         </span>
                       )}
                     </label>
@@ -470,79 +488,100 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
           )}
 
           {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-description">{t('supervisorWorkOrders.form.description')}</Label>
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorWorkOrders.form.description')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+            </Mono>
             <textarea
-              id="wo-description"
               rows={3}
-              className={textareaClass}
-              placeholder={t('supervisorWorkOrders.form.descriptionPlaceholder')}
               maxLength={2000}
+              placeholder={t('supervisorWorkOrders.form.descriptionPlaceholder')}
               {...register('description')}
+              style={{ ...textareaS, borderColor: errors.description ? 'var(--sb-p-crit)' : 'var(--sb-border)' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = errors.description ? 'var(--sb-p-crit)' : 'var(--sb-border)'; }}
             />
             {errors.description && (
-              <p className="text-xs text-destructive">
-                {t('supervisorWorkOrders.validation.descriptionRequired')}
-              </p>
+              <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorWorkOrders.validation.descriptionRequired')}</Mono>
             )}
           </div>
 
-          {/* Internal notes */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-notes">{t('supervisorWorkOrders.form.internalNotes')}</Label>
+          {/* Internal Notes */}
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorWorkOrders.form.internalNotes')}
+            </Mono>
             <textarea
-              id="wo-notes"
               rows={2}
-              className={textareaClass}
-              placeholder={t('supervisorWorkOrders.form.internalNotesPlaceholder')}
               maxLength={2000}
+              placeholder={t('supervisorWorkOrders.form.internalNotesPlaceholder')}
               {...register('internalNotes')}
+              style={textareaS}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
             />
           </div>
 
-          {/* Due date */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-due-date">{t('supervisorWorkOrders.form.dueDate')}</Label>
-            <Input id="wo-due-date" type="date" {...register('dueDate')} />
+          {/* Due date + Duration (2-col) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+                {t('supervisorWorkOrders.form.dueDate')}
+              </Mono>
+              <input type="date" {...register('dueDate')} style={inputS}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+              />
+            </div>
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+                {t('supervisorWorkOrders.form.estimatedDurationMinutes')}
+              </Mono>
+              <input type="number" min={1} step={1} {...register('estimatedDurationMinutes')}
+                style={{ ...inputS, fontFamily: MONO, borderColor: errors.estimatedDurationMinutes ? 'var(--sb-p-crit)' : 'var(--sb-border)' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = errors.estimatedDurationMinutes ? 'var(--sb-p-crit)' : 'var(--sb-border)'; }}
+              />
+              {errors.estimatedDurationMinutes && (
+                <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorWorkOrders.validation.estimatedDurationInvalid')}</Mono>
+              )}
+            </div>
           </div>
 
-          {/* Estimated duration */}
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-duration">
-              {t('supervisorWorkOrders.form.estimatedDurationMinutes')}
-            </Label>
-            <Input
-              id="wo-duration"
-              type="number"
-              min={1}
-              step={1}
-              {...register('estimatedDurationMinutes')}
-            />
-            {errors.estimatedDurationMinutes && (
-              <p className="text-xs text-destructive">
-                {t('supervisorWorkOrders.validation.estimatedDurationInvalid')}
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
+          {/* Footer */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
+            <button
               type="button"
-              variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={createMutation.isPending}
+              disabled={isPending}
+              style={{
+                background: 'transparent', border: '1px solid var(--sb-border-strong)',
+                borderRadius: 2, padding: '6px 16px',
+                fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                color: 'var(--sb-text-secondary)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.5 : 1,
+              }}
             >
               {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={createMutation.isPending || !!duplicateConflict}>
-              {createMutation.isPending && !duplicateConflict && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+            </button>
+            <button
+              type="submit"
+              disabled={isPending || !!duplicateConflict}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: isPending || duplicateConflict ? 'var(--sb-border)' : 'var(--sb-text-primary)',
+                color: isPending || duplicateConflict ? 'var(--sb-text-tertiary)' : 'var(--sb-bg)',
+                border: 'none', borderRadius: 2, padding: '6px 16px',
+                fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                cursor: isPending || duplicateConflict ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isPending && <Loader2 style={{ width: 11, height: 11, animation: 'spin 1s linear infinite' }} />}
               {t(getSubmitLabelKey(!!principalTechnicianId))}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
+
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

@@ -1,24 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import {
-  AlertTriangle,
-  Archive,
-  ArrowRightLeft,
-  Clock3,
-  Eye,
-  History,
-  Loader2,
-  MessageSquare,
-  PlusCircle,
-  Search,
-  Send,
-  ShieldAlert,
-  Undo2,
-} from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import {
   ProblemReportStatus,
   ReportArchiveReason,
@@ -27,19 +13,25 @@ import {
   WorkOrderPriority,
   WorkOrderStatus,
 } from '@gmao/shared';
-import { reportsApi, type ReportDetailItem, type ReportListItem, type ReportAssetActiveWO, type ReportAssetCertAlert, type ReportAssetInterventionHistoryItem } from '@/lib/reports.api';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { PaginationControls } from '@/components/ui/pagination-controls';
-import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  reportsApi,
+  type ReportListItem,
+  type ReportAssetActiveWO,
+  type ReportAssetCertAlert,
+  type ReportAssetInterventionHistoryItem,
+} from '@/lib/reports.api';
 import { useTranslation } from 'react-i18next';
+import { MasterDetail } from '@/components/ui/master-detail';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { Mono } from '@/components/ui/mono';
+import { TableLoading } from '@/components/ui/table-loading';
+import { TableEmpty } from '@/components/ui/table-empty';
+import { TableError } from '@/components/ui/table-error';
 
-const LIMIT = 10;
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const LIMIT = 20;
+const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
 
 const STATUS_OPTIONS = [
   ProblemReportStatus.PENDING,
@@ -78,7 +70,188 @@ const ARCHIVE_REASON_OPTIONS = [
   ReportArchiveReason.MANAGEMENT_DECISION,
 ] as const;
 
-function getErrorMessage(error: unknown, fallback: string) {
+// ── Color maps ─────────────────────────────────────────────────────────────────
+
+const URGENCY_BORDER: Record<UrgencyPerception, string> = {
+  [UrgencyPerception.MACHINE_STOPPED]:   'var(--sb-p-crit)',
+  [UrgencyPerception.ABNORMAL_BEHAVIOR]: 'var(--sb-p-high)',
+  [UrgencyPerception.MINOR_ISSUE]:       'var(--sb-p-low)',
+};
+
+const URGENCY_COLOR: Record<UrgencyPerception, string> = {
+  [UrgencyPerception.MACHINE_STOPPED]:   'var(--sb-p-crit)',
+  [UrgencyPerception.ABNORMAL_BEHAVIOR]: 'var(--sb-p-high)',
+  [UrgencyPerception.MINOR_ISSUE]:       'var(--sb-p-low)',
+};
+
+const URGENCY_BG: Record<UrgencyPerception, string> = {
+  [UrgencyPerception.MACHINE_STOPPED]:   'var(--sb-p-crit-bg)',
+  [UrgencyPerception.ABNORMAL_BEHAVIOR]: 'var(--sb-p-high-bg)',
+  [UrgencyPerception.MINOR_ISSUE]:       'var(--sb-p-low-bg)',
+};
+
+const REPORT_STATUS_COLOR: Record<ProblemReportStatus, string> = {
+  [ProblemReportStatus.PENDING]:   'var(--sb-s-active)',
+  [ProblemReportStatus.CONVERTED]: 'var(--sb-s-done)',
+  [ProblemReportStatus.REJECTED]:  'var(--sb-p-crit)',
+  [ProblemReportStatus.DEFERRED]:  'var(--sb-s-wait)',
+  [ProblemReportStatus.ARCHIVED]:  'var(--sb-s-cancel)',
+};
+
+const REPORT_STATUS_BG: Record<ProblemReportStatus, string> = {
+  [ProblemReportStatus.PENDING]:   'var(--sb-s-active-bg)',
+  [ProblemReportStatus.CONVERTED]: 'var(--sb-s-done-bg)',
+  [ProblemReportStatus.REJECTED]:  'var(--sb-p-crit-bg)',
+  [ProblemReportStatus.DEFERRED]:  'var(--sb-s-wait-bg)',
+  [ProblemReportStatus.ARCHIVED]:  'var(--sb-s-cancel-bg)',
+};
+
+const WO_STATUS_COLOR: Record<WorkOrderStatus, string> = {
+  [WorkOrderStatus.DRAFT]:              'var(--sb-s-cancel)',
+  [WorkOrderStatus.OPEN]:               'var(--sb-s-open)',
+  [WorkOrderStatus.ASSIGNED]:           'var(--sb-s-active)',
+  [WorkOrderStatus.IN_PROGRESS]:        'var(--sb-s-active)',
+  [WorkOrderStatus.ON_HOLD]:            'var(--sb-s-wait)',
+  [WorkOrderStatus.PENDING_VALIDATION]: 'var(--sb-s-wait)',
+  [WorkOrderStatus.CLOSED]:             'var(--sb-s-done)',
+  [WorkOrderStatus.CANCELLED]:          'var(--sb-s-cancel)',
+};
+
+const WO_STATUS_BG: Record<WorkOrderStatus, string> = {
+  [WorkOrderStatus.DRAFT]:              'var(--sb-s-cancel-bg)',
+  [WorkOrderStatus.OPEN]:               'var(--sb-s-open-bg)',
+  [WorkOrderStatus.ASSIGNED]:           'var(--sb-s-active-bg)',
+  [WorkOrderStatus.IN_PROGRESS]:        'var(--sb-s-active-bg)',
+  [WorkOrderStatus.ON_HOLD]:            'var(--sb-s-wait-bg)',
+  [WorkOrderStatus.PENDING_VALIDATION]: 'var(--sb-s-wait-bg)',
+  [WorkOrderStatus.CLOSED]:             'var(--sb-s-done-bg)',
+  [WorkOrderStatus.CANCELLED]:          'var(--sb-s-cancel-bg)',
+};
+
+// ── Style constants ────────────────────────────────────────────────────────────
+
+const inputS: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  height: 28,
+  padding: '0 8px',
+  border: '1px solid var(--sb-border)',
+  borderRadius: 2,
+  fontFamily: 'inherit',
+  fontSize: 12,
+  color: 'var(--sb-text-primary)',
+  background: 'var(--sb-bg)',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const selectS: React.CSSProperties = {
+  ...inputS,
+  padding: '0 4px 0 8px',
+  cursor: 'pointer',
+};
+
+const textareaS: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  padding: '6px 8px',
+  border: '1px solid var(--sb-border)',
+  borderRadius: 2,
+  fontFamily: 'inherit',
+  fontSize: 12,
+  color: 'var(--sb-text-primary)',
+  background: 'var(--sb-bg)',
+  outline: 'none',
+  boxSizing: 'border-box',
+  resize: 'vertical',
+  minHeight: 72,
+  lineHeight: 1.6,
+};
+
+const filterSelectStyle: React.CSSProperties = {
+  height: 26,
+  border: '1px solid var(--sb-border)',
+  borderRadius: 2,
+  padding: '0 4px 0 8px',
+  fontFamily: MONO,
+  fontSize: 10,
+  letterSpacing: '0.08em',
+  color: 'var(--sb-text-secondary)',
+  background: 'var(--sb-bg)',
+  cursor: 'pointer',
+  outline: 'none',
+};
+
+const actionBlockStyle: React.CSSProperties = {
+  border: '1px solid var(--sb-border)',
+  padding: '12px 14px',
+  background: 'var(--sb-surface)',
+  marginBottom: 8,
+};
+
+function btnPrimaryStyle(disabled = false): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: disabled ? 'var(--sb-border)' : 'var(--sb-text-primary)',
+    color: disabled ? 'var(--sb-text-tertiary)' : 'var(--sb-bg)',
+    border: 'none',
+    borderRadius: 2,
+    padding: '6px 14px',
+    fontFamily: MONO,
+    fontSize: 9,
+    letterSpacing: '0.13em',
+    textTransform: 'uppercase',
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    flexShrink: 0,
+  };
+}
+
+function btnSecondaryStyle(disabled = false): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: 'transparent',
+    color: disabled ? 'var(--sb-text-tertiary)' : 'var(--sb-text-secondary)',
+    border: '1px solid var(--sb-border)',
+    borderRadius: 2,
+    padding: '6px 14px',
+    fontFamily: MONO,
+    fontSize: 9,
+    letterSpacing: '0.13em',
+    textTransform: 'uppercase',
+    fontWeight: 500,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    flexShrink: 0,
+  };
+}
+
+function btnDestructiveStyle(disabled = false): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: disabled ? 'var(--sb-border)' : 'var(--sb-p-crit)',
+    color: disabled ? 'var(--sb-text-tertiary)' : '#fff',
+    border: 'none',
+    borderRadius: 2,
+    padding: '6px 14px',
+    fontFamily: MONO,
+    fontSize: 9,
+    letterSpacing: '0.13em',
+    textTransform: 'uppercase',
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    flexShrink: 0,
+  };
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+
+function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const rawMessage = axiosError.response?.data?.message;
   if (Array.isArray(rawMessage) && rawMessage.length > 0) return rawMessage[0] ?? fallback;
@@ -86,7 +259,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function formatDateTime(value: string | null | undefined) {
+function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
@@ -97,128 +270,160 @@ function formatDateTime(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
-function getStatusVariant(status: ProblemReportStatus) {
-  switch (status) {
-    case ProblemReportStatus.PENDING:
-      return 'warning';
-    case ProblemReportStatus.CONVERTED:
-      return 'success';
-    case ProblemReportStatus.REJECTED:
-      return 'destructive';
-    case ProblemReportStatus.DEFERRED:
-      return 'secondary';
-    case ProblemReportStatus.ARCHIVED:
-      return 'outline';
-  }
+function formatAge(dateStr: string): string {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}j`;
 }
 
-function getUrgencyVariant(urgency: UrgencyPerception) {
-  switch (urgency) {
-    case UrgencyPerception.MACHINE_STOPPED:
-      return 'destructive';
-    case UrgencyPerception.ABNORMAL_BEHAVIOR:
-      return 'warning';
-    case UrgencyPerception.MINOR_ISSUE:
-      return 'secondary';
-  }
-}
-
-function getWorkOrderStatusVariant(status: WorkOrderStatus) {
-  switch (status) {
-    case WorkOrderStatus.DRAFT:
-    case WorkOrderStatus.OPEN:
-      return 'secondary';
-    case WorkOrderStatus.ASSIGNED:
-    case WorkOrderStatus.IN_PROGRESS:
-      return 'warning';
-    case WorkOrderStatus.ON_HOLD:
-      return 'outline';
-    case WorkOrderStatus.PENDING_VALIDATION:
-      return 'warning';
-    case WorkOrderStatus.CLOSED:
-      return 'success';
-    case WorkOrderStatus.CANCELLED:
-      return 'destructive';
-  }
-}
-
-/** Returns aging info for a DEFERRED report based on elapsed time since deferral. */
-function getDeferredAgingTier(
-  deferredAt: string | null,
-): { label: string; variant: 'warning' | 'destructive' } | null {
+function getDeferredAgingInfo(deferredAt: string | null): { label: string; color: string } | null {
   if (!deferredAt) return null;
-  const elapsedHours =
-    (Date.now() - new Date(deferredAt).getTime()) / (1000 * 60 * 60);
-  if (elapsedHours >= 336) return { label: 'tier14d', variant: 'destructive' };
-  if (elapsedHours >= 168) return { label: 'tier7d', variant: 'warning' };
-  if (elapsedHours >= 48) return { label: 'tier48h', variant: 'warning' };
+  const elapsedHours = (Date.now() - new Date(deferredAt).getTime()) / 3_600_000;
+  if (elapsedHours >= 336) return { label: 'tier14d', color: 'var(--sb-p-crit)' };
+  if (elapsedHours >= 168) return { label: 'tier7d', color: 'var(--sb-p-high)' };
+  if (elapsedHours >= 48)  return { label: 'tier48h', color: 'var(--sb-s-active)' };
   return null;
 }
 
-function FieldValue({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-foreground">{children}</p>;
+// ── Atom components ────────────────────────────────────────────────────────────
+
+function ReportStatusPill({ status }: { status: ProblemReportStatus }) {
+  const color = REPORT_STATUS_COLOR[status];
+  const bg    = REPORT_STATUS_BG[status];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: bg,
+        border: `1px solid ${color}28`,
+        borderRadius: 2,
+        padding: '2px 7px 2px 5px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: color,
+          display: 'inline-block',
+          flexShrink: 0,
+        }}
+      />
+      <Mono size={9} color={color} tracking="0.10em">{status}</Mono>
+    </span>
+  );
+}
+
+function UrgencyPill({ urgency }: { urgency: UrgencyPerception }) {
+  const color = URGENCY_COLOR[urgency];
+  const bg    = URGENCY_BG[urgency];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: bg,
+        border: `1px solid ${color}28`,
+        borderRadius: 2,
+        padding: '2px 7px 2px 5px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: color,
+          display: 'inline-block',
+          flexShrink: 0,
+        }}
+      />
+      <Mono size={9} color={color} tracking="0.10em">{urgency}</Mono>
+    </span>
+  );
+}
+
+function WOStatusPill({ status }: { status: WorkOrderStatus }) {
+  const color = WO_STATUS_COLOR[status];
+  const bg    = WO_STATUS_BG[status];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        background: bg,
+        border: `1px solid ${color}28`,
+        borderRadius: 2,
+        padding: '1px 6px 1px 4px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+      <Mono size={8} color={color} tracking="0.10em">{status}</Mono>
+    </span>
+  );
 }
 
 export function DuplicateSubmissionBadge({
   submittedDespiteWarning,
-  className,
 }: {
   submittedDespiteWarning: boolean;
   className?: string;
 }) {
   const { t } = useTranslation();
-
   if (!submittedDespiteWarning) return null;
-
   return (
-    <Badge variant="warning" className={className}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'var(--sb-s-active-bg)',
+        border: '1px solid var(--sb-s-active)',
+        borderRadius: 2,
+        padding: '2px 6px',
+        fontFamily: MONO,
+        fontSize: 9,
+        fontWeight: 600,
+        letterSpacing: '0.10em',
+        textTransform: 'uppercase',
+        color: 'var(--sb-s-active)',
+        whiteSpace: 'nowrap',
+      }}
+    >
       {t('supervisorReports.labels.submittedDespiteWarning')}
-    </Badge>
+    </span>
   );
 }
 
-function ActionCard({
-  title,
-  description,
-  icon: Icon,
-  children,
+// ── Report Detail Panel ────────────────────────────────────────────────────────
+
+type ActionPanel = 'convert' | 'reject' | 'defer' | 'archive' | 'reopen' | null;
+type PanelTab = 'detail' | 'actions';
+
+function ReportDetailPanel({
+  reportSummary,
+  onClose,
 }: {
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
+  reportSummary: ReportListItem;
+  onClose: () => void;
 }) {
-  return (
-    <Card className="border-dashed">
-      <CardHeader className="space-y-2 pb-4">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md bg-muted p-2 text-muted-foreground">
-            <Icon className="h-4 w-4" />
-          </div>
-          <div className="space-y-1">
-            <CardTitle className="text-base">{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-    </Card>
-  );
-}
-
-export function ReportsBoard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<ProblemReportStatus | ''>('');
-  const [urgency, setUrgency] = useState<UrgencyPerception | ''>('');
-  const [page, setPage] = useState(1);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<PanelTab>('detail');
+  const [activeAction, setActiveAction] = useState<ActionPanel>(null);
+
   const [commentContent, setCommentContent] = useState('');
   const [convertPriority, setConvertPriority] = useState<WorkOrderPriority>(WorkOrderPriority.MEDIUM);
-  const [convertDescription, setConvertDescription] = useState('');
+  const [convertDescription, setConvertDescription] = useState(reportSummary.description);
   const [convertInternalNotes, setConvertInternalNotes] = useState('');
   const [convertEstimatedDuration, setConvertEstimatedDuration] = useState('');
   const [convertDueDate, setConvertDueDate] = useState('');
@@ -227,58 +432,21 @@ export function ReportsBoard() {
   const [deferNote, setDeferNote] = useState('');
   const [archiveReason, setArchiveReason] = useState<ReportArchiveReason>(ReportArchiveReason.MANAGEMENT_DECISION);
 
-  const queryParams = {
-    page,
-    limit: LIMIT,
-    ...(search ? { search } : {}),
-    ...(status ? { status } : {}),
-    ...(urgency ? { urgencyPerception: urgency } : {}),
-  };
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['supervisor', 'reports', page, search, status, urgency],
-    queryFn: () => reportsApi.list(queryParams),
+  const { data: detail, isLoading: detailLoading, isError: detailError } = useQuery({
+    queryKey: ['supervisor', 'reports', reportSummary.id],
+    queryFn: () => reportsApi.getOne(reportSummary.id),
   });
 
-  const selectedReportSummary = data?.data.find((report) => report.id === selectedReportId) ?? null;
-
-  const detailQuery = useQuery({
-    queryKey: ['supervisor', 'reports', selectedReportId],
-    queryFn: () => reportsApi.getOne(selectedReportId!),
-    enabled: !!selectedReportId,
-  });
-
-  const selectedReport = (detailQuery.data ?? selectedReportSummary) as ReportDetailItem | ReportListItem | null;
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
-  const isDetailOpen = !!selectedReportId;
-  const reportDetail = detailQuery.data;
-
-  useEffect(() => {
-    if (!selectedReport) return;
-    setCommentContent('');
-    setConvertPriority(WorkOrderPriority.MEDIUM);
-    setConvertDescription(selectedReport.description);
-    setConvertInternalNotes('');
-    setConvertEstimatedDuration('');
-    setConvertDueDate('');
-    setRejectReason(ReportRejectionReason.INVALID_REPORT);
-    setRejectDetail('');
-    setDeferNote('');
-    setArchiveReason(ReportArchiveReason.MANAGEMENT_DECISION);
-  }, [selectedReportId, selectedReport?.description]);
-
-  const invalidateReports = () => {
+  function invalidateAll() {
     void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports'] });
-  };
+  }
 
   const commentMutation = useMutation({
-    mutationFn: (payload: { reportId: string; content: string }) =>
-      reportsApi.addComment(payload.reportId, { content: payload.content }),
-    onSuccess: (_, variables) => {
+    mutationFn: (content: string) => reportsApi.addComment(reportSummary.id, { content }),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.commentAdded'));
       setCommentContent('');
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', variables.reportId] });
-      invalidateReports();
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.commentAddError')));
@@ -286,12 +454,11 @@ export function ReportsBoard() {
   });
 
   const acknowledgeMutation = useMutation({
-    mutationFn: (payload: { reportId: string; commentId: string }) =>
-      reportsApi.acknowledgeComment(payload.reportId, payload.commentId),
-    onSuccess: (_, variables) => {
+    mutationFn: (commentId: string) =>
+      reportsApi.acknowledgeComment(reportSummary.id, commentId),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.commentAcknowledged'));
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', variables.reportId] });
-      invalidateReports();
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.commentAcknowledgeError')));
@@ -299,12 +466,12 @@ export function ReportsBoard() {
   });
 
   const convertMutation = useMutation({
-    mutationFn: (payload: { reportId: string; body: Parameters<typeof reportsApi.convert>[1] }) =>
-      reportsApi.convert(payload.reportId, payload.body),
-    onSuccess: (_, variables) => {
+    mutationFn: (body: Parameters<typeof reportsApi.convert>[1]) =>
+      reportsApi.convert(reportSummary.id, body),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.convertSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', variables.reportId] });
-      invalidateReports();
+      setActiveAction(null);
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.convertError')));
@@ -312,12 +479,12 @@ export function ReportsBoard() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (payload: { reportId: string; body: Parameters<typeof reportsApi.reject>[1] }) =>
-      reportsApi.reject(payload.reportId, payload.body),
-    onSuccess: (_, variables) => {
+    mutationFn: (body: Parameters<typeof reportsApi.reject>[1]) =>
+      reportsApi.reject(reportSummary.id, body),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.rejectSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', variables.reportId] });
-      invalidateReports();
+      setActiveAction(null);
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.rejectError')));
@@ -325,12 +492,12 @@ export function ReportsBoard() {
   });
 
   const deferMutation = useMutation({
-    mutationFn: (payload: { reportId: string; body: Parameters<typeof reportsApi.defer>[1] }) =>
-      reportsApi.defer(payload.reportId, payload.body),
-    onSuccess: (_, variables) => {
+    mutationFn: (body: Parameters<typeof reportsApi.defer>[1]) =>
+      reportsApi.defer(reportSummary.id, body),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.deferSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', variables.reportId] });
-      invalidateReports();
+      setActiveAction(null);
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.deferError')));
@@ -338,11 +505,11 @@ export function ReportsBoard() {
   });
 
   const reopenMutation = useMutation({
-    mutationFn: (reportId: string) => reportsApi.reopen(reportId),
-    onSuccess: (_, reportId) => {
+    mutationFn: () => reportsApi.reopen(reportSummary.id),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.reopenSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', reportId] });
-      invalidateReports();
+      setActiveAction(null);
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.reopenError')));
@@ -350,104 +517,17 @@ export function ReportsBoard() {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (payload: { reportId: string; body: Parameters<typeof reportsApi.archive>[1] }) =>
-      reportsApi.archive(payload.reportId, payload.body),
-    onSuccess: (_, variables) => {
+    mutationFn: (body: Parameters<typeof reportsApi.archive>[1]) =>
+      reportsApi.archive(reportSummary.id, body),
+    onSuccess: () => {
       toast.success(t('supervisorReports.toasts.archiveSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['supervisor', 'reports', variables.reportId] });
-      invalidateReports();
+      setActiveAction(null);
+      invalidateAll();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('supervisorReports.toasts.archiveError')));
     },
   });
-
-  const handleApplyFilters = () => {
-    setSearch(searchInput.trim());
-    setPage(1);
-  };
-
-  const handleResetFilters = () => {
-    setSearchInput('');
-    setSearch('');
-    setStatus('');
-    setUrgency('');
-    setPage(1);
-  };
-
-  const handleOpenReport = (reportId: string) => {
-    setSelectedReportId(reportId);
-  };
-
-  const handleCloseDetail = (open: boolean) => {
-    if (!open) {
-      setSelectedReportId(null);
-    }
-  };
-
-  const handleCommentSubmit = () => {
-    if (!selectedReportId) return;
-    const content = commentContent.trim();
-    if (!content) {
-      toast.error(t('supervisorReports.validation.commentRequired'));
-      return;
-    }
-    commentMutation.mutate({ reportId: selectedReportId, content });
-  };
-
-  const handleConvert = () => {
-    if (!selectedReportId) return;
-    const description = convertDescription.trim();
-    if (!description) {
-      toast.error(t('supervisorReports.validation.convertDescriptionRequired'));
-      return;
-    }
-
-    const payload: Parameters<typeof reportsApi.convert>[1] = {
-      priority: convertPriority,
-      description,
-      internalNotes: convertInternalNotes.trim() || undefined,
-      estimatedDurationMinutes: convertEstimatedDuration.trim() ? Number(convertEstimatedDuration.trim()) : undefined,
-      dueDate: convertDueDate || undefined,
-    };
-
-    if (
-      payload.estimatedDurationMinutes !== undefined &&
-      (!Number.isInteger(payload.estimatedDurationMinutes) || payload.estimatedDurationMinutes <= 0)
-    ) {
-      toast.error(t('supervisorReports.validation.estimatedDurationInvalid'));
-      return;
-    }
-
-    convertMutation.mutate({ reportId: selectedReportId, body: payload });
-  };
-
-  const handleReject = () => {
-    if (!selectedReportId) return;
-    rejectMutation.mutate({
-      reportId: selectedReportId,
-      body: {
-        reason: rejectReason,
-        detail: rejectDetail.trim() || undefined,
-      },
-    });
-  };
-
-  const handleDefer = () => {
-    if (!selectedReportId) return;
-    deferMutation.mutate({
-      reportId: selectedReportId,
-      body: { note: deferNote.trim() || undefined },
-    });
-  };
-
-  const handleArchive = () => {
-    if (!selectedReportId) return;
-    archiveMutation.mutate({
-      reportId: selectedReportId,
-      body: { archiveReason },
-    });
-  };
 
   const isActionPending =
     commentMutation.isPending ||
@@ -458,692 +538,942 @@ export function ReportsBoard() {
     reopenMutation.isPending ||
     archiveMutation.isPending;
 
+  function handleCommentSubmit() {
+    const content = commentContent.trim();
+    if (!content) {
+      toast.error(t('supervisorReports.validation.commentRequired'));
+      return;
+    }
+    commentMutation.mutate(content);
+  }
+
+  function handleConvert() {
+    const description = convertDescription.trim();
+    if (!description) {
+      toast.error(t('supervisorReports.validation.convertDescriptionRequired'));
+      return;
+    }
+    const estimatedDurationMinutes = convertEstimatedDuration.trim()
+      ? Number(convertEstimatedDuration.trim())
+      : undefined;
+    if (
+      estimatedDurationMinutes !== undefined &&
+      (!Number.isInteger(estimatedDurationMinutes) || estimatedDurationMinutes <= 0)
+    ) {
+      toast.error(t('supervisorReports.validation.estimatedDurationInvalid'));
+      return;
+    }
+    convertMutation.mutate({
+      priority: convertPriority,
+      description,
+      internalNotes: convertInternalNotes.trim() || undefined,
+      estimatedDurationMinutes,
+      dueDate: convertDueDate || undefined,
+    });
+  }
+
+  const status = detail?.status ?? reportSummary.status;
+
+  const metaLabelStyle: React.CSSProperties = {
+    fontFamily: MONO,
+    fontSize: 8,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--sb-text-tertiary)',
+    marginBottom: 3,
+  };
+
+  const metaValueStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: 'var(--sb-text-primary)',
+    fontWeight: 500,
+  };
+
+  function sectionLabel(text: string) {
+    return (
+      <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 8 }}>
+        {text.toUpperCase()}
+      </Mono>
+    );
+  }
+
+  const actionToggleStyle = (
+    isActive: boolean,
+    color = 'var(--sb-s-active)',
+    bg = 'var(--sb-s-active-bg)',
+  ): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    padding: '8px 12px',
+    background: isActive ? bg : 'var(--sb-surface)',
+    border: `1px solid ${isActive ? color : 'var(--sb-border)'}`,
+    borderRadius: 2,
+    cursor: 'pointer',
+    marginBottom: 4,
+    textAlign: 'left',
+  });
+
+  const history: ReportAssetInterventionHistoryItem[] = detail?.assetInterventionHistory ?? [];
+  const certs: ReportAssetCertAlert[] = detail?.asset?.certificates ?? [];
+  const activeWOs: ReportAssetActiveWO[] = detail?.asset?.workOrders ?? [];
+
+  const canConvert = status === ProblemReportStatus.PENDING;
+  const canReject  = status === ProblemReportStatus.PENDING;
+  const canDefer   = status === ProblemReportStatus.PENDING;
+  const canArchive = status === ProblemReportStatus.PENDING || status === ProblemReportStatus.DEFERRED;
+  const canReopen  = status === ProblemReportStatus.DEFERRED;
+  const hasActions = canConvert || canReject || canDefer || canArchive || canReopen;
+
   return (
-    <>
-      <Card>
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="grid gap-1">
-              <CardTitle>{t('supervisorReports.title')}</CardTitle>
-              <CardDescription>{t('supervisorReports.subtitle')}</CardDescription>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--sb-surface)' }}>
+
+      {/* Panel header */}
+      <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{
+              fontFamily: MONO,
+              fontSize: 12,
+              fontWeight: 700,
+              color: 'var(--sb-text-primary)',
+              letterSpacing: '0.06em',
+              marginBottom: 2,
+            }}>
+              {reportSummary.referenceNumber}
             </div>
-            <div className="flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-              <ShieldAlert className="h-3.5 w-3.5" />
-              <span>{t('supervisorReports.total', { count: data?.total ?? 0 })}</span>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {reportSummary.asset.name}
             </div>
+            {reportSummary.asset.location.fullPath && (
+              <Mono size={8} color="var(--sb-text-tertiary)" style={{ marginTop: 2 }}>
+                {reportSummary.asset.location.fullPath}
+              </Mono>
+            )}
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--sb-border)',
+              padding: '2px 7px',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <Mono size={8} color="var(--sb-text-tertiary)">✕</Mono>
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <ReportStatusPill status={status} />
+          <UrgencyPill urgency={reportSummary.urgencyPerception} />
+          {reportSummary.submittedDespiteWarning && (
+            <DuplicateSubmissionBadge submittedDespiteWarning />
+          )}
+        </div>
+      </div>
 
-          <div className="grid gap-3 lg:grid-cols-[1.5fr_0.8fr_0.8fr_auto_auto]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    handleApplyFilters();
-                  }
-                }}
-                placeholder={t('supervisorReports.filters.searchPlaceholder')}
-                className="pl-9"
-              />
-            </div>
-            <select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as ProblemReportStatus | '');
-                setPage(1);
-              }}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">{t('supervisorReports.filters.allStatuses')}</option>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {t(`supervisorReports.status.${option}`)}
-                </option>
-              ))}
-            </select>
-            <select
-              value={urgency}
-              onChange={(event) => {
-                setUrgency(event.target.value as UrgencyPerception | '');
-                setPage(1);
-              }}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">{t('supervisorReports.filters.allUrgencies')}</option>
-              {URGENCY_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {t(`supervisorReports.urgency.${option}`)}
-                </option>
-              ))}
-            </select>
-            <Button type="button" onClick={handleApplyFilters} variant="outline">
-              {t('supervisorReports.filters.apply')}
-            </Button>
-            <Button type="button" onClick={handleResetFilters} variant="ghost">
-              {t('supervisorReports.filters.reset')}
-            </Button>
-          </div>
-        </CardHeader>
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0 }}>
+        {(['detail', 'actions'] as PanelTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: '0 16px',
+              height: 36,
+              fontFamily: MONO,
+              fontSize: 9,
+              letterSpacing: '0.13em',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              color: activeTab === tab ? 'var(--sb-text-primary)' : 'var(--sb-text-tertiary)',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid var(--sb-text-primary)' : '2px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            {tab === 'detail'
+              ? t('supervisorReports.tabs.detail')
+              : t('supervisorReports.tabs.actions')}
+          </button>
+        ))}
+      </div>
 
-        <CardContent className="space-y-4">
-          <div className="rounded-md border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('supervisorReports.columns.createdAt')}</TableHead>
-                  <TableHead>{t('supervisorReports.columns.reference')}</TableHead>
-                  <TableHead>{t('supervisorReports.columns.asset')}</TableHead>
-                  <TableHead>{t('supervisorReports.columns.reporter')}</TableHead>
-                  <TableHead>{t('supervisorReports.columns.urgency')}</TableHead>
-                  <TableHead>{t('supervisorReports.columns.status')}</TableHead>
-                  <TableHead>{t('supervisorReports.columns.workOrder')}</TableHead>
-                  <TableHead className="text-right">{t('common.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-28 text-center">
-                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                    </TableCell>
-                  </TableRow>
-                ) : isError ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
-                      {t('supervisorReports.states.error')}
-                    </TableCell>
-                  </TableRow>
-                ) : data?.data.length ? (
-                  data.data.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {formatDateTime(report.createdAt)}
-                      </TableCell>
-                      <TableCell className="font-medium">{report.referenceNumber}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="font-medium">{report.asset.name}</p>
-                          <p className="text-xs text-muted-foreground">{report.asset.location.fullPath}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{report.reporter.name}</TableCell>
-                      <TableCell>
-                        <Badge variant={getUrgencyVariant(report.urgencyPerception)}>
-                          {t(`supervisorReports.urgency.${report.urgencyPerception}`)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col items-start gap-1">
-                          <Badge variant={getStatusVariant(report.status)}>
-                            {t(`supervisorReports.status.${report.status}`)}
-                          </Badge>
-                          <DuplicateSubmissionBadge
-                            submittedDespiteWarning={report.submittedDespiteWarning}
-                            className="text-[10px] px-1.5 py-0"
-                          />
-                          {report.status === ProblemReportStatus.DEFERRED &&
-                            (() => {
-                              const aging = getDeferredAgingTier(report.deferredAt);
-                              return aging ? (
-                                <Badge
-                                  variant={aging.variant}
-                                  className="text-[10px] px-1.5 py-0"
-                                  title={t('supervisorReports.aging.deferredFor', {
-                                    duration: report.deferredAt
-                                      ? (() => {
-                                          const h = Math.floor(
-                                            (Date.now() - new Date(report.deferredAt).getTime()) /
-                                              (1000 * 60 * 60),
-                                          );
-                                          return h >= 24
-                                            ? t('supervisorReports.aging.days_other', {
-                                                count: Math.floor(h / 24),
-                                              })
-                                            : t('supervisorReports.aging.hours_other', {
-                                                count: h,
-                                              });
-                                        })()
-                                      : '',
-                                  })}
-                                >
-                                  {t(`supervisorReports.aging.${aging.label}`)}
-                                </Badge>
-                              ) : null;
-                            })()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {report.replacedByWorkOrderRef ? (
-                          <Badge variant="secondary">{report.replacedByWorkOrderRef}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => handleOpenReport(report.id)}>
-                          <Eye className="h-4 w-4" />
-                          {t('supervisorReports.actions.view')}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
-                      {t('supervisorReports.states.empty')}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
 
-          <PaginationControls
-            page={page}
-            totalPages={totalPages}
-            onPrevious={() => setPage((current) => Math.max(1, current - 1))}
-            onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
-          />
-        </CardContent>
-      </Card>
-
-      <Dialog open={isDetailOpen} onOpenChange={handleCloseDetail}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {t('supervisorReports.detail.title')}
-              {selectedReport ? ` · ${selectedReport.referenceNumber}` : ''}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedReport ? t(`supervisorReports.status.${selectedReport.status}`) : t('supervisorReports.states.detailLoading')}
-            </DialogDescription>
-          </DialogHeader>
-
-          {!reportDetail || detailQuery.isLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : detailQuery.isError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              {t('supervisorReports.states.detailError')}
+        {/* DETAIL TAB */}
+        {activeTab === 'detail' && (
+          detailLoading ? (
+            <TableLoading label={t('common.loading')} />
+          ) : detailError || !detail ? (
+            <div style={{ padding: 16 }}>
+              <div style={{ padding: '10px 12px', border: '1px solid var(--sb-p-crit)', background: 'var(--sb-p-crit-bg)', borderRadius: 2, fontSize: 12, color: 'var(--sb-p-crit)' }}>
+                {t('supervisorReports.states.detailError')}
+              </div>
             </div>
           ) : (
-            (() => {
-              const report = reportDetail;
-              if (!report) return null;
+            <div style={{ padding: 16 }}>
 
-              return (
-            <div className="space-y-6">
+              {/* Active WO duplicate banner */}
+              {activeWOs.length > 0 && (
+                <div style={{ padding: '10px 12px', border: '1px solid var(--sb-s-active)', background: 'var(--sb-s-active-bg)', borderRadius: 2, marginBottom: 12 }}>
+                  <Mono size={9} color="var(--sb-s-active)" tracking="0.10em" style={{ marginBottom: 6 }}>
+                    {t('supervisorReports.detail.duplicateWoBannerTitle')}
+                  </Mono>
+                  {activeWOs.map((wo: ReportAssetActiveWO) => (
+                    <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <WOStatusPill status={wo.status as WorkOrderStatus} />
+                      <Mono size={9} color="var(--sb-text-primary)" tracking="0.06em">{wo.referenceNumber}</Mono>
+                      {wo.description && (
+                        <span style={{ fontSize: 11, color: 'var(--sb-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {wo.description}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              {/* §9.1: Duplicate active WO banner — shown when the asset already has active WOs */}
-              {(report as ReportDetailItem).asset?.workOrders?.length > 0 && (
-                <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700 dark:bg-amber-950/30">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                  <div className="space-y-1.5">
-                    <p className="font-medium text-amber-800 dark:text-amber-300">
-                      {t('supervisorReports.detail.duplicateWoBannerTitle')}
-                    </p>
-                    <ul className="space-y-0.5 text-xs text-amber-700 dark:text-amber-400">
-                      {(report as ReportDetailItem).asset.workOrders.map((wo: ReportAssetActiveWO) => (
-                        <li key={wo.id} className="flex items-center gap-2">
-                          <Badge
-                            variant={getWorkOrderStatusVariant(wo.status as WorkOrderStatus)}
-                            className="text-[10px] py-0 px-1.5"
-                          >
-                            {wo.status}
-                          </Badge>
-                          <span className="font-mono">{wo.referenceNumber}</span>
-                          {wo.description && <span className="truncate text-muted-foreground">— {wo.description}</span>}
-                        </li>
-                      ))}
-                    </ul>
+              {/* Metadata grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--sb-border)', marginBottom: 12 }}>
+                {[
+                  { label: t('supervisorReports.detail.asset'),        value: detail.asset.name },
+                  { label: t('supervisorReports.detail.reporter'),     value: detail.reporter.name },
+                  { label: t('common.date'),                           value: formatDateTime(detail.createdAt) },
+                  { label: t('supervisorReports.detail.processedAt'),  value: formatDateTime(detail.processedAt) },
+                  { label: t('supervisorReports.detail.processedBy'),  value: detail.processedBy?.name ?? '—' },
+                  { label: t('supervisorReports.detail.linkedWorkOrder'), value: detail.replacedByWorkOrderRef ?? '—' },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ padding: '8px 10px', background: 'var(--sb-bg)' }}>
+                    <div style={metaLabelStyle}>{label}</div>
+                    <div style={metaValueStyle}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Description */}
+              <div style={{ marginBottom: 12 }}>
+                {sectionLabel(t('common.description'))}
+                <div style={{ fontSize: 12, color: 'var(--sb-text-primary)', lineHeight: 1.7, padding: '8px 10px', background: 'var(--sb-bg)', border: '1px solid var(--sb-border)' }}>
+                  {detail.description}
+                </div>
+              </div>
+
+              {/* Rejection note */}
+              {(detail.rejectionReason || detail.rejectionDetail) && (
+                <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--sb-p-crit-bg)', border: '1px solid var(--sb-p-crit)', borderRadius: 2 }}>
+                  <div style={metaLabelStyle}>{t('supervisorReports.detail.rejectedReason')}</div>
+                  <div style={metaValueStyle}>
+                    {detail.rejectionReason ? t(`supervisorReports.rejectionReasons.${detail.rejectionReason}`) : '—'}
+                  </div>
+                  {detail.rejectionDetail && (
+                    <div style={{ fontSize: 11, color: 'var(--sb-text-secondary)', marginTop: 4 }}>{detail.rejectionDetail}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Defer note */}
+              {(detail.deferNote || detail.deferredAt) && (
+                <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--sb-s-wait-bg)', border: '1px solid var(--sb-s-wait)', borderRadius: 2 }}>
+                  <div style={metaLabelStyle}>{t('supervisorReports.detail.deferNote')}</div>
+                  <div style={metaValueStyle}>{detail.deferNote ?? '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--sb-text-tertiary)', marginTop: 4 }}>{formatDateTime(detail.deferredAt)}</div>
+                </div>
+              )}
+
+              {/* Archive reason */}
+              {(detail.archiveReason || detail.status === ProblemReportStatus.ARCHIVED) && (
+                <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--sb-s-cancel-bg)', border: '1px solid var(--sb-s-cancel)', borderRadius: 2 }}>
+                  <div style={metaLabelStyle}>{t('supervisorReports.detail.archiveReason')}</div>
+                  <div style={metaValueStyle}>
+                    {detail.archiveReason ? t(`supervisorReports.archiveReasons.${detail.archiveReason}`) : '—'}
                   </div>
                 </div>
               )}
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card>
-                  <CardHeader className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
+              {/* Derived work orders */}
+              {detail.derivedWorkOrders.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  {sectionLabel(t('supervisorReports.detail.linkedWorkOrders'))}
+                  {detail.derivedWorkOrders.map((wo) => (
+                    <div
+                      key={wo.id}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 10px', border: '1px solid var(--sb-border)', marginBottom: 4, background: 'var(--sb-surface)' }}
+                    >
+                      <Mono size={10} color="var(--sb-text-primary)" tracking="0.06em" weight={600}>{wo.referenceNumber}</Mono>
+                      <WOStatusPill status={wo.status} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Cert alerts */}
+              {certs.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  {sectionLabel(t('supervisorReports.detail.assetCertAlerts'))}
+                  {certs.map((cert: ReportAssetCertAlert) => (
+                    <div
+                      key={cert.id}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 10px', border: '1px solid var(--sb-border)', marginBottom: 4, background: 'var(--sb-surface)' }}
+                    >
                       <div>
-                        <CardTitle className="text-base">{t('supervisorReports.detail.summary')}</CardTitle>
-                        <CardDescription>{t('supervisorReports.detail.report')}</CardDescription>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--sb-text-primary)' }}>
+                          {cert.otherType ?? cert.certificateType}
+                        </div>
+                        <Mono size={9} color="var(--sb-text-tertiary)">{cert.issuingAuthority}</Mono>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant={getStatusVariant(report.status)}>
-                          {t(`supervisorReports.status.${report.status}`)}
-                        </Badge>
-                        <Badge variant={getUrgencyVariant(report.urgencyPerception)}>
-                          {t(`supervisorReports.urgency.${report.urgencyPerception}`)}
-                        </Badge>
-                        <DuplicateSubmissionBadge submittedDespiteWarning={report.submittedDespiteWarning} />
-                      </div>
+                      <span
+                        style={{
+                          background: cert.status === 'EXPIRED' ? 'var(--sb-p-crit-bg)' : 'var(--sb-s-active-bg)',
+                          color: cert.status === 'EXPIRED' ? 'var(--sb-p-crit)' : 'var(--sb-s-active)',
+                          border: `1px solid ${cert.status === 'EXPIRED' ? 'var(--sb-p-crit)' : 'var(--sb-s-active)'}`,
+                          borderRadius: 2,
+                          padding: '2px 6px',
+                          fontFamily: MONO,
+                          fontSize: 8,
+                          letterSpacing: '0.10em',
+                          textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {cert.status}
+                      </span>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.asset')}</p>
-                        <FieldValue>{report.asset.name}</FieldValue>
-                        <p className="text-xs text-muted-foreground">{report.asset.location.fullPath}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.reporter')}</p>
-                        <FieldValue>{report.reporter.name}</FieldValue>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</p>
-                        <FieldValue>{formatDateTime(report.createdAt)}</FieldValue>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.processedAt')}</p>
-                        <FieldValue>{formatDateTime(report.processedAt)}</FieldValue>
-                      </div>
-                    </div>
+                  ))}
+                </div>
+              )}
 
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</p>
-                      <p className="rounded-md bg-muted/50 p-3 leading-6">{report.description}</p>
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.processedBy')}</p>
-                        <FieldValue>{report.processedBy?.name ?? '—'}</FieldValue>
+              {/* Intervention history */}
+              {history.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  {sectionLabel(t('supervisorReports.detail.assetInterventionHistory'))}
+                  {history.map((item: ReportAssetInterventionHistoryItem) => (
+                    <div key={item.id} style={{ padding: '6px 10px', border: '1px solid var(--sb-border)', marginBottom: 4, background: 'var(--sb-surface)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <Mono size={10} color="var(--sb-text-primary)" tracking="0.06em" weight={600}>{item.referenceNumber}</Mono>
+                        <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.08em">{item.type}</Mono>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.linkedWorkOrder')}</p>
-                        <FieldValue>{report.replacedByWorkOrderRef ?? '—'}</FieldValue>
-                      </div>
-                    </div>
-
-                    {(report.rejectionReason || report.rejectionDetail) && (
-                      <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.rejectedReason')}</p>
-                        <FieldValue>{report.rejectionReason ? t(`supervisorReports.rejectionReasons.${report.rejectionReason}`) : '—'}</FieldValue>
-                        {report.rejectionDetail && <p className="text-sm text-muted-foreground">{report.rejectionDetail}</p>}
-                      </div>
-                    )}
-
-                    {(report.deferNote || report.deferredAt) && (
-                      <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.deferNote')}</p>
-                        <FieldValue>{report.deferNote ?? '—'}</FieldValue>
-                        <p className="text-xs text-muted-foreground">{formatDateTime(report.deferredAt)}</p>
-                      </div>
-                    )}
-
-                    {(report.archiveReason || report.status === ProblemReportStatus.ARCHIVED) && (
-                      <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.archiveReason')}</p>
-                        <FieldValue>{report.archiveReason ? t(`supervisorReports.archiveReasons.${report.archiveReason}`) : '—'}</FieldValue>
-                      </div>
-                    )}
-
-                    {report.submittedDespiteWarning && (
-                      <div className="space-y-1">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('supervisorReports.detail.warningStatus')}</p>
-                        <DuplicateSubmissionBadge submittedDespiteWarning />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">{t('supervisorReports.detail.comments')}</CardTitle>
-                    <CardDescription>{t('supervisorReports.detail.commentsDescription')}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                      {report.comments.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">{t('supervisorReports.states.commentsEmpty')}</p>
-                      ) : (
-                        report.comments.map((comment) => (
-                          <div key={comment.id} className="rounded-md border p-3 space-y-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div>
-                                <p className="text-sm font-medium">{comment.author.name}</p>
-                                <p className="text-xs text-muted-foreground">{formatDateTime(comment.createdAt)}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {comment.acknowledgedBySupervisor && (
-                                  <Badge variant="success">{t('supervisorReports.detail.commentAcknowledged')}</Badge>
-                                )}
-                                {!comment.acknowledgedBySupervisor && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => acknowledgeMutation.mutate({ reportId: report.id, commentId: comment.id })}
-                                    disabled={isActionPending}
-                                  >
-                                    {t('supervisorReports.actions.acknowledge')}
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm leading-6 text-foreground">{comment.content}</p>
-                          </div>
-                        ))
+                      {item.description && (
+                        <div style={{ fontSize: 11, color: 'var(--sb-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                          {item.description}
+                        </div>
                       )}
+                      <Mono size={9} color="var(--sb-text-tertiary)" style={{ marginTop: 2 }}>
+                        {item.principalTechnician?.name ? `${item.principalTechnician.name} · ` : ''}{formatDateTime(item.closedAt)}
+                      </Mono>
                     </div>
+                  ))}
+                </div>
+              )}
 
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <Label htmlFor="report-comment">{t('supervisorReports.detail.addCommentTitle')}</Label>
-                      <textarea
-                        id="report-comment"
-                        value={commentContent}
-                        onChange={(event) => setCommentContent(event.target.value)}
-                        className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                        placeholder={t('supervisorReports.detail.commentPlaceholder')}
-                      />
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button type="button" onClick={handleCommentSubmit} disabled={commentMutation.isPending}>
-                        {commentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
-                        {t('supervisorReports.actions.addComment')}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">{t('supervisorReports.detail.linkedWorkOrders')}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {report.derivedWorkOrders.length > 0 ? (
-                      report.derivedWorkOrders.map((workOrder) => (
-                        <div key={workOrder.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-                          <div>
-                            <p className="text-sm font-medium">{workOrder.referenceNumber}</p>
-                            <p className="text-xs text-muted-foreground">{formatDateTime(workOrder.createdAt)}</p>
-                          </div>
-                          <Badge variant={getWorkOrderStatusVariant(workOrder.status)}>{workOrder.status}</Badge>
+              {/* Comments */}
+              <div>
+                {sectionLabel(t('supervisorReports.detail.comments'))}
+                {detail.comments.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--sb-text-tertiary)', marginBottom: 12 }}>
+                    {t('supervisorReports.states.commentsEmpty')}
+                  </div>
+                ) : (
+                  detail.comments.map((comment) => (
+                    <div key={comment.id} style={{ border: '1px solid var(--sb-border)', padding: '8px 10px', marginBottom: 6, background: 'var(--sb-bg)' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>{comment.author.name}</div>
+                          <Mono size={8} color="var(--sb-text-tertiary)">{formatDateTime(comment.createdAt)}</Mono>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">{t('supervisorReports.states.workOrdersEmpty')}</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">{t('supervisorReports.detail.actions')}</CardTitle>
-                    <CardDescription>{t('supervisorReports.detail.actionsDescription')}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {report.status === ProblemReportStatus.PENDING && (
-                      <ActionCard
-                        title={t('supervisorReports.detail.convertTitle')}
-                        description={t('supervisorReports.detail.convertDescription')}
-                        icon={Send}
-                      >
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="convert-priority">{t('supervisorReports.detail.priority')}</Label>
-                            <select
-                              id="convert-priority"
-                              value={convertPriority}
-                              onChange={(event) => setConvertPriority(event.target.value as WorkOrderPriority)}
-                              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                            >
-                              {PRIORITY_OPTIONS.map((priority) => (
-                                <option key={priority} value={priority}>
-                                  {t(`supervisorReports.priorities.${priority}`)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="convert-duration">{t('supervisorReports.detail.estimatedDurationMinutes')}</Label>
-                            <Input
-                              id="convert-duration"
-                              type="number"
-                              min={1}
-                              value={convertEstimatedDuration}
-                              onChange={(event) => setConvertEstimatedDuration(event.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2 sm:col-span-2">
-                            <Label htmlFor="convert-description">{t('supervisorReports.detail.description')}</Label>
-                            <Input
-                              id="convert-description"
-                              value={convertDescription}
-                              onChange={(event) => setConvertDescription(event.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2 sm:col-span-2">
-                            <Label htmlFor="convert-notes">{t('supervisorReports.detail.internalNotes')}</Label>
-                            <textarea
-                              id="convert-notes"
-                              value={convertInternalNotes}
-                              onChange={(event) => setConvertInternalNotes(event.target.value)}
-                              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                            />
-                          </div>
-                          <div className="space-y-2 sm:col-span-2">
-                            <Label htmlFor="convert-due-date">{t('supervisorReports.detail.dueDate')}</Label>
-                            <Input
-                              id="convert-due-date"
-                              type="date"
-                              value={convertDueDate}
-                              onChange={(event) => setConvertDueDate(event.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end">
-                          <Button type="button" onClick={handleConvert} disabled={convertMutation.isPending}>
-                            {convertMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
-                            {t('supervisorReports.actions.convert')}
-                          </Button>
-                        </div>
-                      </ActionCard>
-                    )}
-
-                    {report.status === ProblemReportStatus.PENDING && (
-                      <ActionCard
-                        title={t('supervisorReports.detail.rejectTitle')}
-                        description={t('supervisorReports.detail.rejectDescription')}
-                        icon={ShieldAlert}
-                      >
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="reject-reason">{t('supervisorReports.detail.reason')}</Label>
-                            <select
-                              id="reject-reason"
-                              value={rejectReason}
-                              onChange={(event) => setRejectReason(event.target.value as ReportRejectionReason)}
-                              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                            >
-                              {REJECTION_REASON_OPTIONS.map((reason) => (
-                                <option key={reason} value={reason}>
-                                  {t(`supervisorReports.rejectionReasons.${reason}`)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="reject-detail">{t('supervisorReports.detail.detail')}</Label>
-                            <Input id="reject-detail" value={rejectDetail} onChange={(event) => setRejectDetail(event.target.value)} />
-                          </div>
-                        </div>
-                        <div className="flex justify-end">
-                          <Button type="button" variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending}>
-                            {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
-                            {t('supervisorReports.actions.reject')}
-                          </Button>
-                        </div>
-                      </ActionCard>
-                    )}
-
-                    {report.status === ProblemReportStatus.PENDING && (
-                      <ActionCard
-                        title={t('supervisorReports.detail.deferTitle')}
-                        description={t('supervisorReports.detail.deferDescription')}
-                        icon={Clock3}
-                      >
-                        <div className="space-y-2">
-                          <Label htmlFor="defer-note">{t('supervisorReports.detail.note')}</Label>
-                          <textarea
-                            id="defer-note"
-                            value={deferNote}
-                            onChange={(event) => setDeferNote(event.target.value)}
-                            className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          />
-                        </div>
-                        <div className="flex justify-end">
-                          <Button type="button" variant="outline" onClick={handleDefer} disabled={deferMutation.isPending}>
-                            {deferMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock3 className="h-4 w-4" />}
-                            {t('supervisorReports.actions.defer')}
-                          </Button>
-                        </div>
-                      </ActionCard>
-                    )}
-
-                    {(report.status === ProblemReportStatus.PENDING || report.status === ProblemReportStatus.DEFERRED) && (
-                      <ActionCard
-                        title={t('supervisorReports.detail.archiveTitle')}
-                        description={t('supervisorReports.detail.archiveDescription')}
-                        icon={Archive}
-                      >
-                        <div className="space-y-2">
-                          <Label htmlFor="archive-reason">{t('supervisorReports.detail.archiveReasonLabel')}</Label>
-                          <select
-                            id="archive-reason"
-                            value={archiveReason}
-                            onChange={(event) => setArchiveReason(event.target.value as ReportArchiveReason)}
-                            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        {comment.acknowledgedBySupervisor ? (
+                          <span
+                            style={{
+                              background: 'var(--sb-s-done-bg)',
+                              color: 'var(--sb-s-done)',
+                              border: '1px solid var(--sb-s-done)',
+                              borderRadius: 2,
+                              padding: '2px 6px',
+                              fontFamily: MONO,
+                              fontSize: 8,
+                              letterSpacing: '0.10em',
+                              textTransform: 'uppercase',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                            }}
                           >
-                            {ARCHIVE_REASON_OPTIONS.map((reason) => (
-                              <option key={reason} value={reason}>
-                                {t(`supervisorReports.archiveReasons.${reason}`)}
-                              </option>
+                            {t('supervisorReports.detail.commentAcknowledged')}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => acknowledgeMutation.mutate(comment.id)}
+                            disabled={isActionPending}
+                            style={btnSecondaryStyle(isActionPending)}
+                          >
+                            {t('supervisorReports.actions.acknowledge')}
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--sb-text-primary)', lineHeight: 1.6 }}>{comment.content}</div>
+                    </div>
+                  ))
+                )}
+
+                <div style={{ marginTop: 8 }}>
+                  <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                    {t('supervisorReports.detail.addCommentTitle').toUpperCase()}
+                  </Mono>
+                  <textarea
+                    value={commentContent}
+                    onChange={(e) => setCommentContent(e.target.value)}
+                    placeholder={t('supervisorReports.detail.commentPlaceholder')}
+                    style={textareaS}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                    <button
+                      onClick={handleCommentSubmit}
+                      disabled={commentMutation.isPending}
+                      style={btnPrimaryStyle(commentMutation.isPending)}
+                    >
+                      {commentMutation.isPending && (
+                        <Loader2 size={11} className="animate-spin" style={{ flexShrink: 0 }} />
+                      )}
+                      {t('supervisorReports.actions.addComment')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        )}
+
+        {/* ACTIONS TAB */}
+        {activeTab === 'actions' && (
+          <div style={{ padding: 16 }}>
+            {!hasActions ? (
+              <div style={{ fontSize: 12, color: 'var(--sb-text-tertiary)', textAlign: 'center', padding: '24px 0' }}>
+                {t('supervisorReports.states.noActions')}
+              </div>
+            ) : (
+              <>
+                {/* Convert */}
+                {canConvert && (
+                  <div style={{ marginBottom: 8 }}>
+                    <button
+                      onClick={() => setActiveAction(activeAction === 'convert' ? null : 'convert')}
+                      style={actionToggleStyle(activeAction === 'convert', 'var(--sb-s-done)', 'var(--sb-s-done-bg)')}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>
+                          {t('supervisorReports.detail.convertTitle')}
+                        </div>
+                        <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorReports.detail.convertDescription')}</Mono>
+                      </div>
+                      <Mono size={9} color="var(--sb-text-tertiary)">{activeAction === 'convert' ? '▲' : '▼'}</Mono>
+                    </button>
+                    {activeAction === 'convert' && (
+                      <div style={actionBlockStyle}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                          <div>
+                            <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                              {t('supervisorReports.detail.priority').toUpperCase()}
+                            </Mono>
+                            <select value={convertPriority} onChange={(e) => setConvertPriority(e.target.value as WorkOrderPriority)} style={selectS}>
+                              {PRIORITY_OPTIONS.map((p) => (
+                                <option key={p} value={p}>{t(`supervisorReports.priorities.${p}`)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                              {t('supervisorReports.detail.estimatedDurationMinutes').toUpperCase()}
+                            </Mono>
+                            <input type="number" min={1} value={convertEstimatedDuration} onChange={(e) => setConvertEstimatedDuration(e.target.value)} style={inputS} />
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                            {t('supervisorReports.detail.description').toUpperCase()}
+                          </Mono>
+                          <input value={convertDescription} onChange={(e) => setConvertDescription(e.target.value)} style={inputS} />
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                            {t('supervisorReports.detail.internalNotes').toUpperCase()}
+                          </Mono>
+                          <textarea value={convertInternalNotes} onChange={(e) => setConvertInternalNotes(e.target.value)} style={{ ...textareaS, minHeight: 56 }} />
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                            {t('supervisorReports.detail.dueDate').toUpperCase()}
+                          </Mono>
+                          <input type="date" value={convertDueDate} onChange={(e) => setConvertDueDate(e.target.value)} style={inputS} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button onClick={handleConvert} disabled={convertMutation.isPending} style={btnPrimaryStyle(convertMutation.isPending)}>
+                            {convertMutation.isPending && <Loader2 size={11} className="animate-spin" style={{ flexShrink: 0 }} />}
+                            {t('supervisorReports.actions.convert')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Reject */}
+                {canReject && (
+                  <div style={{ marginBottom: 8 }}>
+                    <button
+                      onClick={() => setActiveAction(activeAction === 'reject' ? null : 'reject')}
+                      style={actionToggleStyle(activeAction === 'reject', 'var(--sb-p-crit)', 'var(--sb-p-crit-bg)')}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>
+                          {t('supervisorReports.detail.rejectTitle')}
+                        </div>
+                        <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorReports.detail.rejectDescription')}</Mono>
+                      </div>
+                      <Mono size={9} color="var(--sb-text-tertiary)">{activeAction === 'reject' ? '▲' : '▼'}</Mono>
+                    </button>
+                    {activeAction === 'reject' && (
+                      <div style={actionBlockStyle}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                          <div>
+                            <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                              {t('supervisorReports.detail.reason').toUpperCase()}
+                            </Mono>
+                            <select value={rejectReason} onChange={(e) => setRejectReason(e.target.value as ReportRejectionReason)} style={selectS}>
+                              {REJECTION_REASON_OPTIONS.map((r) => (
+                                <option key={r} value={r}>{t(`supervisorReports.rejectionReasons.${r}`)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                              {t('supervisorReports.detail.detail').toUpperCase()}
+                            </Mono>
+                            <input value={rejectDetail} onChange={(e) => setRejectDetail(e.target.value)} style={inputS} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => rejectMutation.mutate({ reason: rejectReason, detail: rejectDetail.trim() || undefined })}
+                            disabled={rejectMutation.isPending}
+                            style={btnDestructiveStyle(rejectMutation.isPending)}
+                          >
+                            {rejectMutation.isPending && <Loader2 size={11} className="animate-spin" style={{ flexShrink: 0 }} />}
+                            {t('supervisorReports.actions.reject')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Defer */}
+                {canDefer && (
+                  <div style={{ marginBottom: 8 }}>
+                    <button
+                      onClick={() => setActiveAction(activeAction === 'defer' ? null : 'defer')}
+                      style={actionToggleStyle(activeAction === 'defer', 'var(--sb-s-wait)', 'var(--sb-s-wait-bg)')}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>
+                          {t('supervisorReports.detail.deferTitle')}
+                        </div>
+                        <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorReports.detail.deferDescription')}</Mono>
+                      </div>
+                      <Mono size={9} color="var(--sb-text-tertiary)">{activeAction === 'defer' ? '▲' : '▼'}</Mono>
+                    </button>
+                    {activeAction === 'defer' && (
+                      <div style={actionBlockStyle}>
+                        <div style={{ marginBottom: 12 }}>
+                          <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                            {t('supervisorReports.detail.note').toUpperCase()}
+                          </Mono>
+                          <textarea value={deferNote} onChange={(e) => setDeferNote(e.target.value)} style={{ ...textareaS, minHeight: 56 }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => deferMutation.mutate({ note: deferNote.trim() || undefined })}
+                            disabled={deferMutation.isPending}
+                            style={btnSecondaryStyle(deferMutation.isPending)}
+                          >
+                            {deferMutation.isPending && <Loader2 size={11} className="animate-spin" style={{ flexShrink: 0 }} />}
+                            {t('supervisorReports.actions.defer')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Archive */}
+                {canArchive && (
+                  <div style={{ marginBottom: 8 }}>
+                    <button
+                      onClick={() => setActiveAction(activeAction === 'archive' ? null : 'archive')}
+                      style={actionToggleStyle(activeAction === 'archive', 'var(--sb-s-cancel)', 'var(--sb-s-cancel-bg)')}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>
+                          {t('supervisorReports.detail.archiveTitle')}
+                        </div>
+                        <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorReports.detail.archiveDescription')}</Mono>
+                      </div>
+                      <Mono size={9} color="var(--sb-text-tertiary)">{activeAction === 'archive' ? '▲' : '▼'}</Mono>
+                    </button>
+                    {activeAction === 'archive' && (
+                      <div style={actionBlockStyle}>
+                        <div style={{ marginBottom: 12 }}>
+                          <Mono size={8} color="var(--sb-text-tertiary)" tracking="0.12em" style={{ marginBottom: 4 }}>
+                            {t('supervisorReports.detail.archiveReasonLabel').toUpperCase()}
+                          </Mono>
+                          <select value={archiveReason} onChange={(e) => setArchiveReason(e.target.value as ReportArchiveReason)} style={selectS}>
+                            {ARCHIVE_REASON_OPTIONS.map((r) => (
+                              <option key={r} value={r}>{t(`supervisorReports.archiveReasons.${r}`)}</option>
                             ))}
                           </select>
                         </div>
-                        <div className="flex justify-end">
-                          <Button type="button" variant="outline" onClick={handleArchive} disabled={archiveMutation.isPending}>
-                            {archiveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => archiveMutation.mutate({ archiveReason })}
+                            disabled={archiveMutation.isPending}
+                            style={btnSecondaryStyle(archiveMutation.isPending)}
+                          >
+                            {archiveMutation.isPending && <Loader2 size={11} className="animate-spin" style={{ flexShrink: 0 }} />}
                             {t('supervisorReports.actions.archive')}
-                          </Button>
+                          </button>
                         </div>
-                      </ActionCard>
+                      </div>
                     )}
+                  </div>
+                )}
 
-                    {report.status === ProblemReportStatus.DEFERRED && (
-                      <ActionCard
-                        title={t('supervisorReports.detail.reopenTitle')}
-                        description={t('supervisorReports.detail.reopenDescription')}
-                        icon={Undo2}
-                      >
-                        <div className="flex justify-end">
-                          <Button type="button" variant="outline" onClick={() => reopenMutation.mutate(report.id)} disabled={reopenMutation.isPending}>
-                            {reopenMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
+                {/* Reopen */}
+                {canReopen && (
+                  <div style={{ marginBottom: 8 }}>
+                    <button
+                      onClick={() => setActiveAction(activeAction === 'reopen' ? null : 'reopen')}
+                      style={actionToggleStyle(activeAction === 'reopen', 'var(--sb-s-open)', 'var(--sb-s-open-bg)')}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>
+                          {t('supervisorReports.detail.reopenTitle')}
+                        </div>
+                        <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorReports.detail.reopenDescription')}</Mono>
+                      </div>
+                      <Mono size={9} color="var(--sb-text-tertiary)">{activeAction === 'reopen' ? '▲' : '▼'}</Mono>
+                    </button>
+                    {activeAction === 'reopen' && (
+                      <div style={actionBlockStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => reopenMutation.mutate()}
+                            disabled={reopenMutation.isPending}
+                            style={btnSecondaryStyle(reopenMutation.isPending)}
+                          >
+                            {reopenMutation.isPending && <Loader2 size={11} className="animate-spin" style={{ flexShrink: 0 }} />}
                             {t('supervisorReports.actions.reopen')}
-                          </Button>
+                          </button>
                         </div>
-                      </ActionCard>
+                      </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ── Reports Board ──────────────────────────────────────────────────────────────
+
+export function ReportsBoard() {
+  const { t } = useTranslation();
+
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ProblemReportStatus | ''>('');
+  const [urgencyFilter, setUrgencyFilter] = useState<UrgencyPerception | ''>('');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<ReportListItem | null>(null);
+
+  const queryParams = {
+    page,
+    limit: LIMIT,
+    ...(search ? { search } : {}),
+    ...(statusFilter ? { status: statusFilter } : {}),
+    ...(urgencyFilter ? { urgencyPerception: urgencyFilter } : {}),
+  };
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['supervisor', 'reports', page, search, statusFilter, urgencyFilter],
+    queryFn: () => reportsApi.list(queryParams),
+  });
+
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
+  const panelOpen = !!selected;
+
+  const COL = '130px 1fr 150px 60px';
+
+  const hasActiveFilters = !!(search || searchInput || statusFilter || urgencyFilter);
+
+  function handleApplyFilters() {
+    setSearch(searchInput.trim());
+    setPage(1);
+  }
+
+  function handleResetFilters() {
+    setSearchInput('');
+    setSearch('');
+    setStatusFilter('');
+    setUrgencyFilter('');
+    setPage(1);
+  }
+
+  const listContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+      {/* Toolbar */}
+      <div
+        style={{
+          padding: '0 12px',
+          minHeight: 44,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          borderBottom: '1px solid var(--sb-border)',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Search
+            size={13}
+            style={{
+              position: 'absolute',
+              left: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--sb-text-tertiary)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyFilters(); } }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+            placeholder={t('supervisorReports.filters.searchPlaceholder')}
+            style={{
+              height: 26,
+              paddingLeft: 26,
+              paddingRight: 8,
+              width: 190,
+              border: '1px solid var(--sb-border)',
+              borderRadius: 2,
+              fontFamily: 'inherit',
+              fontSize: 12,
+              color: 'var(--sb-text-primary)',
+              background: 'var(--sb-bg)',
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        <div style={{ width: 1, height: 16, background: 'var(--sb-border)', flexShrink: 0 }} />
+
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value as ProblemReportStatus | ''); setPage(1); }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+          style={filterSelectStyle}
+        >
+          <option value="">{t('supervisorReports.filters.allStatuses')}</option>
+          {STATUS_OPTIONS.map((o) => (
+            <option key={o} value={o}>{t(`supervisorReports.status.${o}`)}</option>
+          ))}
+        </select>
+        <select
+          value={urgencyFilter}
+          onChange={(e) => { setUrgencyFilter(e.target.value as UrgencyPerception | ''); setPage(1); }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+          style={filterSelectStyle}
+        >
+          <option value="">{t('supervisorReports.filters.allUrgencies')}</option>
+          {URGENCY_OPTIONS.map((o) => (
+            <option key={o} value={o}>{t(`supervisorReports.urgency.${o}`)}</option>
+          ))}
+        </select>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: MONO,
+              fontSize: 9,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              color: 'var(--sb-text-tertiary)',
+              padding: '0 2px',
+              flexShrink: 0,
+            }}
+          >
+            {t('supervisorReports.filters.reset')}
+          </button>
+        )}
+
+        <div style={{ flex: 1 }} />
+      </div>
+
+      {/* Column headers */}
+      {!isLoading && !isError && !!data?.data.length && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: COL,
+            paddingLeft: 19,
+            paddingRight: 16,
+            height: 28,
+            alignItems: 'center',
+            borderBottom: '1px solid var(--sb-border)',
+            background: 'var(--sb-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <Mono size={8} tracking="0.13em">{t('supervisorReports.columns.reference')}</Mono>
+          <Mono size={8} tracking="0.13em">{t('supervisorReports.columns.asset')}</Mono>
+          <Mono size={8} tracking="0.13em">{t('supervisorReports.columns.status')}</Mono>
+          <Mono size={8} tracking="0.13em">{t('supervisorReports.columns.age')}</Mono>
+        </div>
+      )}
+
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {isLoading ? (
+          <TableLoading label={t('common.loading')} />
+        ) : isError ? (
+          <TableError label={t('supervisorReports.states.error')} />
+        ) : !data?.data.length ? (
+          <TableEmpty label={t('supervisorReports.states.empty')} />
+        ) : (
+          data.data.map((report) => {
+            const isSelected = selected?.id === report.id;
+            const aging = report.status === ProblemReportStatus.DEFERRED
+              ? getDeferredAgingInfo(report.deferredAt)
+              : null;
+            return (
+              <div
+                key={report.id}
+                onClick={() => setSelected(isSelected ? null : report)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: COL,
+                  paddingRight: 16,
+                  height: 48,
+                  alignItems: 'center',
+                  borderBottom: '1px solid var(--sb-border)',
+                  borderLeft: `3px solid ${URGENCY_BORDER[report.urgencyPerception]}`,
+                  background: isSelected ? 'var(--sb-s-active-bg)' : 'transparent',
+                  outline: isSelected ? '1px solid var(--sb-border-strong)' : 'none',
+                  outlineOffset: -1,
+                  cursor: 'pointer',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sb-hover)'; }}
+                onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+              >
+                <div style={{ paddingLeft: 13, paddingRight: 12, minWidth: 0 }}>
+                  <Mono size={10} color="var(--sb-text-primary)" weight={600} tracking="0.06em">
+                    {report.referenceNumber}
+                  </Mono>
+                  <Mono size={8} color={URGENCY_COLOR[report.urgencyPerception]} tracking="0.08em">
+                    {report.urgencyPerception}
+                  </Mono>
+                </div>
+                <div style={{ padding: '0 12px', minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {report.asset.name}
+                  </div>
+                  <Mono size={9} color="var(--sb-text-tertiary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {report.asset.location.fullPath}
+                  </Mono>
+                </div>
+                <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                  <ReportStatusPill status={report.status} />
+                  {aging && (
+                    <Mono size={8} color={aging.color} tracking="0.08em">
+                      {t(`supervisorReports.aging.${aging.label}`)}
+                    </Mono>
+                  )}
+                </div>
+                <div style={{ padding: '0 12px' }}>
+                  <Mono size={10} color="var(--sb-text-secondary)">
+                    {formatAge(report.createdAt)}
+                  </Mono>
+                </div>
               </div>
+            );
+          })
+        )}
+      </div>
 
-              {/* §9.1: Asset context sidebar — intervention history + certificate alerts */}
-              {(() => {
-                const detail = report as ReportDetailItem;
-                const history: ReportAssetInterventionHistoryItem[] = detail.assetInterventionHistory ?? [];
-                const certs: ReportAssetCertAlert[] = detail.asset?.certificates ?? [];
-                if (history.length === 0 && certs.length === 0) return null;
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <History className="h-4 w-4" />
-                        {t('supervisorReports.detail.assetSidebarTitle')}
-                      </CardTitle>
-                      <CardDescription>{t('supervisorReports.detail.assetSidebarDescription')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 text-sm">
-                      {certs.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {t('supervisorReports.detail.assetCertAlerts')}
-                          </p>
-                          <div className="space-y-1.5">
-                            {certs.map((cert: ReportAssetCertAlert) => (
-                              <div key={cert.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-                                <div>
-                                  <p className="font-medium">
-                                    {cert.otherType ?? cert.certificateType}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {cert.issuingAuthority} · {t('supervisorReports.detail.certExpiry', { date: formatDateTime(cert.expirationDate) })}
-                                  </p>
-                                </div>
-                                <Badge variant={cert.status === 'EXPIRED' ? 'destructive' : 'warning'} className="shrink-0 text-[10px]">
-                                  {cert.status}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+      {/* Footer */}
+      <div
+        style={{
+          padding: '0 16px',
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderTop: '1px solid var(--sb-border)',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+        }}
+      >
+        {data && (
+          <Mono size={9} color="var(--sb-text-tertiary)">
+            {t('supervisorReports.total', { count: data.total })}
+          </Mono>
+        )}
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        />
+      </div>
+    </div>
+  );
 
-                      {history.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {t('supervisorReports.detail.assetInterventionHistory')}
-                          </p>
-                          <div className="space-y-1.5">
-                            {history.map((item: ReportAssetInterventionHistoryItem) => (
-                              <div key={item.id} className="rounded-md border px-3 py-2 space-y-0.5">
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="font-medium">{item.referenceNumber}</p>
-                                  <Badge variant="secondary" className="shrink-0 text-[10px] py-0">
-                                    {item.type}
-                                  </Badge>
-                                </div>
-                                {item.description && (
-                                  <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                                )}
-                                <p className="text-xs text-muted-foreground">
-                                  {item.principalTechnician?.name && `${item.principalTechnician.name} · `}
-                                  {formatDateTime(item.closedAt)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-            </div>
-              );
-            })()
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleCloseDetail(false)}>
-              {t('common.cancel')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <MasterDetail
+        list={listContent}
+        panel={
+          selected ? (
+            <ReportDetailPanel
+              key={selected.id}
+              reportSummary={selected}
+              onClose={() => setSelected(null)}
+            />
+          ) : null
+        }
+        panelOpen={panelOpen}
+      />
+    </div>
   );
 }

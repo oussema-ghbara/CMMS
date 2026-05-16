@@ -2,38 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowDown,
-  ArrowUp,
-  GripVertical,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
+import { Mono } from '@/components/ui/mono';
 import {
   categoriesApi,
   type CategoryChecklistTemplateItem,
   type CategoryItem,
+  type ChecklistTaskType,
 } from '@/lib/categories.api';
-import { cn } from '@/lib/utils';
 import {
   CategoryChecklistItemDialog,
   type CategoryChecklistFormValues,
 } from './category-checklist-item-dialog';
+
+const TASK_TYPE_COLOR: Record<ChecklistTaskType, string> = {
+  INSPECTION:  'var(--sb-p-norm)',
+  MEASUREMENT: 'var(--sb-s-active)',
+  LUBRICATION: 'var(--sb-s-done)',
+  CLEANING:    'var(--sb-s-open)',
+  REPLACEMENT: 'var(--sb-p-crit)',
+  CALIBRATION: 'var(--sb-p-high)',
+  ADJUSTMENT:  'var(--sb-s-wait)',
+};
+
+const TASK_TYPE_BG: Record<ChecklistTaskType, string> = {
+  INSPECTION:  'var(--sb-p-norm-bg)',
+  MEASUREMENT: 'var(--sb-s-active-bg)',
+  LUBRICATION: 'var(--sb-s-done-bg)',
+  CLEANING:    'var(--sb-s-open-bg)',
+  REPLACEMENT: 'var(--sb-p-crit-bg)',
+  CALIBRATION: 'var(--sb-p-high-bg)',
+  ADJUSTMENT:  'var(--sb-s-wait-bg)',
+};
 
 interface CategoryChecklistDialogProps {
   open: boolean;
@@ -63,6 +65,15 @@ export function CategoryChecklistDialog({
   useEffect(() => {
     setOrderedItems(detail?.checklistTemplateItems ?? []);
   }, [detail]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !itemDialogOpen) onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, itemDialogOpen, onOpenChange]);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['supervisor', 'categories', category?.id] });
@@ -104,9 +115,7 @@ export function CategoryChecklistDialog({
   const reorderMutation = useMutation({
     mutationFn: (items: { id: string; sortOrder: number }[]) =>
       categoriesApi.reorderChecklistItems(category!.id, items),
-    onSuccess: () => {
-      invalidate();
-    },
+    onSuccess: () => { invalidate(); },
     onError: () => toast.error(t('supervisorCategories.toasts.reorderError')),
   });
 
@@ -131,6 +140,7 @@ export function CategoryChecklistDialog({
     current.splice(toIndex, 0, moved);
     setOrderedItems(current);
     reorderMutation.mutate(current.map((item, index) => ({ id: item.id, sortOrder: index })));
+    setDraggedItemId(null);
   };
 
   const handleMoveUp = (index: number) => {
@@ -158,7 +168,6 @@ export function CategoryChecklistDialog({
 
   const submitChecklistItem = (values: CategoryChecklistFormValues) => {
     if (!category) return;
-
     const body = {
       description: values.description,
       taskType: values.taskType,
@@ -167,174 +176,242 @@ export function CategoryChecklistDialog({
       autoCreateCorrectiveWO: values.autoCreateCorrectiveWO,
       sortOrder: editingItem?.sortOrder ?? orderedItems.length,
     };
-
     if (editingItem) {
       updateItemMutation.mutate({ itemId: editingItem.id, body });
       return;
     }
-
     addItemMutation.mutate(body);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>
-            {t('supervisorCategories.checklist.dialogTitle', { name: category?.name ?? '' })}
-          </DialogTitle>
-          <DialogDescription>{t('supervisorCategories.checklist.dialogDescription')}</DialogDescription>
-        </DialogHeader>
+  if (!open) return null;
 
-        {isLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  return (
+    <>
+      <div
+        style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          zIndex: 10001,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+        onClick={(e) => { if (e.target === e.currentTarget) handleClose(false); }}
+      >
+        <div style={{
+          background: 'var(--sb-bg)',
+          border: '1px solid var(--sb-border)',
+          width: 760,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          {/* Header */}
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--sb-border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexShrink: 0 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
+                {t('supervisorCategories.checklist.dialogTitle', { name: category?.name ?? '' })}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', marginTop: 3 }}>
+                {t('supervisorCategories.checklist.dialogDescription')}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleClose(false)}
+              style={{ background: 'transparent', border: '1px solid var(--sb-border)', padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <Mono size={8} color="var(--sb-text-tertiary)">✕</Mono>
+            </button>
           </div>
-        ) : isError ? (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {t('supervisorCategories.states.error')}
-          </div>
-        ) : detail ? (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant={detail.isActive ? 'success' : 'destructive'}>
-                {detail.isActive ? t('common.active') : t('common.inactive')}
-              </Badge>
+
+          {/* Subheader — category meta */}
+          {detail && (
+            <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: detail.isActive ? 'var(--sb-s-done)' : 'var(--sb-text-tertiary)', flexShrink: 0 }} />
+                <Mono size={9} color={detail.isActive ? 'var(--sb-s-done)' : 'var(--sb-text-tertiary)'}>
+                  {detail.isActive ? t('common.active').toUpperCase() : t('common.inactive').toUpperCase()}
+                </Mono>
+              </span>
               {detail.description && (
-                <p className="text-sm text-muted-foreground">{detail.description}</p>
+                <span style={{ fontSize: 12, color: 'var(--sb-text-secondary)' }}>{detail.description}</span>
               )}
-              <span className="ml-auto text-sm text-muted-foreground">
-                {t('supervisorCategories.checklist.itemCount', { count: orderedItems.length })}
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Mono size={9} color="var(--sb-text-tertiary)">
+                  {t('supervisorCategories.checklist.itemCount', { count: orderedItems.length })}
+                </Mono>
               </span>
             </div>
+          )}
 
-            <Separator />
-
-            <div className="space-y-3">
-              {orderedItems.length === 0 ? (
-                <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  {t('supervisorCategories.checklist.empty')}
-                </div>
-              ) : (
-                orderedItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    draggable
-                    onDragStart={() => handleDragStart(item.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => handleDrop(item.id)}
-                    className={cn(
-                      'flex items-start gap-3 rounded-lg border bg-card p-4 transition-shadow',
-                      draggedItemId === item.id && 'ring-2 ring-primary',
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="mt-1 cursor-grab rounded p-1 text-muted-foreground hover:bg-muted"
-                      aria-label={t('supervisorCategories.checklist.dragHandle')}
+          {/* Body */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
+            {isLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140 }}>
+                <Loader2 style={{ width: 20, height: 20, color: 'var(--sb-text-tertiary)', animation: 'spin 1s linear infinite' }} />
+              </div>
+            ) : isError ? (
+              <div style={{ padding: '10px 14px', border: '1px solid var(--sb-p-crit)', background: 'var(--sb-p-crit-bg)' }}>
+                <Mono size={10} color="var(--sb-p-crit)">{t('supervisorCategories.states.error').toUpperCase()}</Mono>
+              </div>
+            ) : orderedItems.length === 0 ? (
+              <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                <Mono size={10} color="var(--sb-text-tertiary)">{t('supervisorCategories.checklist.empty').toUpperCase()}</Mono>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {orderedItems.map((item, index) => {
+                  const typeColor = TASK_TYPE_COLOR[item.taskType];
+                  const typeBg = TASK_TYPE_BG[item.taskType];
+                  const isDragging = draggedItemId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={() => handleDragStart(item.id)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => handleDrop(item.id)}
+                      onDragEnd={() => setDraggedItemId(null)}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10,
+                        padding: '10px 12px',
+                        border: `1px solid ${isDragging ? 'var(--sb-border-strong)' : 'var(--sb-border)'}`,
+                        borderLeft: `3px solid ${typeColor}`,
+                        background: isDragging ? 'var(--sb-surface)' : 'white',
+                        opacity: isDragging ? 0.6 : 1,
+                        cursor: 'default',
+                      }}
                     >
-                      <GripVertical className="h-4 w-4" />
-                    </button>
+                      {/* Drag handle */}
+                      <button
+                        type="button"
+                        aria-label={t('supervisorCategories.checklist.dragHandle')}
+                        style={{ background: 'transparent', border: 'none', padding: '2px 2px', cursor: 'grab', color: 'var(--sb-text-tertiary)', flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center' }}
+                      >
+                        <GripVertical style={{ width: 14, height: 14 }} />
+                      </button>
 
-                    <div className="flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">#{index + 1}</Badge>
-                        <Badge variant="outline">{t(`supervisorCategories.taskType.${item.taskType}`)}</Badge>
-                        {item.isMandatory && (
-                          <Badge variant="warning">{t('supervisorCategories.checklist.mandatory')}</Badge>
-                        )}
-                        {item.autoCreateCorrectiveWO && (
-                          <Badge variant="success">{t('supervisorCategories.checklist.autoCreateCorrectiveWO')}</Badge>
-                        )}
+                      {/* Position index */}
+                      <div style={{ flexShrink: 0, width: 22, textAlign: 'right', paddingTop: 1 }}>
+                        <Mono size={9} color="var(--sb-text-tertiary)" weight={600}>#{index + 1}</Mono>
                       </div>
-                      <p className="font-medium">{item.description}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.expectedCondition
-                          ? t('supervisorCategories.checklist.expectedCondition', { value: item.expectedCondition })
-                          : t('supervisorCategories.checklist.noExpectedCondition')}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title={t('common.edit')}
-                        onClick={() => {
-                          setEditingItem(item);
-                          setItemDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        title={t('common.delete')}
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteItem(item)}
-                        disabled={deleteItemMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <div className="flex flex-col gap-1">
-                        <Button
+                      {/* Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5 }}>
+                          {/* Task type */}
+                          <span style={{ display: 'inline-block', background: typeBg, border: `1px solid ${typeColor}44`, borderRadius: 2, padding: '1px 6px' }}>
+                            <Mono size={8} color={typeColor} tracking="0.08em">{item.taskType}</Mono>
+                          </span>
+                          {/* Mandatory */}
+                          {item.isMandatory && (
+                            <span style={{ display: 'inline-block', background: 'var(--sb-p-crit-bg)', border: '1px solid var(--sb-p-crit)44', borderRadius: 2, padding: '1px 6px' }}>
+                              <Mono size={8} color="var(--sb-p-crit)" tracking="0.08em">{t('supervisorCategories.checklist.mandatory').toUpperCase()}</Mono>
+                            </span>
+                          )}
+                          {/* Auto WO */}
+                          {item.autoCreateCorrectiveWO && (
+                            <span style={{ display: 'inline-block', background: 'var(--sb-s-done-bg)', border: '1px solid var(--sb-s-done)44', borderRadius: 2, padding: '1px 6px' }}>
+                              <Mono size={8} color="var(--sb-s-done)" tracking="0.08em">{t('supervisorCategories.checklist.autoCreateCorrectiveWO').toUpperCase()}</Mono>
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-primary)', marginBottom: 3 }}>
+                          {item.description}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--sb-text-tertiary)' }}>
+                          {item.expectedCondition
+                            ? t('supervisorCategories.checklist.expectedCondition', { value: item.expectedCondition })
+                            : t('supervisorCategories.checklist.noExpectedCondition')}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                        {/* Move up */}
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
                           title={t('supervisorCategories.checklist.moveUp')}
                           disabled={index === 0}
                           onClick={() => handleMoveUp(index)}
+                          style={{ background: 'transparent', border: 'none', padding: '4px 5px', cursor: index === 0 ? 'default' : 'pointer', color: index === 0 ? 'var(--sb-text-tertiary)' : 'var(--sb-text-secondary)', display: 'flex', alignItems: 'center', opacity: index === 0 ? 0.35 : 1 }}
                         >
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button
+                          <ArrowUp style={{ width: 13, height: 13 }} />
+                        </button>
+                        {/* Move down */}
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
                           title={t('supervisorCategories.checklist.moveDown')}
                           disabled={index === orderedItems.length - 1}
                           onClick={() => handleMoveDown(index)}
+                          style={{ background: 'transparent', border: 'none', padding: '4px 5px', cursor: index === orderedItems.length - 1 ? 'default' : 'pointer', color: index === orderedItems.length - 1 ? 'var(--sb-text-tertiary)' : 'var(--sb-text-secondary)', display: 'flex', alignItems: 'center', opacity: index === orderedItems.length - 1 ? 0.35 : 1 }}
                         >
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
+                          <ArrowDown style={{ width: 13, height: 13 }} />
+                        </button>
+                        {/* Edit */}
+                        <button
+                          type="button"
+                          title={t('common.edit')}
+                          onClick={() => { setEditingItem(item); setItemDialogOpen(true); }}
+                          style={{ background: 'transparent', border: 'none', padding: '4px 5px', cursor: 'pointer', color: 'var(--sb-text-secondary)', display: 'flex', alignItems: 'center' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--sb-text-primary)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--sb-text-secondary)'; }}
+                        >
+                          <Pencil style={{ width: 13, height: 13 }} />
+                        </button>
+                        {/* Delete */}
+                        <button
+                          type="button"
+                          title={t('common.delete')}
+                          onClick={() => handleDeleteItem(item)}
+                          disabled={deleteItemMutation.isPending}
+                          style={{ background: 'transparent', border: 'none', padding: '4px 5px', cursor: 'pointer', color: 'var(--sb-text-tertiary)', display: 'flex', alignItems: 'center' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--sb-p-crit)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--sb-text-tertiary)'; }}
+                        >
+                          <Trash2 style={{ width: 13, height: 13 }} />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleClose(false)}>
-                {t('common.close')}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  setEditingItem(null);
-                  setItemDialogOpen(true);
-                }}
-                disabled={addItemMutation.isPending || updateItemMutation.isPending}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                {t('supervisorCategories.checklist.addAction')}
-              </Button>
-            </DialogFooter>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        ) : null}
 
-        {category && (
-          <CategoryChecklistItemDialog
-            open={itemDialogOpen}
-            onOpenChange={setItemDialogOpen}
-            item={editingItem}
-            onSubmit={submitChecklistItem}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+          {/* Footer */}
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--sb-border)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexShrink: 0, background: 'var(--sb-surface)' }}>
+            <button
+              type="button"
+              onClick={() => handleClose(false)}
+              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--sb-border)', cursor: 'pointer', fontSize: 12, color: 'var(--sb-text-secondary)', borderRadius: 2 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--sb-hover)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {t('common.close')}
+            </button>
+            <button
+              type="button"
+              disabled={addItemMutation.isPending || updateItemMutation.isPending}
+              onClick={() => { setEditingItem(null); setItemDialogOpen(true); }}
+              style={{ padding: '6px 14px', background: 'var(--sb-text-primary)', border: '1px solid var(--sb-text-primary)', cursor: 'pointer', fontSize: 12, color: 'var(--sb-bg)', fontWeight: 600, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 6 }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+              {t('supervisorCategories.checklist.addAction')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {category && (
+        <CategoryChecklistItemDialog
+          open={itemDialogOpen}
+          onOpenChange={setItemDialogOpen}
+          item={editingItem}
+          onSubmit={submitChecklistItem}
+        />
+      )}
+    </>
   );
 }

@@ -13,20 +13,23 @@ import { AssetCriticality } from '@gmao/shared';
 import { assetsApi, type AssetListItem, type AssetDetail } from '@/lib/assets.api';
 import { locationsApi } from '@/lib/locations.api';
 import { categoriesApi } from '@/lib/categories.api';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Mono } from '@/components/ui/mono';
 
-const selectClass =
-  'h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
+
+const inputS: React.CSSProperties = {
+  display: 'block', width: '100%', height: 32, padding: '0 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2, fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  outline: 'none', boxSizing: 'border-box',
+};
+
+const selectS: React.CSSProperties = {
+  display: 'block', width: '100%', height: 32, padding: '0 4px 0 10px',
+  border: '1px solid var(--sb-border)', borderRadius: 2, fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--sb-text-primary)', background: 'var(--sb-bg)',
+  cursor: 'pointer', outline: 'none', boxSizing: 'border-box',
+};
 
 const assetSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -62,12 +65,8 @@ function toFormValues(asset?: AssetListItem | AssetDetail | null): AssetFormValu
     serialNumber: asset?.serialNumber ?? '',
     manufacturer: asset?.manufacturer ?? '',
     model: asset?.model ?? '',
-    installationDate: asset?.installationDate
-      ? asset.installationDate.substring(0, 10)
-      : '',
-    warrantyExpiration: asset?.warrantyExpiration
-      ? asset.warrantyExpiration.substring(0, 10)
-      : '',
+    installationDate: asset?.installationDate ? asset.installationDate.substring(0, 10) : '',
+    warrantyExpiration: asset?.warrantyExpiration ? asset.warrantyExpiration.substring(0, 10) : '',
     parentId: asset?.parent?.id ?? '',
   };
 }
@@ -113,10 +112,15 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
   });
 
   useEffect(() => {
-    if (open) {
-      reset(toFormValues(asset));
-    }
+    if (open) reset(toFormValues(asset));
   }, [open, asset, reset]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onOpenChange(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
 
   const createMutation = useMutation({
     mutationFn: assetsApi.create,
@@ -126,9 +130,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
       onSuccess();
       onOpenChange(false);
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, t('supervisorAssets.toasts.createError')));
-    },
+    onError: (error) => { toast.error(getErrorMessage(error, t('supervisorAssets.toasts.createError'))); },
   });
 
   const updateMutation = useMutation({
@@ -140,9 +142,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
       onSuccess();
       onOpenChange(false);
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, t('supervisorAssets.toasts.updateError')));
-    },
+    onError: (error) => { toast.error(getErrorMessage(error, t('supervisorAssets.toasts.updateError'))); },
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -162,160 +162,221 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
       parentId: values.parentId || undefined,
     };
 
-    if (isEdit && asset) {
-      updateMutation.mutate({ id: asset.id, payload });
-    } else {
-      createMutation.mutate(payload);
-    }
+    if (isEdit && asset) { updateMutation.mutate({ id: asset.id, payload }); return; }
+    createMutation.mutate(payload);
   };
 
   const candidateParents = parentAssets?.data.filter((a) => a.id !== asset?.id) ?? [];
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+    <div
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        zIndex: 10001,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget && !isPending) onOpenChange(false); }}
+    >
+      <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
             {isEdit ? t('supervisorAssets.form.editTitle') : t('supervisorAssets.form.createTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? t('supervisorAssets.form.editDescription')
-              : t('supervisorAssets.form.createDescription')}
-          </DialogDescription>
-        </DialogHeader>
+          </div>
+          <button
+            type="button"
+            onClick={() => { if (!isPending) onOpenChange(false); }}
+            disabled={isPending}
+            style={{ background: 'transparent', border: '1px solid var(--sb-border)', padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
+          >
+            <Mono size={8} color="var(--sb-text-tertiary)">✕</Mono>
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* ── Identification ── */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('supervisorAssets.form.section.identification')}
-            </p>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="asset-name">{t('supervisorAssets.form.name')}</Label>
-              <Input id="asset-name" {...register('name')} maxLength={200} />
-              {errors.name && (
-                <p className="text-xs text-destructive">{t('supervisorAssets.validation.nameRequired')}</p>
-              )}
-            </div>
+          {/* Identification section */}
+          <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: -6, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            {t('supervisorAssets.form.section.identification')}
+          </Mono>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="asset-category">{t('supervisorAssets.form.category')}</Label>
-                <select id="asset-category" className={selectClass} {...register('categoryId')}>
-                  <option value="">{t('supervisorAssets.form.categoryPlaceholder')}</option>
-                  {(categories ?? []).map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.categoryId && (
-                  <p className="text-xs text-destructive">{t('supervisorAssets.validation.categoryRequired')}</p>
-                )}
-              </div>
+          {/* Name */}
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorAssets.form.name')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+            </Mono>
+            <input {...register('name')} maxLength={200} style={{ ...inputS, borderColor: errors.name ? 'var(--sb-p-crit)' : 'var(--sb-border)' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = errors.name ? 'var(--sb-p-crit)' : 'var(--sb-border)'; }}
+            />
+            {errors.name && <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorAssets.validation.nameRequired')}</Mono>}
+          </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="asset-criticality">{t('supervisorAssets.form.criticality')}</Label>
-                <select id="asset-criticality" className={selectClass} {...register('criticality')}>
-                  <option value={AssetCriticality.CRITICAL}>{t('supervisorAssets.criticality.CRITICAL')}</option>
-                  <option value={AssetCriticality.STANDARD}>{t('supervisorAssets.criticality.STANDARD')}</option>
-                  <option value={AssetCriticality.NON_CRITICAL}>{t('supervisorAssets.criticality.NON_CRITICAL')}</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="asset-location">{t('supervisorAssets.form.location')}</Label>
-              <select id="asset-location" className={selectClass} {...register('locationId')}>
-                <option value="">{t('supervisorAssets.form.locationPlaceholder')}</option>
-                {(locations ?? []).map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.fullPath}
-                  </option>
+          {/* Category + Criticality (2-col) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+                {t('supervisorAssets.form.category')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+              </Mono>
+              <select {...register('categoryId')} style={{ ...selectS, borderColor: errors.categoryId ? 'var(--sb-p-crit)' : 'var(--sb-border)' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = errors.categoryId ? 'var(--sb-p-crit)' : 'var(--sb-border)'; }}
+              >
+                <option value="">{t('supervisorAssets.form.categoryPlaceholder')}</option>
+                {(categories ?? []).map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
-              {errors.locationId && (
-                <p className="text-xs text-destructive">{t('supervisorAssets.validation.locationRequired')}</p>
-              )}
+              {errors.categoryId && <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorAssets.validation.categoryRequired')}</Mono>}
             </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="asset-description">{t('supervisorAssets.form.description')}</Label>
-              <Input id="asset-description" {...register('description')} maxLength={1000} />
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+                {t('supervisorAssets.form.criticality')}
+              </Mono>
+              <select {...register('criticality')} style={selectS}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+              >
+                <option value={AssetCriticality.CRITICAL}>{t('supervisorAssets.criticality.CRITICAL')}</option>
+                <option value={AssetCriticality.STANDARD}>{t('supervisorAssets.criticality.STANDARD')}</option>
+                <option value={AssetCriticality.NON_CRITICAL}>{t('supervisorAssets.criticality.NON_CRITICAL')}</option>
+              </select>
             </div>
           </div>
 
-          {/* ── Technical ── */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {/* Location */}
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorAssets.form.location')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
+            </Mono>
+            <select {...register('locationId')} style={{ ...selectS, borderColor: errors.locationId ? 'var(--sb-p-crit)' : 'var(--sb-border)' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = errors.locationId ? 'var(--sb-p-crit)' : 'var(--sb-border)'; }}
+            >
+              <option value="">{t('supervisorAssets.form.locationPlaceholder')}</option>
+              {(locations ?? []).map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.fullPath}</option>
+              ))}
+            </select>
+            {errors.locationId && <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorAssets.validation.locationRequired')}</Mono>}
+          </div>
+
+          {/* Description */}
+          <div>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
+              {t('supervisorAssets.form.description')}
+            </Mono>
+            <input {...register('description')} maxLength={1000} style={inputS}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+            />
+          </div>
+
+          {/* Technical section */}
+          <div style={{ borderTop: '1px solid var(--sb-border)', paddingTop: 14 }}>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               {t('supervisorAssets.form.section.technical')}
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="asset-serial">{t('supervisorAssets.form.serialNumber')}</Label>
-                <Input id="asset-serial" {...register('serialNumber')} maxLength={100} />
+            </Mono>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>{t('supervisorAssets.form.serialNumber')}</Mono>
+                  <input {...register('serialNumber')} maxLength={100} style={{ ...inputS, fontFamily: MONO, letterSpacing: '0.04em' }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+                  />
+                </div>
+                <div>
+                  <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>{t('supervisorAssets.form.manufacturer')}</Mono>
+                  <input {...register('manufacturer')} maxLength={100} style={inputS}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="asset-manufacturer">{t('supervisorAssets.form.manufacturer')}</Label>
-                <Input id="asset-manufacturer" {...register('manufacturer')} maxLength={100} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>{t('supervisorAssets.form.model')}</Mono>
+                  <input {...register('model')} maxLength={100} style={inputS}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+                  />
+                </div>
+                <div>
+                  <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>{t('supervisorAssets.form.installationDate')}</Mono>
+                  <input type="date" {...register('installationDate')} style={inputS}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+                  />
+                </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="asset-model">{t('supervisorAssets.form.model')}</Label>
-                <Input id="asset-model" {...register('model')} maxLength={100} />
+              <div>
+                <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>{t('supervisorAssets.form.warrantyExpiration')}</Mono>
+                <input type="date" {...register('warrantyExpiration')} style={{ ...inputS, width: '50%' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+                />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="asset-installation">{t('supervisorAssets.form.installationDate')}</Label>
-                <Input id="asset-installation" type="date" {...register('installationDate')} />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="asset-warranty">{t('supervisorAssets.form.warrantyExpiration')}</Label>
-              <Input id="asset-warranty" type="date" {...register('warrantyExpiration')} />
             </div>
           </div>
 
-          {/* ── Hierarchy ── */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {/* Hierarchy section */}
+          <div style={{ borderTop: '1px solid var(--sb-border)', paddingTop: 14 }}>
+            <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               {t('supervisorAssets.form.section.hierarchy')}
-            </p>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="asset-parent">{t('supervisorAssets.form.parent')}</Label>
-              <select id="asset-parent" className={selectClass} {...register('parentId')}>
+            </Mono>
+            <div>
+              <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>{t('supervisorAssets.form.parent')}</Mono>
+              <select {...register('parentId')} style={selectS}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
+              >
                 <option value="">{t('supervisorAssets.form.parentPlaceholder')}</option>
                 {candidateParents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} — {a.location.fullPath}
-                  </option>
+                  <option key={a.id} value={a.id}>{a.name} — {a.location.fullPath}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button
+          {/* Footer */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
+            <button
               type="button"
-              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
+              style={{
+                background: 'transparent', border: '1px solid var(--sb-border-strong)',
+                borderRadius: 2, padding: '6px 16px',
+                fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                color: 'var(--sb-text-secondary)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.5 : 1,
+              }}
             >
               {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: isPending ? 'var(--sb-border)' : 'var(--sb-text-primary)',
+                color: isPending ? 'var(--sb-text-tertiary)' : 'var(--sb-bg)',
+                border: 'none', borderRadius: 2, padding: '6px 16px',
+                fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                cursor: isPending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isPending && <Loader2 style={{ width: 11, height: 11, animation: 'spin 1s linear infinite' }} />}
               {isEdit ? t('common.save') : t('supervisorAssets.actions.create')}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
+
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

@@ -8,20 +8,19 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, Paperclip, X } from 'lucide-react';
+import { Paperclip, X } from 'lucide-react';
 import { CertificateType } from '@gmao/shared';
 import { assetsApi, type AssetCertificate } from '@/lib/assets.api';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
+import {
+  FormDialog,
+  CANCEL_BTN_STYLE,
+  DIALOG_SELECT_STYLE,
+  DIALOG_FOOTER_STYLE,
+  FORM_DIALOG_MONO,
+} from '@/components/ui/form-dialog';
 
 const CERT_TYPES = Object.values(CertificateType);
 
@@ -178,157 +177,172 @@ export function CertificateFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit
-              ? t('supervisorAssets.certificate.editTitle')
-              : t('supervisorAssets.certificate.createTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? t('supervisorAssets.certificate.editDescription')
-              : t('supervisorAssets.certificate.createDescription')}
-          </DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={isEdit ? t('supervisorAssets.certificate.editTitle') : t('supervisorAssets.certificate.createTitle')}
+      description={isEdit ? t('supervisorAssets.certificate.editDescription') : t('supervisorAssets.certificate.createDescription')}
+      maxWidth={480}
+      isPending={mutation.isPending}
+    >
+      <form
+        onSubmit={handleSubmit((values) => mutation.mutate(values))}
+        style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+      >
+        <FormField label={t('supervisorAssets.certificate.form.type')} htmlFor="cert-type">
+          <select id="cert-type" {...register('certificateType')} style={DIALOG_SELECT_STYLE}>
+            {CERT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {t(`supervisorAssets.certificateType.${type}`)}
+              </option>
+            ))}
+          </select>
+        </FormField>
 
-        <form
-          onSubmit={handleSubmit((values) => mutation.mutate(values))}
-          className="space-y-4 py-1"
+        {certType === CertificateType.OTHER && (
+          <FormField
+            label={t('supervisorAssets.certificate.form.otherType')}
+            htmlFor="cert-other-type"
+            required
+            error={errors.otherType ? t('supervisorAssets.certificate.validation.otherTypeRequired') : undefined}
+          >
+            <Input
+              id="cert-other-type"
+              {...register('otherType')}
+              placeholder={t('supervisorAssets.certificate.form.otherTypePlaceholder')}
+              maxLength={100}
+            />
+          </FormField>
+        )}
+
+        <FormField
+          label={t('supervisorAssets.certificate.form.issuingAuthority')}
+          htmlFor="cert-authority"
+          required
+          error={errors.issuingAuthority ? t('supervisorAssets.certificate.validation.issuingAuthorityRequired') : undefined}
         >
-          {/* Certificate type */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cert-type">{t('supervisorAssets.certificate.form.type')}</Label>
-            <select
-              id="cert-type"
-              {...register('certificateType')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            >
-              {CERT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {t(`supervisorAssets.certificateType.${type}`)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Input
+            id="cert-authority"
+            {...register('issuingAuthority')}
+            placeholder={t('supervisorAssets.certificate.form.issuingAuthorityPlaceholder')}
+            maxLength={200}
+          />
+        </FormField>
 
-          {/* Other type (conditional) */}
-          {certType === CertificateType.OTHER && (
-            <div className="space-y-1.5">
-              <Label htmlFor="cert-other-type">
-                {t('supervisorAssets.certificate.form.otherType')}
-              </Label>
-              <Input
-                id="cert-other-type"
-                {...register('otherType')}
-                placeholder={t('supervisorAssets.certificate.form.otherTypePlaceholder')}
-                maxLength={100}
-              />
-              {errors.otherType && (
-                <p className="text-xs text-destructive">
-                  {t('supervisorAssets.certificate.validation.otherTypeRequired')}
-                </p>
-              )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <FormField
+            label={t('supervisorAssets.certificate.form.issueDate')}
+            htmlFor="cert-issue-date"
+            required
+            error={errors.issueDate ? t('supervisorAssets.certificate.validation.issueDateRequired') : undefined}
+          >
+            <Input id="cert-issue-date" type="date" {...register('issueDate')} />
+          </FormField>
+          <FormField
+            label={t('supervisorAssets.certificate.form.expirationDate')}
+            htmlFor="cert-expiry-date"
+            required
+            error={errors.expirationDate ? t('supervisorAssets.certificate.validation.expirationDateRequired') : undefined}
+          >
+            <Input id="cert-expiry-date" type="date" {...register('expirationDate')} />
+          </FormField>
+        </div>
+
+        <FormField label={t('supervisorAssets.certificate.form.file')}>
+          {selectedFile ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                border: '1px solid var(--sb-border)',
+                borderRadius: 2,
+                padding: '8px 10px',
+                fontSize: 13,
+                color: 'var(--sb-text-primary)',
+              }}
+            >
+              <Paperclip style={{ width: 14, height: 14, color: 'var(--sb-text-tertiary)', flexShrink: 0 }} />
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedFile.name}
+              </span>
+              <button
+                type="button"
+                onClick={clearFile}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--sb-text-tertiary)',
+                  display: 'flex',
+                  flexShrink: 0,
+                }}
+              >
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'transparent',
+                  border: '1px solid var(--sb-border)',
+                  borderRadius: 2,
+                  padding: '6px 12px',
+                  fontFamily: FORM_DIALOG_MONO,
+                  fontSize: 10,
+                  letterSpacing: '0.10em',
+                  textTransform: 'uppercase',
+                  fontWeight: 500,
+                  color: 'var(--sb-text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Paperclip style={{ width: 13, height: 13 }} />
+                {t('supervisorAssets.certificate.form.attachFile')}
+              </button>
+              <p
+                style={{
+                  marginTop: 5,
+                  fontFamily: FORM_DIALOG_MONO,
+                  fontSize: 10,
+                  color: 'var(--sb-text-tertiary)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {t('supervisorAssets.certificate.form.fileHint')}
+              </p>
             </div>
           )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </FormField>
 
-          {/* Issuing authority */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cert-authority">
-              {t('supervisorAssets.certificate.form.issuingAuthority')}
-            </Label>
-            <Input
-              id="cert-authority"
-              {...register('issuingAuthority')}
-              placeholder={t('supervisorAssets.certificate.form.issuingAuthorityPlaceholder')}
-              maxLength={200}
-            />
-            {errors.issuingAuthority && (
-              <p className="text-xs text-destructive">
-                {t('supervisorAssets.certificate.validation.issuingAuthorityRequired')}
-              </p>
-            )}
-          </div>
-
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="cert-issue-date">
-                {t('supervisorAssets.certificate.form.issueDate')}
-              </Label>
-              <Input id="cert-issue-date" type="date" {...register('issueDate')} />
-              {errors.issueDate && (
-                <p className="text-xs text-destructive">
-                  {t('supervisorAssets.certificate.validation.issueDateRequired')}
-                </p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cert-expiry-date">
-                {t('supervisorAssets.certificate.form.expirationDate')}
-              </Label>
-              <Input id="cert-expiry-date" type="date" {...register('expirationDate')} />
-              {errors.expirationDate && (
-                <p className="text-xs text-destructive">
-                  {t('supervisorAssets.certificate.validation.expirationDateRequired')}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* File upload */}
-          <div className="space-y-1.5">
-            <Label>{t('supervisorAssets.certificate.form.file')}</Label>
-            {selectedFile ? (
-              <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate flex-1">{selectedFile.name}</span>
-                <button type="button" onClick={clearFile} className="shrink-0 text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Paperclip className="mr-1.5 h-4 w-4" />
-                  {t('supervisorAssets.certificate.form.attachFile')}
-                </Button>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('supervisorAssets.certificate.form.fileHint')}
-                </p>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={mutation.isPending}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? t('common.save') : t('common.create')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <div style={DIALOG_FOOTER_STYLE}>
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => onOpenChange(false)}
+            style={CANCEL_BTN_STYLE(mutation.isPending)}
+          >
+            {t('common.cancel')}
+          </button>
+          <SubmitButton isPending={mutation.isPending} isSuccess={mutation.isSuccess}>
+            {isEdit ? t('common.save') : t('common.create')}
+          </SubmitButton>
+        </div>
+      </form>
+    </FormDialog>
   );
 }

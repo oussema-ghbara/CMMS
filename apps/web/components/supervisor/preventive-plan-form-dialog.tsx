@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Role } from '@gmao/shared';
@@ -16,10 +15,15 @@ import {
   type PreventivePlanItem,
 } from '@/lib/preventive-plans.api';
 import { usersApi } from '@/lib/users.api';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
+import {
+  FormDialog,
+  CANCEL_BTN_STYLE,
+  DIALOG_SELECT_STYLE,
+  DIALOG_FOOTER_STYLE,
+} from '@/components/ui/form-dialog';
 
 type PlanFormValues = {
   assetId: string;
@@ -179,6 +183,7 @@ export function PreventivePlanFormDialog({ open, onOpenChange, plan, onSuccess }
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const isSuccess = createMutation.isSuccess || updateMutation.isSuccess;
 
   const handleSubmitForm = (values: PlanFormValues) => {
     const payload = {
@@ -218,130 +223,146 @@ export function PreventivePlanFormDialog({ open, onOpenChange, plan, onSuccess }
     createMutation.mutate(payload);
   };
 
+  const handleClose = () => {
+    onOpenChange(false);
+    reset();
+  };
+
   return (
-    <Dialog
+    <FormDialog
       open={open}
-      onOpenChange={(nextOpen) => {
-        onOpenChange(nextOpen);
-        if (!nextOpen) {
-          reset();
-        }
-      }}
+      onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v); }}
+      title={plan ? t('supervisorPreventivePlans.form.editTitle') : t('supervisorPreventivePlans.form.createTitle')}
+      description={plan ? t('supervisorPreventivePlans.form.editDescription') : t('supervisorPreventivePlans.form.createDescription')}
+      maxWidth={640}
+      isPending={isPending}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {plan ? t('supervisorPreventivePlans.form.editTitle') : t('supervisorPreventivePlans.form.createTitle')}
-          </DialogTitle>
-          <DialogDescription>
-            {plan
-              ? t('supervisorPreventivePlans.form.editDescription')
-              : t('supervisorPreventivePlans.form.createDescription')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form className="space-y-4" onSubmit={handleSubmit(handleSubmitForm)}>
-          {!plan && (
-            <div className="space-y-2">
-              <Label htmlFor="assetId">{t('supervisorPreventivePlans.form.asset')}</Label>
-              <Input
-                id="assetSearch"
-                value={assetSearch}
-                onChange={(event) => setAssetSearch(event.target.value)}
-                placeholder={t('common.search')}
-              />
-              <select id="assetId" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" {...register('assetId')}>
-                <option value="">{t('supervisorPreventivePlans.form.assetPlaceholder')}</option>
-                {(assetQuery.data?.data ?? []).map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.name} · {asset.location.fullPath}
-                  </option>
-                ))}
-              </select>
-              {errors.assetId && <p className="text-xs text-destructive">{t('common.required')}</p>}
-            </div>
-          )}
-
-          {plan && (
-            <div className="space-y-2">
-              <Label>{t('supervisorPreventivePlans.form.asset')}</Label>
-              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                {plan.asset.name} · {plan.asset.qrCodeIdentifier}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="title">{t('supervisorPreventivePlans.form.title')}</Label>
-            <Input id="title" {...register('title')} />
-            {errors.title && <p className="text-xs text-destructive">{t('common.required')}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">{t('supervisorPreventivePlans.form.description')}</Label>
-            <Input id="description" {...register('description')} />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="frequencyType">{t('supervisorPreventivePlans.form.frequencyType')}</Label>
-              <select id="frequencyType" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" {...register('frequencyType')}>
-                <option value="FIXED_INTERVAL_DAYS">{t('supervisorPreventivePlans.frequencyType.FIXED_INTERVAL_DAYS')}</option>
-                <option value="CALENDAR">{t('supervisorPreventivePlans.frequencyType.CALENDAR')}</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="estimatedDurationMinutes">{t('supervisorPreventivePlans.form.estimatedDurationMinutes')}</Label>
-              <Input id="estimatedDurationMinutes" type="number" min={1} {...register('estimatedDurationMinutes')} />
-              {errors.estimatedDurationMinutes && <p className="text-xs text-destructive">{t('common.required')}</p>}
-            </div>
-          </div>
-
-          {frequencyType === 'FIXED_INTERVAL_DAYS' ? (
-            <div className="space-y-2">
-              <Label htmlFor="intervalDays">{t('supervisorPreventivePlans.form.intervalDays')}</Label>
-              <Input id="intervalDays" type="number" min={1} {...register('intervalDays')} />
-              {errors.intervalDays && <p className="text-xs text-destructive">{t('common.required')}</p>}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="calendarExpression">{t('supervisorPreventivePlans.form.calendarExpression')}</Label>
-              <Input id="calendarExpression" placeholder="0 8 * * 1-5" {...register('calendarExpression')} />
-              {errors.calendarExpression && <p className="text-xs text-destructive">{t('common.required')}</p>}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="defaultTechnicianId">{t('supervisorPreventivePlans.form.defaultTechnician')}</Label>
-            <select id="defaultTechnicianId" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" {...register('defaultTechnicianId')}>
-              <option value="">{t('supervisorPreventivePlans.form.defaultTechnicianPlaceholder')}</option>
-              {(technicianQuery.data ?? []).map((technician) => (
-                <option key={technician.id} value={technician.id}>
-                  {technician.name}
+      <form
+        onSubmit={handleSubmit(handleSubmitForm)}
+        style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+      >
+        {!plan && (
+          <FormField
+            label={t('supervisorPreventivePlans.form.asset')}
+            htmlFor="assetId"
+            required
+            error={errors.assetId ? t('common.required') : undefined}
+          >
+            <Input
+              id="assetSearch"
+              value={assetSearch}
+              onChange={(event) => setAssetSearch(event.target.value)}
+              placeholder={t('common.search')}
+            />
+            <select id="assetId" style={{ ...DIALOG_SELECT_STYLE, marginTop: 6 }} {...register('assetId')}>
+              <option value="">{t('supervisorPreventivePlans.form.assetPlaceholder')}</option>
+              {(assetQuery.data?.data ?? []).map((asset) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.name} · {asset.location.fullPath}
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
+        )}
 
-          {!plan && (
-            <div className="space-y-2">
-              <Label htmlFor="firstDueAt">{t('supervisorPreventivePlans.form.firstDueAt')}</Label>
-              <Input id="firstDueAt" type="datetime-local" {...register('firstDueAt')} />
+        {plan && (
+          <FormField label={t('supervisorPreventivePlans.form.asset')}>
+            <div
+              style={{
+                border: '1px solid var(--sb-border)',
+                borderRadius: 2,
+                background: 'var(--sb-surface)',
+                padding: '8px 10px',
+                fontSize: 13,
+                color: 'var(--sb-text-secondary)',
+              }}
+            >
+              {plan.asset.name} · {plan.asset.qrCodeIdentifier}
             </div>
-          )}
+          </FormField>
+        )}
 
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {plan ? t('common.save') : t('common.create')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <FormField
+          label={t('supervisorPreventivePlans.form.title')}
+          htmlFor="title"
+          required
+          error={errors.title ? t('common.required') : undefined}
+        >
+          <Input id="title" {...register('title')} />
+        </FormField>
+
+        <FormField label={t('supervisorPreventivePlans.form.description')} htmlFor="description">
+          <Input id="description" {...register('description')} />
+        </FormField>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <FormField label={t('supervisorPreventivePlans.form.frequencyType')} htmlFor="frequencyType">
+            <select id="frequencyType" style={DIALOG_SELECT_STYLE} {...register('frequencyType')}>
+              <option value="FIXED_INTERVAL_DAYS">{t('supervisorPreventivePlans.frequencyType.FIXED_INTERVAL_DAYS')}</option>
+              <option value="CALENDAR">{t('supervisorPreventivePlans.frequencyType.CALENDAR')}</option>
+            </select>
+          </FormField>
+
+          <FormField
+            label={t('supervisorPreventivePlans.form.estimatedDurationMinutes')}
+            htmlFor="estimatedDurationMinutes"
+            error={errors.estimatedDurationMinutes ? t('common.required') : undefined}
+          >
+            <Input id="estimatedDurationMinutes" type="number" min={1} {...register('estimatedDurationMinutes')} />
+          </FormField>
+        </div>
+
+        {frequencyType === 'FIXED_INTERVAL_DAYS' ? (
+          <FormField
+            label={t('supervisorPreventivePlans.form.intervalDays')}
+            htmlFor="intervalDays"
+            required
+            error={errors.intervalDays ? t('common.required') : undefined}
+          >
+            <Input id="intervalDays" type="number" min={1} {...register('intervalDays')} />
+          </FormField>
+        ) : (
+          <FormField
+            label={t('supervisorPreventivePlans.form.calendarExpression')}
+            htmlFor="calendarExpression"
+            required
+            error={errors.calendarExpression ? t('common.required') : undefined}
+          >
+            <Input id="calendarExpression" placeholder="0 8 * * 1-5" {...register('calendarExpression')} />
+          </FormField>
+        )}
+
+        <FormField label={t('supervisorPreventivePlans.form.defaultTechnician')} htmlFor="defaultTechnicianId">
+          <select id="defaultTechnicianId" style={DIALOG_SELECT_STYLE} {...register('defaultTechnicianId')}>
+            <option value="">{t('supervisorPreventivePlans.form.defaultTechnicianPlaceholder')}</option>
+            {(technicianQuery.data ?? []).map((technician) => (
+              <option key={technician.id} value={technician.id}>
+                {technician.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        {!plan && (
+          <FormField label={t('supervisorPreventivePlans.form.firstDueAt')} htmlFor="firstDueAt">
+            <Input id="firstDueAt" type="datetime-local" {...register('firstDueAt')} />
+          </FormField>
+        )}
+
+        <div style={DIALOG_FOOTER_STYLE}>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleClose}
+            style={CANCEL_BTN_STYLE(isPending)}
+          >
+            {t('common.cancel')}
+          </button>
+          <SubmitButton isPending={isPending} isSuccess={isSuccess}>
+            {plan ? t('common.save') : t('common.create')}
+          </SubmitButton>
+        </div>
+      </form>
+    </FormDialog>
   );
 }

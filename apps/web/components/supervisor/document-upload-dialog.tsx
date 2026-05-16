@@ -5,19 +5,18 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, Paperclip, X } from 'lucide-react';
+import { Paperclip, X } from 'lucide-react';
 import { DocumentType } from '@gmao/shared';
 import { assetsApi } from '@/lib/assets.api';
-import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+  FormDialog,
+  CANCEL_BTN_STYLE,
+  DIALOG_SELECT_STYLE,
+  DIALOG_FOOTER_STYLE,
+  FORM_DIALOG_MONO,
+} from '@/components/ui/form-dialog';
 
 // COMPLIANCE_CERTIFICATE is reserved for certificate-attached files and must
 // not be selectable when uploading regular asset documents.
@@ -105,87 +104,116 @@ export function DocumentUploadDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('supervisorAssets.document.uploadTitle')}</DialogTitle>
-          <DialogDescription>{t('supervisorAssets.document.uploadDescription')}</DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('supervisorAssets.document.uploadTitle')}
+      description={t('supervisorAssets.document.uploadDescription')}
+      maxWidth={440}
+      isPending={mutation.isPending}
+    >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <FormField label={t('supervisorAssets.document.form.type')} htmlFor="doc-type">
+          <select
+            id="doc-type"
+            value={documentType}
+            onChange={(e) => setDocumentType(e.target.value as DocumentType)}
+            style={DIALOG_SELECT_STYLE}
+          >
+            {DOC_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {t(`supervisorAssets.documentType.${type}`)}
+              </option>
+            ))}
+          </select>
+        </FormField>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-1">
-          {/* Document type */}
-          <div className="space-y-1.5">
-            <Label htmlFor="doc-type">{t('supervisorAssets.document.form.type')}</Label>
-            <select
-              id="doc-type"
-              value={documentType}
-              onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        <FormField
+          label={t('supervisorAssets.document.form.file')}
+          required
+          error={fileError ? t('supervisorAssets.document.validation.fileRequired') : undefined}
+        >
+          {selectedFile ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                border: '1px solid var(--sb-border)',
+                borderRadius: 2,
+                padding: '8px 10px',
+                fontSize: 13,
+                color: 'var(--sb-text-primary)',
+              }}
             >
-              {DOC_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {t(`supervisorAssets.documentType.${type}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* File */}
-          <div className="space-y-1.5">
-            <Label>{t('supervisorAssets.document.form.file')}</Label>
-            {selectedFile ? (
-              <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate flex-1">{selectedFile.name}</span>
-                <button
-                  type="button"
-                  onClick={clearFile}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <Button
+              <Paperclip style={{ width: 14, height: 14, color: 'var(--sb-text-tertiary)', flexShrink: 0 }} />
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedFile.name}
+              </span>
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={clearFile}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--sb-text-tertiary)',
+                  display: 'flex',
+                  flexShrink: 0,
+                }}
               >
-                <Paperclip className="mr-1.5 h-4 w-4" />
-                {t('supervisorAssets.document.form.chooseFile')}
-              </Button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            {fileError && (
-              <p className="text-xs text-destructive">
-                {t('supervisorAssets.document.validation.fileRequired')}
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
+          ) : (
+            <button
               type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={mutation.isPending}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'transparent',
+                border: '1px solid var(--sb-border)',
+                borderRadius: 2,
+                padding: '6px 12px',
+                fontFamily: FORM_DIALOG_MONO,
+                fontSize: 10,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                color: 'var(--sb-text-secondary)',
+                cursor: 'pointer',
+              }}
             >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('supervisorAssets.document.form.upload')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <Paperclip style={{ width: 13, height: 13 }} />
+              {t('supervisorAssets.document.form.chooseFile')}
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </FormField>
+
+        <div style={DIALOG_FOOTER_STYLE}>
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => onOpenChange(false)}
+            style={CANCEL_BTN_STYLE(mutation.isPending)}
+          >
+            {t('common.cancel')}
+          </button>
+          <SubmitButton isPending={mutation.isPending} isSuccess={mutation.isSuccess}>
+            {t('supervisorAssets.document.form.upload')}
+          </SubmitButton>
+        </div>
+      </form>
+    </FormDialog>
   );
 }

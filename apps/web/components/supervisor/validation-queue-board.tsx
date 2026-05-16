@@ -3,31 +3,33 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Clock, Eye, Loader2 } from 'lucide-react';
-import { WorkOrderStatus, WorkOrderPriority, WorkOrderType } from '@gmao/shared';
+import { WorkOrderPriority, WorkOrderStatus, WorkOrderType } from '@gmao/shared';
 import { workOrdersApi, type WorkOrderListItem } from '@/lib/work-orders.api';
 import { useAuthStore } from '@/store/auth.store';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { WorkOrderDetailDialog } from './work-order-detail-dialog';
-import { elapsedSince } from '@/lib/date-utils';
+import { MasterDetail } from '@/components/ui/master-detail';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { PriorityChip } from '@/components/ui/priority-chip';
+import { TypeBadge } from '@/components/ui/type-badge';
+import { Mono } from '@/components/ui/mono';
+import { TableLoading } from '@/components/ui/table-loading';
+import { TableEmpty } from '@/components/ui/table-empty';
+import { TableError } from '@/components/ui/table-error';
+import { WorkOrderDetailPanel } from './work-order-detail-panel';
 
 const LIMIT = 20;
 
-function getPriorityBadgeVariant(
-  priority: WorkOrderPriority,
-): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' {
-  if (priority === WorkOrderPriority.CRITICAL) return 'destructive';
-  if (priority === WorkOrderPriority.HIGH) return 'warning';
-  if (priority === WorkOrderPriority.MEDIUM) return 'secondary';
-  return 'outline';
-}
+const PRIORITY_COLOR: Record<WorkOrderPriority, string> = {
+  [WorkOrderPriority.CRITICAL]: 'var(--sb-p-crit)',
+  [WorkOrderPriority.HIGH]:     'var(--sb-p-high)',
+  [WorkOrderPriority.MEDIUM]:   'var(--sb-p-norm)',
+  [WorkOrderPriority.LOW]:      'var(--sb-p-low)',
+};
 
-function getTypeBadgeVariant(
-  type: WorkOrderType,
-): 'default' | 'secondary' | 'outline' {
-  return type === WorkOrderType.PREVENTIVE ? 'outline' : 'secondary';
+function formatElapsed(dateStr: string): string {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}j`;
 }
 
 function getPrincipalName(item: WorkOrderListItem, fallback: string): string {
@@ -41,10 +43,7 @@ export function ValidationQueueBoard() {
   const isInitialized = useAuthStore((state) => state.isInitialized);
 
   const [page, setPage] = useState(1);
-  const [detailWorkOrder, setDetailWorkOrder] = useState<WorkOrderListItem | { id: string } | null>(
-    null,
-  );
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selected, setSelected] = useState<WorkOrderListItem | null>(null);
 
   const queryParams = { page, limit: LIMIT, status: WorkOrderStatus.PENDING_VALIDATION };
 
@@ -56,139 +55,161 @@ export function ValidationQueueBoard() {
 
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0;
 
-  function openDetail(wo: WorkOrderListItem) {
-    setDetailWorkOrder(wo);
-    setDetailDialogOpen(true);
-  }
+  const listContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-  return (
-    <>
-      <div className="space-y-4">
-        {/* Count */}
-        <p className="text-sm text-muted-foreground">
+      {/* Header strip */}
+      <div
+        style={{
+          padding: '0 16px',
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--sb-border)',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+        }}
+      >
+        <Mono size={9} tracking="0.13em">
           {isLoading
             ? t('common.loading')
             : t('validationQueue.total', { count: data?.total ?? 0 })}
-        </p>
+        </Mono>
+      </div>
 
-        {/* Table */}
+      {/* Column headers */}
+      {!isLoading && !isError && !!data?.data.length && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: selected
+              ? '140px 1fr 130px 80px 32px'
+              : '140px 1fr 160px 120px 80px 32px',
+            padding: '0 16px',
+            height: 28,
+            alignItems: 'center',
+            borderBottom: '1px solid var(--sb-border)',
+            background: 'var(--sb-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <Mono size={8} tracking="0.13em">{t('validationQueue.columns.reference')}</Mono>
+          <Mono size={8} tracking="0.13em">{t('validationQueue.columns.asset')}</Mono>
+          {!selected && <Mono size={8} tracking="0.13em">{t('validationQueue.columns.technician')}</Mono>}
+          <Mono size={8} tracking="0.13em">{t('validationQueue.columns.type')}</Mono>
+          {!selected && <Mono size={8} tracking="0.13em">{t('validationQueue.columns.priority')}</Mono>}
+          <Mono size={8} tracking="0.13em">{t('validationQueue.columns.inQueueSince')}</Mono>
+          <span />
+        </div>
+      )}
+
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span>{t('common.loading')}</span>
-          </div>
+          <TableLoading label={t('common.loading')} />
         ) : isError ? (
-          <p className="py-8 text-center text-sm text-destructive">
-            {t('validationQueue.states.error')}
-          </p>
+          <TableError label={t('validationQueue.states.error')} />
         ) : !data?.data.length ? (
-          <div className="rounded-md border border-dashed py-12 text-center text-sm text-muted-foreground">
-            {t('validationQueue.states.empty')}
-          </div>
+          <TableEmpty label={t('validationQueue.states.empty')} />
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('validationQueue.columns.reference')}</TableHead>
-                  <TableHead>{t('validationQueue.columns.asset')}</TableHead>
-                  <TableHead>{t('validationQueue.columns.technician')}</TableHead>
-                  <TableHead>{t('validationQueue.columns.type')}</TableHead>
-                  <TableHead>{t('validationQueue.columns.priority')}</TableHead>
-                  <TableHead>{t('validationQueue.columns.inQueueSince')}</TableHead>
-                  <TableHead className="text-right">
-                    {t('validationQueue.columns.actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.data.map((wo) => (
-                  <TableRow key={wo.id}>
-                    <TableCell className="font-mono text-xs font-medium">
-                      {wo.referenceNumber}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{wo.asset.name}</span>
-                        {wo.asset.location?.fullPath && (
-                          <span className="text-xs text-muted-foreground">
-                            {wo.asset.location.fullPath}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getPrincipalName(wo, t('supervisorWorkOrders.labels.unassigned'))}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getTypeBadgeVariant(wo.type)}>
-                        {t(`supervisorWorkOrders.types.${wo.type}`)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getPriorityBadgeVariant(wo.priority)}>
-                        {t(`supervisorWorkOrders.priority.${wo.priority}`)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-1 text-sm">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        {elapsedSince(wo.updatedAt)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDetail(wo)}
-                        aria-label={t('supervisorWorkOrders.actions.view')}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              {t('common.pagination', { page, totalPages })}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+          data.data.map((wo) => {
+            const isSelected = selected?.id === wo.id;
+            return (
+              <div
+                key={wo.id}
+                onClick={() => setSelected(isSelected ? null : wo)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: selected
+                    ? '140px 1fr 130px 80px 32px'
+                    : '140px 1fr 160px 120px 80px 32px',
+                  padding: '0 16px',
+                  height: 40,
+                  alignItems: 'center',
+                  borderBottom: '1px solid var(--sb-border)',
+                  borderLeft: `3px solid ${PRIORITY_COLOR[wo.priority]}`,
+                  background: isSelected ? 'var(--sb-s-active-bg)' : 'transparent',
+                  outline: isSelected ? '1px solid var(--sb-border-strong)' : 'none',
+                  outlineOffset: -1,
+                  cursor: 'pointer',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sb-hover)'; }}
+                onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                {t('common.previous')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                {t('common.next')}
-              </Button>
-            </div>
-          </div>
+                <Mono size={11} color="var(--sb-text-primary)" weight={600} tracking="0.06em">
+                  {wo.referenceNumber}
+                </Mono>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {wo.asset.name}
+                  </div>
+                  {wo.asset.location?.fullPath && (
+                    <Mono size={9} color="var(--sb-text-tertiary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {wo.asset.location.fullPath}
+                    </Mono>
+                  )}
+                </div>
+                {!selected && (
+                  <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {getPrincipalName(wo, t('supervisorWorkOrders.labels.unassigned'))}
+                  </div>
+                )}
+                <TypeBadge type={wo.type as WorkOrderType} />
+                {!selected && <PriorityChip priority={wo.priority as WorkOrderPriority} />}
+                <Mono size={10} color="var(--sb-text-secondary)">
+                  {formatElapsed(wo.updatedAt)}
+                </Mono>
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* Detail dialog — reuses the same supervisor detail dialog */}
-      {detailWorkOrder && (
-        <WorkOrderDetailDialog
-          workOrder={detailWorkOrder}
-          open={detailDialogOpen}
-          onOpenChange={setDetailDialogOpen}
+      {/* Footer: pagination */}
+      <div
+        style={{
+          padding: '0 16px',
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderTop: '1px solid var(--sb-border)',
+          background: 'var(--sb-surface)',
+          flexShrink: 0,
+        }}
+      >
+        {data && (
+          <Mono size={9} color="var(--sb-text-tertiary)">
+            {t('validationQueue.total', { count: data.total })}
+          </Mono>
+        )}
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          onPrevious={() => setPage((p) => p - 1)}
+          onNext={() => setPage((p) => p + 1)}
         />
-      )}
-    </>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <MasterDetail
+        list={listContent}
+        panel={
+          selected ? (
+            <WorkOrderDetailPanel
+              key={selected.id}
+              workOrder={selected}
+              onClose={() => setSelected(null)}
+            />
+          ) : null
+        }
+        panelOpen={!!selected}
+      />
+    </div>
   );
 }

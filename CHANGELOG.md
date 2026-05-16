@@ -3,6 +3,12 @@
 All notable changes to the GMAO project are documented here.
 
 ## [Unreleased]
+### Added — Web UI design system migration (May 16, 2026)
+- Replaced sidebar shell with two-tier navigation: `SystemRail` (34px dark rail with live clock, connection status, alerts, and profile dropdown) and `ModuleBar` (40px context-sensitive module tabs); deleted `AppSidebar`, `NotificationBadge`, `NotificationMenu`.
+- Added 13 shared UI primitives: `Mono`, `StatusPill`, `PriorityChip`, `TypeBadge`, `GaugeRing`, `ChartBox`, `MasterDetail`, `FormDialog`, `FormField`, `SubmitButton`, `TableEmpty`, `TableError`, `TableLoading`.
+- Introduced master-detail panels for work orders, assets, and preventive plans (supervisor) and parts (storekeeper), replacing modal dialog pattern; deleted `preventive-plan-detail-dialog.tsx`.
+- Migrated all supervisor, storekeeper, and admin views to the `sb-*` CSS design token palette; `globals.css` and `tailwind.config.ts` extended accordingly; auth store gains `activeRole` state; `socketInstance` exported for connection status display.
+
 ### Fixed — Analytics PDF content completeness and formatting (May 5, 2026)
 - PDF generation extracted to `work-orders.analytics-pdf.ts`; expanded from 3 to 8 sections: global KPIs with MTBF/MTTR, costs with EUR currency formatting, top assets by failure and by cost, technician KPIs, requester analytics, preventive plan efficiency, and operational overview.
 - All French text corrected throughout (accents restored).

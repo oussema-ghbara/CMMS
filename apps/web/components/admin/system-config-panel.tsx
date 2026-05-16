@@ -7,10 +7,7 @@ import { toast } from 'sonner';
 import { Save, Loader2 } from 'lucide-react';
 import { adminApi } from '@/lib/admin.api';
 import type { SystemConfigEntry } from '@/lib/admin.api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { Mono } from '@/components/ui/mono';
 import {
   SYSTEM_CONFIG_BOOLEAN_KEYS,
   SYSTEM_CONFIG_KEY_CONSTRAINTS,
@@ -34,57 +31,114 @@ function ConfigRow({
   const isBoolean = SYSTEM_CONFIG_BOOLEAN_KEYS.has(entry.key);
   const constraints = SYSTEM_CONFIG_KEY_CONSTRAINTS[entry.key];
   const isDirty = localValue !== entry.value;
+  const isOn = localValue === 'true';
 
   return (
-    <div className="flex items-start justify-between gap-6 py-4 border-b last:border-0">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{label}</p>
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 24,
+      padding: '11px 14px',
+      borderBottom: '1px solid var(--sb-border)',
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-primary)', marginBottom: description ? 2 : 0 }}>
+          {label}
+        </div>
         {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          <div style={{ fontSize: 11, color: 'var(--sb-text-tertiary)', lineHeight: 1.5 }}>
+            {description}
+          </div>
         )}
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         {isBoolean ? (
           <button
             type="button"
             role="switch"
-            aria-checked={localValue === 'true'}
-            onClick={() => setLocalValue(localValue === 'true' ? 'false' : 'true')}
-            className={cn(
-              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-              localValue === 'true' ? 'bg-primary' : 'bg-input',
-            )}
+            aria-checked={isOn}
+            onClick={() => setLocalValue(isOn ? 'false' : 'true')}
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              width: 40,
+              height: 22,
+              borderRadius: 11,
+              background: isOn ? '#2E7A4E' : 'var(--sb-border-strong)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+              padding: 0,
+              flexShrink: 0,
+            }}
           >
-            <span
-              className={cn(
-                'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-                localValue === 'true' ? 'translate-x-6' : 'translate-x-1',
-              )}
-            />
+            <span style={{
+              display: 'inline-block',
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: '#fff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              transform: isOn ? 'translateX(21px)' : 'translateX(3px)',
+              transition: 'transform 0.15s',
+            }} />
           </button>
         ) : (
-          <Input
+          <input
             type="number"
             min={constraints?.min ?? 1}
             max={constraints?.max ?? 9999}
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
-            className="w-24 h-8 text-sm"
+            style={{
+              width: 88,
+              height: 28,
+              padding: '0 8px',
+              border: '1px solid var(--sb-border)',
+              borderRadius: 2,
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+              fontSize: 12,
+              color: 'var(--sb-text-primary)',
+              background: 'var(--sb-bg)',
+              outline: 'none',
+              textAlign: 'right',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border-strong)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--sb-border)'; }}
           />
         )}
-        <Button
-          size="sm"
-          variant={isDirty ? 'default' : 'ghost'}
+
+        <button
+          type="button"
           disabled={!isDirty || isSaving}
           onClick={() => onSave(entry.key, localValue)}
-          className="h-8 px-2"
+          title={isDirty ? 'Enregistrer' : undefined}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            border: `1px solid ${isDirty ? 'var(--sb-border-strong)' : 'var(--sb-border)'}`,
+            borderRadius: 2,
+            background: isDirty ? 'var(--sb-text-primary)' : 'transparent',
+            color: isDirty ? 'var(--sb-bg)' : 'var(--sb-text-tertiary)',
+            cursor: !isDirty || isSaving ? 'not-allowed' : 'pointer',
+            opacity: !isDirty && !isSaving ? 0.4 : 1,
+            transition: 'all 0.12s',
+            padding: 0,
+            flexShrink: 0,
+          }}
         >
-          {isSaving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Save className="h-3.5 w-3.5" />
-          )}
-        </Button>
+          {isSaving
+            ? <Loader2 style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />
+            : <Save style={{ width: 12, height: 12 }} />
+          }
+        </button>
       </div>
     </div>
   );
@@ -121,8 +175,8 @@ export function SystemConfigPanel() {
 
   if (isLoading) {
     return (
-      <div className="flex h-40 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 160 }}>
+        <Loader2 style={{ width: 22, height: 22, color: 'var(--sb-text-tertiary)', animation: 'spin 1s linear infinite' }} />
       </div>
     );
   }
@@ -132,7 +186,7 @@ export function SystemConfigPanel() {
   const unknownEntries = configs.filter((c) => !knownKeys.has(c.key));
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 640 }}>
       {SYSTEM_CONFIG_GROUPS.map((group) => {
         const groupEntries = group.keys
           .map((k) => configByKey[k])
@@ -141,47 +195,55 @@ export function SystemConfigPanel() {
         if (groupEntries.length === 0) return null;
 
         return (
-          <Card key={group.titleKey}>
-            <CardHeader>
-              <CardTitle>{t(group.titleKey)}</CardTitle>
+          <div key={group.titleKey} style={{ border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--sb-surface)', borderBottom: '1px solid var(--sb-border)', padding: '8px 14px' }}>
+              <Mono size={10} color="var(--sb-text-secondary)" tracking="0.13em">
+                {t(group.titleKey).toUpperCase()}
+              </Mono>
               {group.descriptionKey && (
-                <CardDescription>{t(group.descriptionKey)}</CardDescription>
+                <div style={{ fontSize: 11, color: 'var(--sb-text-tertiary)', marginTop: 2 }}>
+                  {t(group.descriptionKey)}
+                </div>
               )}
-            </CardHeader>
-            <CardContent>
-              {groupEntries.map((entry) => (
-                <ConfigRow
-                  key={entry.key}
-                  entry={entry}
-                  label={t(`admin.systemConfig.keys.${entry.key}.label`)}
-                  description={t(`admin.systemConfig.keys.${entry.key}.description`)}
-                  onSave={handleSave}
-                  isSaving={savingKey === entry.key}
-                />
+            </div>
+            <div>
+              {groupEntries.map((entry, i) => (
+                <div key={entry.key} style={i === groupEntries.length - 1 ? { borderBottom: 'none' } : undefined}>
+                  <ConfigRow
+                    entry={entry}
+                    label={t(`admin.systemConfig.keys.${entry.key}.label`)}
+                    description={t(`admin.systemConfig.keys.${entry.key}.description`)}
+                    onSave={handleSave}
+                    isSaving={savingKey === entry.key}
+                  />
+                </div>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
       })}
 
       {unknownEntries.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('admin.systemConfig.groups.other')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {unknownEntries.map((entry) => (
-              <ConfigRow
-                key={entry.key}
-                entry={entry}
-                label={entry.key}
-                description=""
-                onSave={handleSave}
-                isSaving={savingKey === entry.key}
-              />
+        <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--sb-surface)', borderBottom: '1px solid var(--sb-border)', padding: '8px 14px' }}>
+            <Mono size={10} color="var(--sb-text-secondary)" tracking="0.13em">
+              {t('admin.systemConfig.groups.other').toUpperCase()}
+            </Mono>
+          </div>
+          <div>
+            {unknownEntries.map((entry, i) => (
+              <div key={entry.key} style={i === unknownEntries.length - 1 ? { borderBottom: 'none' } : undefined}>
+                <ConfigRow
+                  entry={entry}
+                  label={entry.key}
+                  description=""
+                  onSave={handleSave}
+                  isSaving={savingKey === entry.key}
+                />
+              </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

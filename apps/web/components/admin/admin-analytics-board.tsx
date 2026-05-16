@@ -4,17 +4,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Loader2,
-  Users,
-  XCircle,
-  CalendarClock,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock,
+  Loader2, Users, XCircle, CalendarClock,
 } from 'lucide-react';
+import { TableLoading } from '@/components/ui/table-loading';
+import { TableEmpty } from '@/components/ui/table-empty';
 import {
   adminApi,
   type QueueStats,
@@ -24,21 +18,62 @@ import {
   type ScheduledJobStat,
 } from '@/lib/admin.api';
 import { FREQUENCY_BADGE_VARIANT, formatLoginDate } from '@/lib/login-frequency-utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mono } from '@/components/ui/mono';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const C = {
+  border:       'var(--sb-border)',
+  surface:      'var(--sb-surface)',
+  textPrimary:  'var(--sb-text-primary)',
+  textSecondary:'var(--sb-text-secondary)',
+  textTertiary: 'var(--sb-text-tertiary)',
+  sDone:        'var(--sb-s-done)',
+  sDoneBg:      'var(--sb-s-done-bg)',
+  sWait:        'var(--sb-s-wait)',
+  sWaitBg:      'var(--sb-s-wait-bg)',
+  sActive:      'var(--sb-s-active)',
+  sActiveBg:    'var(--sb-s-active-bg)',
+  sCancel:      'var(--sb-s-cancel)',
+  sCancelBg:    'var(--sb-s-cancel-bg)',
+  sOpen:        'var(--sb-s-open)',
+  sOpenBg:      'var(--sb-s-open-bg)',
+  pCrit:        'var(--sb-p-crit)',
+  pCritBg:      'var(--sb-p-crit-bg)',
+  pHigh:        'var(--sb-p-high)',
+  pHighBg:      'var(--sb-p-high-bg)',
+};
+
+function SectionBox({ title, description, children, style }: { title: string; description?: string; children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 2, overflow: 'hidden', background: 'white', ...style }}>
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '8px 14px' }}>
+        <Mono size={10} color={C.textSecondary} tracking="0.13em">{title.toUpperCase()}</Mono>
+        {description && <div style={{ fontSize: 11, color: C.textTertiary, marginTop: 2 }}>{description}</div>}
+      </div>
+      <div style={{ padding: '14px' }}>{children}</div>
+    </div>
+  );
+}
+
+function SandboxPill({ color, bg, label }: { color: string; bg: string; label: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: bg, border: `1px solid ${color}28`, borderRadius: 2, padding: '2px 7px 2px 5px', whiteSpace: 'nowrap' }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+      <Mono size={9} color={color} tracking="0.10em">{label}</Mono>
+    </span>
+  );
+}
+
+function CountBadge({ value, color, bg }: { value: number; color: string; bg: string }) {
+  return (
+    <span style={{ display: 'inline-flex', background: bg, border: `1px solid ${color}28`, borderRadius: 2, padding: '1px 6px' }}>
+      <Mono size={9} color={color} tracking="0.08em">{String(value)}</Mono>
+    </span>
+  );
+}
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value);
-}
-
-function getQueueFailedVariant(
-  failed: number,
-): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' {
-  if (failed > 0) return 'destructive';
-  return 'success';
 }
 
 const QUEUE_DISPLAY_NAMES: Record<string, string> = {
@@ -47,241 +82,131 @@ const QUEUE_DISPLAY_NAMES: Record<string, string> = {
   'preventive-plan-generation': 'Plans préventifs',
 };
 
-function queueDisplayName(name: string): string {
-  return QUEUE_DISPLAY_NAMES[name] ?? name;
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function KpiCard({
-  title,
-  value,
-  icon: Icon,
-  variant,
-  description,
-}: {
-  title: string;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-  variant?: 'default' | 'warning' | 'danger';
-  description?: string;
-}) {
-  const valueColor =
-    variant === 'danger'
-      ? 'text-destructive'
-      : variant === 'warning'
-        ? 'text-yellow-600 dark:text-yellow-400'
-        : 'text-foreground';
-
+function KpiCell({ title, value, variant }: { title: string; value: number; variant?: 'default' | 'warning' | 'danger' }) {
+  const valueColor = variant === 'danger' ? C.pCrit : variant === 'warning' ? C.pHigh : C.textPrimary;
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className={`text-2xl font-bold ${valueColor}`}>{formatNumber(value)}</div>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function QueueCard({ queue, t }: { queue: QueueStats; t: (key: string) => string }) {
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">{queueDisplayName(queue.name)}</CardTitle>
-        <CardDescription className="font-mono text-xs text-muted-foreground">
-          {queue.name}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{t('adminAnalytics.systemStats.queueWaiting')}</span>
-            <Badge variant="secondary">{formatNumber(queue.waiting)}</Badge>
-          </div>
-          <div className="flex items-center gap-1">
-            <Activity className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{t('adminAnalytics.systemStats.queueActive')}</span>
-            <Badge variant="secondary">{formatNumber(queue.active)}</Badge>
-          </div>
-          <div className="flex items-center gap-1">
-            <XCircle className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{t('adminAnalytics.systemStats.queueFailed')}</span>
-            <Badge variant={getQueueFailedVariant(queue.failed)}>
-              {formatNumber(queue.failed)}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{t('adminAnalytics.systemStats.queueCompleted')}</span>
-            <Badge variant="outline">{formatNumber(queue.completed)}</Badge>
-          </div>
-          {queue.delayed > 0 && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{t('adminAnalytics.systemStats.queueDelayed')}</span>
-              <Badge variant="warning">{formatNumber(queue.delayed)}</Badge>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function UserActivitySection({
-  data,
-  t,
-}: {
-  data: UserActivityStats;
-  t: (key: string, opts?: Record<string, unknown>) => string;
-}) {
-  const recencyRows: Array<{ key: keyof typeof data.loginRecency; labelKey: string; warnIfPositive?: boolean }> = [
-    { key: 'last7Days', labelKey: 'adminAnalytics.userStats.last7Days' },
-    { key: 'last7To30Days', labelKey: 'adminAnalytics.userStats.last7To30Days' },
-    { key: 'last30To90Days', labelKey: 'adminAnalytics.userStats.last30To90Days' },
-    { key: 'over90Days', labelKey: 'adminAnalytics.userStats.over90Days', warnIfPositive: true },
-    { key: 'never', labelKey: 'adminAnalytics.userStats.never', warnIfPositive: true },
-  ];
-
-  const totalRecency = Object.values(data.loginRecency).reduce((a, b) => a + b, 0);
-
-  return (
-    <div className="space-y-6">
-      {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          title={t('adminAnalytics.userStats.totalUsers')}
-          value={data.totalUsers}
-          icon={Users}
-        />
-        <KpiCard
-          title={t('adminAnalytics.userStats.activeUsers')}
-          value={data.activeUsers}
-          icon={CheckCircle2}
-        />
-        <KpiCard
-          title={t('adminAnalytics.userStats.inactiveAccounts')}
-          value={data.inactiveAccounts}
-          icon={XCircle}
-          variant={data.inactiveAccounts > 0 ? 'warning' : 'default'}
-        />
-        <KpiCard
-          title={t('adminAnalytics.userStats.neverLoggedIn')}
-          value={data.neverLoggedIn}
-          icon={AlertTriangle}
-          variant={data.neverLoggedIn > 0 ? 'warning' : 'default'}
-        />
-        <KpiCard
-          title={t('adminAnalytics.userStats.inactiveLast30Days')}
-          value={data.inactiveLast30Days}
-          icon={Clock}
-          variant={data.inactiveLast30Days > 0 ? 'warning' : 'default'}
-        />
-        <KpiCard
-          title={t('adminAnalytics.userStats.inactiveLast90Days')}
-          value={data.inactiveLast90Days}
-          icon={Clock}
-          variant={data.inactiveLast90Days > 0 ? 'danger' : 'default'}
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Login recency */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t('adminAnalytics.userStats.loginRecency')}
-            </CardTitle>
-            <CardDescription>
-              {t('adminAnalytics.userStats.loginRecencyDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recencyRows.map(({ key, labelKey, warnIfPositive }) => {
-                const value = data.loginRecency[key];
-                const pct = totalRecency > 0 ? (value / totalRecency) * 100 : 0;
-                return (
-                  <div key={key} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{t(labelKey)}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{formatNumber(value)}</span>
-                        <Badge
-                          variant={
-                            warnIfPositive && value > 0 ? 'warning' : 'secondary'
-                          }
-                          className="text-xs"
-                        >
-                          {pct.toFixed(1)} %
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          warnIfPositive && value > 0
-                            ? 'bg-yellow-500'
-                            : 'bg-primary'
-                        }`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* By role */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t('adminAnalytics.userStats.byRole')}
-            </CardTitle>
-            <CardDescription>
-              {t('adminAnalytics.userStats.byRoleDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {data.byRole.map(({ role, count }) => (
-                <div
-                  key={role}
-                  className="flex items-center justify-between py-1 border-b last:border-0"
-                >
-                  <span className="text-sm text-muted-foreground">
-                    {t(`roles.${role}`, { defaultValue: role })}
-                  </span>
-                  <Badge variant="secondary">{formatNumber(count)}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 2, padding: '14px 16px', background: 'white' }}>
+      <Mono size={9} color={C.textTertiary} tracking="0.13em" style={{ display: 'block', marginBottom: 8 }}>{title.toUpperCase()}</Mono>
+      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: valueColor, lineHeight: 1 }}>
+        {formatNumber(value)}
       </div>
     </div>
   );
 }
 
+function QueueCard({ queue, t }: { queue: QueueStats; t: (key: string) => string }) {
+  const failedColor = queue.failed > 0 ? C.pCrit : C.sDone;
+  const failedBg    = queue.failed > 0 ? C.pCritBg : C.sDoneBg;
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 2, background: 'white', overflow: 'hidden' }}>
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '8px 12px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.textPrimary }}>{QUEUE_DISPLAY_NAMES[queue.name] ?? queue.name}</div>
+        <Mono size={9} color={C.textTertiary} tracking="0.08em" style={{ marginTop: 2 }}>{queue.name}</Mono>
+      </div>
+      <div style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueWaiting')}</Mono>
+          <CountBadge value={queue.waiting} color={C.sWait} bg={C.sWaitBg} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueActive')}</Mono>
+          <CountBadge value={queue.active} color={C.sActive} bg={C.sActiveBg} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueFailed')}</Mono>
+          <CountBadge value={queue.failed} color={failedColor} bg={failedBg} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueCompleted')}</Mono>
+          <CountBadge value={queue.completed} color={C.sDone} bg={C.sDoneBg} />
+        </div>
+        {queue.delayed > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueDelayed')}</Mono>
+            <CountBadge value={queue.delayed} color={C.pHigh} bg={C.pHighBg} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const FREQUENCY_VARIANT_MAP: Record<string, { color: string; bg: string; label?: string }> = {
+  HIGH:    { color: C.sDone,   bg: C.sDoneBg },
+  MEDIUM:  { color: C.sActive, bg: C.sActiveBg },
+  LOW:     { color: C.pHigh,   bg: C.pHighBg },
+  NONE:    { color: C.pCrit,   bg: C.pCritBg },
+};
+
+function UserActivitySection({ data, t }: { data: UserActivityStats; t: (key: string, opts?: Record<string, unknown>) => string }) {
+  const recencyRows: Array<{ key: keyof typeof data.loginRecency; labelKey: string; warn?: boolean }> = [
+    { key: 'last7Days',      labelKey: 'adminAnalytics.userStats.last7Days' },
+    { key: 'last7To30Days',  labelKey: 'adminAnalytics.userStats.last7To30Days' },
+    { key: 'last30To90Days', labelKey: 'adminAnalytics.userStats.last30To90Days' },
+    { key: 'over90Days',     labelKey: 'adminAnalytics.userStats.over90Days', warn: true },
+    { key: 'never',          labelKey: 'adminAnalytics.userStats.never',      warn: true },
+  ];
+  const totalRecency = Object.values(data.loginRecency).reduce((a, b) => a + b, 0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* KPI row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
+        <KpiCell title={t('adminAnalytics.userStats.totalUsers')} value={data.totalUsers} />
+        <KpiCell title={t('adminAnalytics.userStats.activeUsers')} value={data.activeUsers} />
+        <KpiCell title={t('adminAnalytics.userStats.inactiveAccounts')} value={data.inactiveAccounts} variant={data.inactiveAccounts > 0 ? 'warning' : 'default'} />
+        <KpiCell title={t('adminAnalytics.userStats.neverLoggedIn')} value={data.neverLoggedIn} variant={data.neverLoggedIn > 0 ? 'warning' : 'default'} />
+        <KpiCell title={t('adminAnalytics.userStats.inactiveLast30Days')} value={data.inactiveLast30Days} variant={data.inactiveLast30Days > 0 ? 'warning' : 'default'} />
+        <KpiCell title={t('adminAnalytics.userStats.inactiveLast90Days')} value={data.inactiveLast90Days} variant={data.inactiveLast90Days > 0 ? 'danger' : 'default'} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {/* Login recency */}
+        <SectionBox title={t('adminAnalytics.userStats.loginRecency')} description={t('adminAnalytics.userStats.loginRecencyDescription')}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {recencyRows.map(({ key, labelKey, warn }) => {
+              const value = data.loginRecency[key];
+              const pct = totalRecency > 0 ? (value / totalRecency) * 100 : 0;
+              const barColor = warn && value > 0 ? C.pHigh : C.sActive;
+              return (
+                <div key={key}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: C.textSecondary }}>{t(labelKey)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: C.textPrimary }}>{formatNumber(value)}</span>
+                      <span style={{ display: 'inline-flex', background: warn && value > 0 ? C.pHighBg : C.sActiveBg, border: `1px solid ${warn && value > 0 ? C.pHigh : C.sActive}28`, borderRadius: 2, padding: '1px 5px' }}>
+                        <Mono size={9} color={warn && value > 0 ? C.pHigh : C.sActive} tracking="0.08em">{pct.toFixed(1)}%</Mono>
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ height: 4, background: C.surface, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: barColor, borderRadius: 2, transition: 'width 0.3s', width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </SectionBox>
+
+        {/* By role */}
+        <SectionBox title={t('adminAnalytics.userStats.byRole')} description={t('adminAnalytics.userStats.byRoleDescription')}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {data.byRole.map(({ role, count }, idx) => (
+              <div key={role} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: idx < data.byRole.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                <span style={{ fontSize: 12, color: C.textSecondary }}>{t(`roles.${role}`, { defaultValue: role })}</span>
+                <CountBadge value={count} color={C.sOpen} bg={C.sOpenBg} />
+              </div>
+            ))}
+          </div>
+        </SectionBox>
+      </div>
+    </div>
+  );
+}
 
 const FREQUENCY_PAGE_SIZE = 20;
 
-function UserLoginFrequencyTable({
-  t,
-  language,
-}: {
-  t: (key: string, opts?: Record<string, unknown>) => string;
-  language: string;
-}) {
+function UserLoginFrequencyTable({ t, language }: { t: (key: string, opts?: Record<string, unknown>) => string; language: string }) {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
@@ -290,152 +215,88 @@ function UserLoginFrequencyTable({
   });
 
   const totalPages = data ? Math.ceil(data.total / FREQUENCY_PAGE_SIZE) : 1;
-
-  const formatDate = (iso: string | null) => {
-    return formatLoginDate(iso, language) ?? t('adminAnalytics.userStats.loginFrequencyNever');
-  };
+  const formatDate = (iso: string | null) => formatLoginDate(iso, language) ?? t('adminAnalytics.userStats.loginFrequencyNever');
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t('adminAnalytics.userStats.loginFrequencyTable')}
-        </CardTitle>
-        <CardDescription>
-          {t('adminAnalytics.userStats.loginFrequencyTableDescription')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    <SectionBox title={t('adminAnalytics.userStats.loginFrequencyTable')} description={t('adminAnalytics.userStats.loginFrequencyTableDescription')}>
+      {isLoading ? (
+        <TableLoading />
+      ) : !data || data.data.length === 0 ? (
+        <TableEmpty label={t('adminAnalytics.userStats.loginFrequencyEmpty')} />
+      ) : (
+        <>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px 120px', background: C.surface, borderBottom: `1px solid ${C.border}`, margin: '-14px -14px 0', padding: '0 14px' }}>
+            {[
+              t('adminAnalytics.userStats.loginFrequencyColumns.user'),
+              t('adminAnalytics.userStats.loginFrequencyColumns.roles'),
+              t('adminAnalytics.userStats.loginFrequencyColumns.lastLogin'),
+              t('adminAnalytics.userStats.loginFrequencyColumns.frequency'),
+            ].map((col, i) => (
+              <div key={i} style={{ padding: '8px 0' }}>
+                <Mono size={9} color={C.textSecondary} tracking="0.13em">{col.toUpperCase()}</Mono>
+              </div>
+            ))}
           </div>
-        ) : !data || data.data.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            {t('adminAnalytics.userStats.loginFrequencyEmpty')}
-          </p>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="pb-2 text-left font-medium text-muted-foreground pr-4">
-                      {t('adminAnalytics.userStats.loginFrequencyColumns.user')}
-                    </th>
-                    <th className="pb-2 text-left font-medium text-muted-foreground pr-4">
-                      {t('adminAnalytics.userStats.loginFrequencyColumns.roles')}
-                    </th>
-                    <th className="pb-2 text-left font-medium text-muted-foreground pr-4">
-                      {t('adminAnalytics.userStats.loginFrequencyColumns.lastLogin')}
-                    </th>
-                    <th className="pb-2 text-left font-medium text-muted-foreground">
-                      {t('adminAnalytics.userStats.loginFrequencyColumns.frequency')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.data.map((entry: UserLoginFrequencyEntry) => (
-                    <tr key={entry.id} className="border-b last:border-0">
-                      <td className="py-2 pr-4">
-                        <div>
-                          <p className="font-medium">{entry.name}</p>
-                          <p className="text-xs text-muted-foreground">{entry.email}</p>
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div className="flex flex-wrap gap-1">
-                          {entry.roles.map((role) => (
-                            <Badge key={role} variant="outline" className="text-[10px] py-0 px-1.5">
-                              {t(`roles.${role}`, { defaultValue: role })}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4 text-muted-foreground">
-                        {formatDate(entry.lastLoginAt)}
-                      </td>
-                      <td className="py-2">
-                        <Badge variant={FREQUENCY_BADGE_VARIANT[entry.frequencyCategory]}>
-                          {t(`adminAnalytics.userStats.loginFrequencyCategory.${entry.frequencyCategory}`)}
-                        </Badge>
-                      </td>
-                    </tr>
+          {/* Rows */}
+          {data.data.map((entry: UserLoginFrequencyEntry, idx) => {
+            const freqMeta = FREQUENCY_VARIANT_MAP[entry.frequencyCategory] ?? { color: C.sCancel, bg: C.sCancelBg };
+            const freqKey = FREQUENCY_BADGE_VARIANT[entry.frequencyCategory];
+            return (
+              <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px 120px', padding: '0', borderTop: idx === 0 ? `1px solid ${C.border}` : `1px solid ${C.border}`, alignItems: 'center', minHeight: 42 }}>
+                <div style={{ padding: '10px 8px 10px 0' }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: C.textPrimary }}>{entry.name}</div>
+                  <div style={{ fontSize: 11, color: C.textTertiary }}>{entry.email}</div>
+                </div>
+                <div style={{ padding: '10px 8px 10px 0', display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                  {entry.roles.map((role) => (
+                    <span key={role} style={{ display: 'inline-flex', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 2, padding: '1px 5px' }}>
+                      <Mono size={9} color={C.textSecondary} tracking="0.08em">{t(`roles.${role}`, { defaultValue: role })}</Mono>
+                    </span>
                   ))}
-                </tbody>
-              </table>
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
-                <span>
-                  {(page - 1) * FREQUENCY_PAGE_SIZE + 1}–
-                  {Math.min(page * FREQUENCY_PAGE_SIZE, data.total)} / {data.total}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                </div>
+                <div style={{ padding: '10px 8px 10px 0' }}>
+                  <Mono size={10} color={C.textTertiary} tracking="0.08em">{formatDate(entry.lastLoginAt)}</Mono>
+                </div>
+                <div style={{ padding: '10px 0' }}>
+                  <SandboxPill color={freqMeta.color} bg={freqMeta.bg} label={t(`adminAnalytics.userStats.loginFrequencyCategory.${entry.frequencyCategory}`)} />
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+            );
+          })}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: `1px solid ${C.border}`, marginTop: 12 }}>
+              <Mono size={9} color={C.textTertiary} tracking="0.08em">
+                {(page - 1) * FREQUENCY_PAGE_SIZE + 1}–{Math.min(page * FREQUENCY_PAGE_SIZE, data.total)} / {data.total}
+              </Mono>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <Button variant="ghost" size="icon" className="h-6 w-6" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                  <ChevronLeft style={{ width: 12, height: 12 }} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                  <ChevronRight style={{ width: 12, height: 12 }} />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </SectionBox>
   );
 }
 
-function SystemHealthSection({
-  data,
-  t,
-}: {
-  data: SystemHealthStats;
-  t: (key: string) => string;
-}) {
+function SystemHealthSection({ data, t }: { data: SystemHealthStats; t: (key: string) => string }) {
   const { notifications } = data;
-
   return (
-    <div className="space-y-6">
-      {/* Notification delivery KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard
-          title={t('adminAnalytics.systemStats.emailFailed')}
-          value={notifications.emailFailed}
-          icon={XCircle}
-          variant={notifications.emailFailed > 0 ? 'danger' : 'default'}
-        />
-        <KpiCard
-          title={t('adminAnalytics.systemStats.emailPending')}
-          value={notifications.emailPendingDelivery}
-          icon={Clock}
-          variant={notifications.emailPendingDelivery > 10 ? 'warning' : 'default'}
-        />
-        <KpiCard
-          title={t('adminAnalytics.systemStats.emailSentLast24h')}
-          value={notifications.totalSentLast24h}
-          icon={CheckCircle2}
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <KpiCell title={t('adminAnalytics.systemStats.emailFailed')} value={notifications.emailFailed} variant={notifications.emailFailed > 0 ? 'danger' : 'default'} />
+        <KpiCell title={t('adminAnalytics.systemStats.emailPending')} value={notifications.emailPendingDelivery} variant={notifications.emailPendingDelivery > 10 ? 'warning' : 'default'} />
+        <KpiCell title={t('adminAnalytics.systemStats.emailSentLast24h')} value={notifications.totalSentLast24h} />
       </div>
-
-      {/* Queue cards */}
       <div>
-        <h3 className="text-sm font-semibold mb-3">{t('adminAnalytics.systemStats.queues')}</h3>
-        <div className="grid gap-4 md:grid-cols-3">
+        <Mono size={9} color={C.textSecondary} tracking="0.13em" style={{ display: 'block', marginBottom: 10 }}>{t('adminAnalytics.systemStats.queues').toUpperCase()}</Mono>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
           {data.queues.map((queue) => (
             <QueueCard key={queue.name} queue={queue} t={t} />
           ))}
@@ -446,210 +307,151 @@ function SystemHealthSection({
 }
 
 const JOB_DISPLAY_NAMES: Record<string, string> = {
-  'access-retry-approaching': 'adminAnalytics.scheduledJobs.jobs.accessRetryApproaching',
-  'contractor-date-overdue': 'adminAnalytics.scheduledJobs.jobs.contractorDateOverdue',
-  'daily-summary': 'adminAnalytics.scheduledJobs.jobs.dailySummary',
-  'due-date-approaching': 'adminAnalytics.scheduledJobs.jobs.dueDateApproaching',
-  'priority-escalation': 'adminAnalytics.scheduledJobs.jobs.priorityEscalation',
-  'validation-reminder': 'adminAnalytics.scheduledJobs.jobs.validationReminder',
+  'access-retry-approaching':   'adminAnalytics.scheduledJobs.jobs.accessRetryApproaching',
+  'contractor-date-overdue':    'adminAnalytics.scheduledJobs.jobs.contractorDateOverdue',
+  'daily-summary':              'adminAnalytics.scheduledJobs.jobs.dailySummary',
+  'due-date-approaching':       'adminAnalytics.scheduledJobs.jobs.dueDateApproaching',
+  'priority-escalation':        'adminAnalytics.scheduledJobs.jobs.priorityEscalation',
+  'validation-reminder':        'adminAnalytics.scheduledJobs.jobs.validationReminder',
 };
 
 function jobStatus(job: ScheduledJobStat): 'healthy' | 'failed' | 'unknown' {
   if (!job.lastRunAt) return 'unknown';
-  if (job.lastFailureAt && (!job.lastSuccessAt || job.lastFailureAt > job.lastSuccessAt)) {
-    return 'failed';
-  }
+  if (job.lastFailureAt && (!job.lastSuccessAt || job.lastFailureAt > job.lastSuccessAt)) return 'failed';
   return 'healthy';
 }
 
 function formatRelative(isoDate: string | null, language: string): string {
   if (!isoDate) return '—';
-  return new Intl.DateTimeFormat(language, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(isoDate));
+  return new Intl.DateTimeFormat(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(isoDate));
 }
 
-function ScheduledJobsSection({
-  jobs,
-  t,
-  language,
-}: {
-  jobs: ScheduledJobStat[];
-  t: (key: string, opts?: Record<string, unknown>) => string;
-  language: string;
-}) {
+function ScheduledJobsSection({ jobs, t, language }: { jobs: ScheduledJobStat[]; t: (key: string, opts?: Record<string, unknown>) => string; language: string }) {
+  const JOB_STATUS_META = {
+    healthy: { color: C.sDone,   bg: C.sDoneBg,   label: t('adminAnalytics.scheduledJobs.statusHealthy') },
+    failed:  { color: C.pCrit,   bg: C.pCritBg,   label: t('adminAnalytics.scheduledJobs.statusFailed') },
+    unknown: { color: C.sCancel, bg: C.sCancelBg, label: t('adminAnalytics.scheduledJobs.statusUnknown') },
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">{t('adminAnalytics.scheduledJobs.title')}</CardTitle>
-        </div>
-        <CardDescription>{t('adminAnalytics.scheduledJobs.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {jobs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('adminAnalytics.scheduledJobs.noData')}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-xs text-muted-foreground">
-                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.jobName')}</th>
-                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.status')}</th>
-                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.lastRun')}</th>
-                  <th className="py-2 pr-4 text-left font-medium">{t('adminAnalytics.scheduledJobs.lastSuccess')}</th>
-                  <th className="py-2 text-left font-medium">{t('adminAnalytics.scheduledJobs.lastFailure')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job) => {
-                  const status = jobStatus(job);
-                  const nameKey = JOB_DISPLAY_NAMES[job.jobName];
-                  const displayName = nameKey ? t(nameKey) : job.jobName;
-                  return (
-                    <tr key={job.jobName} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-medium">{displayName}</td>
-                      <td className="py-2 pr-4">
-                        {status === 'healthy' && (
-                          <Badge variant="success" className="text-xs">
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            {t('adminAnalytics.scheduledJobs.statusHealthy')}
-                          </Badge>
-                        )}
-                        {status === 'failed' && (
-                          <Badge variant="destructive" className="text-xs">
-                            <XCircle className="mr-1 h-3 w-3" />
-                            {t('adminAnalytics.scheduledJobs.statusFailed')}
-                          </Badge>
-                        )}
-                        {status === 'unknown' && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Clock className="mr-1 h-3 w-3" />
-                            {t('adminAnalytics.scheduledJobs.statusUnknown')}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="py-2 pr-4 text-muted-foreground">
-                        {formatRelative(job.lastRunAt, language)}
-                      </td>
-                      <td className="py-2 pr-4 text-muted-foreground">
-                        {formatRelative(job.lastSuccessAt, language)}
-                      </td>
-                      <td className="py-2">
-                        <span
-                          className={
-                            job.lastFailureAt
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
-                          }
-                        >
-                          {formatRelative(job.lastFailureAt, language)}
-                        </span>
-                        {job.lastErrorMessage && (
-                          <p className="mt-0.5 max-w-xs truncate text-[11px] text-destructive/80">
-                            {job.lastErrorMessage}
-                          </p>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+    <SectionBox title={t('adminAnalytics.scheduledJobs.title')} description={t('adminAnalytics.scheduledJobs.description')}>
+      {jobs.length === 0 ? (
+        <Mono size={10} color={C.textTertiary} tracking="0.12em">{t('adminAnalytics.scheduledJobs.noData').toUpperCase()}</Mono>
+      ) : (
+        <>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 160px 1fr', background: C.surface, borderBottom: `1px solid ${C.border}`, margin: '-14px -14px 0', padding: '0 14px' }}>
+            {[
+              t('adminAnalytics.scheduledJobs.jobName'),
+              t('adminAnalytics.scheduledJobs.status'),
+              t('adminAnalytics.scheduledJobs.lastRun'),
+              t('adminAnalytics.scheduledJobs.lastSuccess'),
+              t('adminAnalytics.scheduledJobs.lastFailure'),
+            ].map((col, i) => (
+              <div key={i} style={{ padding: '8px 0' }}>
+                <Mono size={9} color={C.textSecondary} tracking="0.13em">{col.toUpperCase()}</Mono>
+              </div>
+            ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+          {/* Rows */}
+          {jobs.map((job, idx) => {
+            const status = jobStatus(job);
+            const meta = JOB_STATUS_META[status];
+            const nameKey = JOB_DISPLAY_NAMES[job.jobName];
+            const displayName = nameKey ? t(nameKey) : job.jobName;
+            return (
+              <div key={job.jobName} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 160px 1fr', borderTop: `1px solid ${C.border}`, alignItems: 'flex-start', minHeight: 42 }}>
+                <div style={{ padding: '10px 8px 10px 0', fontSize: 12, fontWeight: 500, color: C.textPrimary }}>{displayName}</div>
+                <div style={{ padding: '10px 8px 10px 0' }}>
+                  <SandboxPill color={meta.color} bg={meta.bg} label={meta.label} />
+                </div>
+                <div style={{ padding: '10px 8px 10px 0' }}>
+                  <Mono size={10} color={C.textTertiary} tracking="0.08em">{formatRelative(job.lastRunAt, language)}</Mono>
+                </div>
+                <div style={{ padding: '10px 8px 10px 0' }}>
+                  <Mono size={10} color={C.textTertiary} tracking="0.08em">{formatRelative(job.lastSuccessAt, language)}</Mono>
+                </div>
+                <div style={{ padding: '10px 0' }}>
+                  <Mono size={10} color={job.lastFailureAt ? C.pCrit : C.textTertiary} tracking="0.08em">
+                    {formatRelative(job.lastFailureAt, language)}
+                  </Mono>
+                  {job.lastErrorMessage && (
+                    <div style={{ marginTop: 2, fontSize: 10, color: C.pCrit, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {job.lastErrorMessage}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+    </SectionBox>
   );
 }
-
-// ── Main board ────────────────────────────────────────────────────────────────
 
 export function AdminAnalyticsBoard() {
   const { t, i18n } = useTranslation();
 
-  const userQuery = useQuery({
-    queryKey: ['admin', 'analytics', 'users'],
-    queryFn: () => adminApi.getUserAnalytics(),
-  });
-
-  const systemQuery = useQuery({
-    queryKey: ['admin', 'analytics', 'system'],
-    queryFn: () => adminApi.getSystemHealth(),
-  });
+  const userQuery   = useQuery({ queryKey: ['admin', 'analytics', 'users'],  queryFn: () => adminApi.getUserAnalytics() });
+  const systemQuery = useQuery({ queryKey: ['admin', 'analytics', 'system'], queryFn: () => adminApi.getSystemHealth() });
 
   const isLoading = userQuery.isLoading || systemQuery.isLoading;
-  const isError = userQuery.isError || systemQuery.isError;
+  const isError   = userQuery.isError   || systemQuery.isError;
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        <span>{t('adminAnalytics.states.loading')}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0', gap: 8 }}>
+        <Loader2 style={{ width: 16, height: 16, color: C.textTertiary, animation: 'spin 1s linear infinite' }} />
+        <Mono size={11} color={C.textTertiary} tracking="0.12em">{t('adminAnalytics.states.loading').toUpperCase()}</Mono>
       </div>
     );
   }
 
   if (isError || !userQuery.data || !systemQuery.data) {
     return (
-      <div className="flex items-center justify-center py-16 text-destructive gap-2">
-        <AlertTriangle className="h-5 w-5" />
-        <span>{t('adminAnalytics.states.error')}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0', gap: 8, background: C.pCritBg, border: `1px solid ${C.pCrit}28`, borderRadius: 2 }}>
+        <AlertTriangle style={{ width: 16, height: 16, color: C.pCrit }} />
+        <Mono size={11} color={C.pCrit} tracking="0.12em">{t('adminAnalytics.states.error').toUpperCase()}</Mono>
       </div>
     );
   }
 
+  const sectionHeaderStyle: React.CSSProperties = { marginBottom: 12 };
+
   return (
-    <div className="space-y-10">
-      {/* User Activity section */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      {/* User Activity */}
       <section>
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold">
-            {t('adminAnalytics.sections.userActivity')}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t('adminAnalytics.sections.userActivityDescription')}
-          </p>
+        <div style={sectionHeaderStyle}>
+          <Mono size={11} color={C.textSecondary} tracking="0.15em" style={{ display: 'block', marginBottom: 4 }}>{t('adminAnalytics.sections.userActivity').toUpperCase()}</Mono>
+          <div style={{ fontSize: 12, color: C.textTertiary }}>{t('adminAnalytics.sections.userActivityDescription')}</div>
         </div>
         <UserActivitySection data={userQuery.data} t={t} />
-        <div className="mt-6">
+        <div style={{ marginTop: 14 }}>
           <UserLoginFrequencyTable t={t} language={i18n.language || 'fr'} />
         </div>
       </section>
 
-      {/* System Health section */}
+      {/* System Health */}
       <section>
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold">
-            {t('adminAnalytics.sections.systemHealth')}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t('adminAnalytics.sections.systemHealthDescription')}
-          </p>
+        <div style={sectionHeaderStyle}>
+          <Mono size={11} color={C.textSecondary} tracking="0.15em" style={{ display: 'block', marginBottom: 4 }}>{t('adminAnalytics.sections.systemHealth').toUpperCase()}</Mono>
+          <div style={{ fontSize: 12, color: C.textTertiary }}>{t('adminAnalytics.sections.systemHealthDescription')}</div>
         </div>
         <SystemHealthSection data={systemQuery.data} t={t} />
       </section>
 
-      {/* Scheduled Jobs section */}
+      {/* Scheduled Jobs */}
       <section>
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold">
-            {t('adminAnalytics.sections.scheduledJobs')}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t('adminAnalytics.sections.scheduledJobsDescription')}
-          </p>
+        <div style={sectionHeaderStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <CalendarClock style={{ width: 13, height: 13, color: C.textTertiary }} />
+            <Mono size={11} color={C.textSecondary} tracking="0.15em">{t('adminAnalytics.sections.scheduledJobs').toUpperCase()}</Mono>
+          </div>
+          <div style={{ fontSize: 12, color: C.textTertiary }}>{t('adminAnalytics.sections.scheduledJobsDescription')}</div>
         </div>
-        <ScheduledJobsSection
-          jobs={systemQuery.data.scheduledJobs}
-          t={t}
-          language={i18n.language || 'fr'}
-        />
+        <ScheduledJobsSection jobs={systemQuery.data.scheduledJobs} t={t} language={i18n.language || 'fr'} />
       </section>
     </div>
   );

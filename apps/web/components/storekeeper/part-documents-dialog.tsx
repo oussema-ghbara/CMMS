@@ -12,7 +12,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { inventoryApi, type PartCatalogItem, type PartDocument } from '@/lib/inventory.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+const selectClass =
+  'h-9 w-full rounded-[2px] border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 const PART_DOC_TYPES = [
   DocumentType.TECHNICAL_MANUAL,
@@ -157,7 +161,6 @@ export function PartDocumentsDialog({ open, onOpenChange, part }: PartDocumentsD
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Document list */}
           {documentsQuery.isLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -167,7 +170,7 @@ export function PartDocumentsDialog({ open, onOpenChange, part }: PartDocumentsD
               {t('storekeeperInventory.documents.empty')}
             </p>
           ) : (
-            <ul className="divide-y rounded-md border">
+            <ul className="divide-y rounded-[2px] border">
               {documents.map((doc) => (
                 <li key={doc.id} className="flex items-center gap-3 px-3 py-2.5">
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -186,7 +189,7 @@ export function PartDocumentsDialog({ open, onOpenChange, part }: PartDocumentsD
                     variant="ghost"
                     size="icon"
                     onClick={() => void handleDownload(doc)}
-                    disabled  ={downloadingId === doc.id}
+                    disabled={downloadingId === doc.id}
                     title={t('storekeeperInventory.documents.actions.download')}
                   >
                     {downloadingId === doc.id ? (
@@ -212,19 +215,17 @@ export function PartDocumentsDialog({ open, onOpenChange, part }: PartDocumentsD
             </ul>
           )}
 
-          {/* Upload form — visible only for SUPERVISOR or STOREKEEPER */}
           {canManage && (
-            <form onSubmit={handleSubmit} className="space-y-3 rounded-md border p-3">
+            <form onSubmit={handleSubmit} className="space-y-3 rounded-[2px] border p-3">
               <p className="text-sm font-medium">{t('storekeeperInventory.documents.uploadTitle')}</p>
               <p className="text-xs text-muted-foreground">{t('storekeeperInventory.documents.uploadHint')}</p>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="part-doc-type">{t('storekeeperInventory.documents.form.type')}</Label>
+              <FormField label={t('storekeeperInventory.documents.form.type')} htmlFor="part-doc-type">
                 <select
                   id="part-doc-type"
                   value={documentType}
                   onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  className={selectClass}
                 >
                   {PART_DOC_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -232,12 +233,15 @@ export function PartDocumentsDialog({ open, onOpenChange, part }: PartDocumentsD
                     </option>
                   ))}
                 </select>
-              </div>
+              </FormField>
 
-              <div className="space-y-1.5">
-                <Label>{t('storekeeperInventory.documents.form.file')}</Label>
+              <FormField
+                label={t('storekeeperInventory.documents.form.file')}
+                required
+                error={fileError ? t('storekeeperInventory.documents.validation.fileRequired') : undefined}
+              >
                 {selectedFile ? (
-                  <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2 rounded-[2px] border px-3 py-2 text-sm">
                     <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="truncate flex-1">{selectedFile.name}</span>
                     <button
@@ -266,18 +270,15 @@ export function PartDocumentsDialog({ open, onOpenChange, part }: PartDocumentsD
                   className="hidden"
                   onChange={handleFileChange}
                 />
-                {fileError && (
-                  <p className="text-xs text-destructive">
-                    {t('storekeeperInventory.documents.validation.fileRequired')}
-                  </p>
-                )}
-              </div>
+              </FormField>
 
               <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={uploadMutation.isPending}>
-                  {uploadMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <SubmitButton
+                  isPending={uploadMutation.isPending}
+                  isSuccess={uploadMutation.isSuccess}
+                >
                   {t('storekeeperInventory.documents.form.upload')}
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           )}

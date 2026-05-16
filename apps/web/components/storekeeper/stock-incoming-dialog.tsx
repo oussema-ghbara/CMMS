@@ -8,7 +8,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2 } from 'lucide-react';
 import { inventoryApi, type PartCatalogItem } from '@/lib/inventory.api';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +19,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
 
 const incomingSchema = z.object({
   quantity: z.number().int().min(1),
@@ -116,8 +116,12 @@ export function StockIncomingDialog({ open, onOpenChange, part }: StockIncomingD
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="incoming-quantity">{t('storekeeperInventory.incoming.quantity')}</Label>
+          <FormField
+            label={t('storekeeperInventory.incoming.quantity')}
+            htmlFor="incoming-quantity"
+            required
+            error={errors.quantity ? t('storekeeperInventory.validation.incomingQuantity') : undefined}
+          >
             <Input
               id="incoming-quantity"
               type="number"
@@ -127,31 +131,32 @@ export function StockIncomingDialog({ open, onOpenChange, part }: StockIncomingD
                 setValueAs: (value) => (value === '' ? NaN : Number(value)),
               })}
             />
-            {errors.quantity && (
-              <p className="text-xs text-destructive">
-                {t('storekeeperInventory.validation.incomingQuantity')}
-              </p>
-            )}
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="incoming-supplier-reference">
-              {t('storekeeperInventory.incoming.supplierReference')}
-            </Label>
+          <FormField
+            label={t('storekeeperInventory.incoming.supplierReference')}
+            htmlFor="incoming-supplier-reference"
+          >
             <Input
               id="incoming-supplier-reference"
               maxLength={200}
               {...register('supplierReference')}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="incoming-received-date">{t('storekeeperInventory.incoming.receivedDate')}</Label>
+          <FormField
+            label={t('storekeeperInventory.incoming.receivedDate')}
+            htmlFor="incoming-received-date"
+          >
             <Input id="incoming-received-date" type="date" {...register('receivedDate')} />
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="incoming-unit-cost">{t('storekeeperInventory.incoming.unitCost')}</Label>
+          <FormField
+            label={t('storekeeperInventory.incoming.unitCost')}
+            htmlFor="incoming-unit-cost"
+            hint={t('storekeeperInventory.incoming.unitCostHint', { current: currentUnitCost })}
+            error={errors.unitCost ? t('storekeeperInventory.validation.unitCost') : undefined}
+          >
             <Input
               id="incoming-unit-cost"
               type="number"
@@ -162,13 +167,7 @@ export function StockIncomingDialog({ open, onOpenChange, part }: StockIncomingD
                 setValueAs: (value) => (value === '' ? undefined : Number(value)),
               })}
             />
-            <p className="text-xs text-muted-foreground">
-              {t('storekeeperInventory.incoming.unitCostHint', { current: currentUnitCost })}
-            </p>
-            {errors.unitCost && (
-              <p className="text-xs text-destructive">{t('storekeeperInventory.validation.unitCost')}</p>
-            )}
-          </div>
+          </FormField>
 
           <DialogFooter>
             <Button
@@ -179,10 +178,13 @@ export function StockIncomingDialog({ open, onOpenChange, part }: StockIncomingD
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={incomingMutation.isPending || !part}>
-              {incomingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <SubmitButton
+              isPending={incomingMutation.isPending}
+              isSuccess={incomingMutation.isSuccess}
+              disabled={!part}
+            >
               {t('storekeeperInventory.actions.receiveStock')}
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

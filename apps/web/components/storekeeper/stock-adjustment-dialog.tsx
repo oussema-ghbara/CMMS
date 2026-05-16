@@ -8,7 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { StockAdjustmentReason } from '@gmao/shared';
 import { inventoryApi, type PartCatalogItem } from '@/lib/inventory.api';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
+
+const selectClass =
+  'h-9 w-full rounded-[2px] border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 const adjustmentSchema = z
   .object({
@@ -39,7 +43,7 @@ const adjustmentSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['detail'],
-        message: 'requiredForOther',
+        message: 'required',
       });
     }
   });
@@ -59,9 +63,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   if (typeof rawMessage === 'string' && rawMessage.trim()) return rawMessage;
   return fallback;
 }
-
-const selectClass =
-  'h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 const REASON_OPTIONS = [
   StockAdjustmentReason.PHYSICAL_DAMAGE,
@@ -145,8 +146,22 @@ export function StockAdjustmentDialog({ open, onOpenChange, part }: StockAdjustm
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="adjustment-quantity">{t('storekeeperInventory.adjustment.quantity')}</Label>
+          <FormField
+            label={t('storekeeperInventory.adjustment.quantity')}
+            htmlFor="adjustment-quantity"
+            required
+            hint={t('storekeeperInventory.adjustment.quantityHint', {
+              current: part?.currentStock ?? 0,
+              result: Number.isFinite(resultingStock) ? resultingStock : part?.currentStock ?? 0,
+            })}
+            error={
+              errors.quantity
+                ? t('storekeeperInventory.validation.adjustmentQuantity')
+                : wouldBeNegative
+                  ? t('storekeeperInventory.validation.adjustmentNegativeResult')
+                  : undefined
+            }
+          >
             <Input
               id="adjustment-quantity"
               type="number"
@@ -155,27 +170,19 @@ export function StockAdjustmentDialog({ open, onOpenChange, part }: StockAdjustm
                 setValueAs: (value) => (value === '' ? NaN : Number(value)),
               })}
             />
-            <p className="text-xs text-muted-foreground">
-              {t('storekeeperInventory.adjustment.quantityHint', {
-                current: part?.currentStock ?? 0,
-                result: Number.isFinite(resultingStock) ? resultingStock : part?.currentStock ?? 0,
-              })}
-            </p>
-            {errors.quantity && (
-              <p className="text-xs text-destructive">
-                {t('storekeeperInventory.validation.adjustmentQuantity')}
-              </p>
-            )}
-            {wouldBeNegative && (
-              <p className="flex items-center gap-1 text-xs text-destructive">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {t('storekeeperInventory.validation.adjustmentNegativeResult')}
-              </p>
-            )}
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="adjustment-reason">{t('storekeeperInventory.adjustment.reason')}</Label>
+          {wouldBeNegative && (
+            <p className="flex items-center gap-1 text-xs" style={{ color: 'var(--sb-p-crit)' }}>
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {t('storekeeperInventory.validation.adjustmentNegativeResult')}
+            </p>
+          )}
+
+          <FormField
+            label={t('storekeeperInventory.adjustment.reason')}
+            htmlFor="adjustment-reason"
+          >
             <select id="adjustment-reason" className={selectClass} {...register('reason')}>
               {REASON_OPTIONS.map((reason) => (
                 <option key={reason} value={reason}>
@@ -183,22 +190,20 @@ export function StockAdjustmentDialog({ open, onOpenChange, part }: StockAdjustm
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="adjustment-detail">{t('storekeeperInventory.adjustment.detail')}</Label>
+          <FormField
+            label={t('storekeeperInventory.adjustment.detail')}
+            htmlFor="adjustment-detail"
+            error={errors.detail ? t('storekeeperInventory.validation.adjustmentDetailRequiredForOther') : undefined}
+          >
             <Input id="adjustment-detail" maxLength={500} {...register('detail')} />
-            {watchedReason === StockAdjustmentReason.OTHER && (
+            {watchedReason === StockAdjustmentReason.OTHER && !errors.detail && (
               <p className="text-xs text-muted-foreground">
                 {t('storekeeperInventory.validation.adjustmentDetailRequiredForOther')}
               </p>
             )}
-            {errors.detail && (
-              <p className="text-xs text-destructive">
-                {t('storekeeperInventory.validation.adjustmentDetailRequiredForOther')}
-              </p>
-            )}
-          </div>
+          </FormField>
 
           <DialogFooter>
             <Button
@@ -209,13 +214,13 @@ export function StockAdjustmentDialog({ open, onOpenChange, part }: StockAdjustm
             >
               {t('common.cancel')}
             </Button>
-            <Button
-              type="submit"
-              disabled={adjustmentMutation.isPending || !part || wouldBeNegative}
+            <SubmitButton
+              isPending={adjustmentMutation.isPending}
+              isSuccess={adjustmentMutation.isSuccess}
+              disabled={!part || wouldBeNegative}
             >
-              {adjustmentMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('storekeeperInventory.actions.adjustStock')}
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

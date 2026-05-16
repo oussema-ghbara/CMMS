@@ -22,7 +22,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/ui/form-field';
+import { SubmitButton } from '@/components/ui/submit-button';
+
+const selectClass =
+  'h-9 w-full rounded-[2px] border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 const returnSchema = z.object({
   quantity: z.number().int().min(1),
@@ -38,9 +42,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   if (typeof rawMessage === 'string' && rawMessage.trim()) return rawMessage;
   return fallback;
 }
-
-const selectClass =
-  'h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 interface StockReturnDialogProps {
   open: boolean;
@@ -65,7 +66,6 @@ export function StockReturnDialog({ open, onOpenChange, part }: StockReturnDialo
     defaultValues: { quantity: 1, workOrderId: '' },
   });
 
-  // Fetch cancelled work orders to select from
   const { data: cancelledWOs, isLoading: wosLoading } = useQuery({
     queryKey: ['storekeeper', 'cancelled-work-orders'],
     queryFn: () => workOrdersApi.list({ status: WorkOrderStatus.CANCELLED, limit: 100 }),
@@ -124,9 +124,16 @@ export function StockReturnDialog({ open, onOpenChange, part }: StockReturnDialo
         </DialogHeader>
 
         <form onSubmit={handleSubmit((v) => returnMutation.mutate(v))} className="space-y-4">
-          {/* Quantity */}
-          <div className="space-y-1.5">
-            <Label htmlFor="return-quantity">{t('storekeeperInventory.return.quantity')}</Label>
+          <FormField
+            label={t('storekeeperInventory.return.quantity')}
+            htmlFor="return-quantity"
+            required
+            hint={t('storekeeperInventory.return.quantityHint', {
+              current: part?.currentStock ?? 0,
+              result: Number.isFinite(resultingStock) ? resultingStock : part?.currentStock ?? 0,
+            })}
+            error={errors.quantity ? t('storekeeperInventory.return.validation.quantityMin') : undefined}
+          >
             <Input
               id="return-quantity"
               type="number"
@@ -136,22 +143,12 @@ export function StockReturnDialog({ open, onOpenChange, part }: StockReturnDialo
                 setValueAs: (value) => (value === '' ? NaN : Number(value)),
               })}
             />
-            <p className="text-xs text-muted-foreground">
-              {t('storekeeperInventory.return.quantityHint', {
-                current: part?.currentStock ?? 0,
-                result: Number.isFinite(resultingStock) ? resultingStock : part?.currentStock ?? 0,
-              })}
-            </p>
-            {errors.quantity && (
-              <p className="text-xs text-destructive">
-                {t('storekeeperInventory.return.validation.quantityMin')}
-              </p>
-            )}
-          </div>
+          </FormField>
 
-          {/* Work order select */}
-          <div className="space-y-1.5">
-            <Label>{t('storekeeperInventory.return.workOrder')}</Label>
+          <FormField
+            label={t('storekeeperInventory.return.workOrder')}
+            error={errors.workOrderId ? t('storekeeperInventory.return.validation.workOrderRequired') : undefined}
+          >
             <Input
               placeholder={t('storekeeperInventory.return.woSearchPlaceholder')}
               value={woSearch}
@@ -183,12 +180,7 @@ export function StockReturnDialog({ open, onOpenChange, part }: StockReturnDialo
                 {t('storekeeperInventory.return.noWOs')}
               </p>
             )}
-            {errors.workOrderId && (
-              <p className="text-xs text-destructive">
-                {t('storekeeperInventory.return.validation.workOrderRequired')}
-              </p>
-            )}
-          </div>
+          </FormField>
 
           <DialogFooter>
             <Button
@@ -199,10 +191,13 @@ export function StockReturnDialog({ open, onOpenChange, part }: StockReturnDialo
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={returnMutation.isPending || !part}>
-              {returnMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <SubmitButton
+              isPending={returnMutation.isPending}
+              isSuccess={returnMutation.isSuccess}
+              disabled={!part}
+            >
               {t('storekeeperInventory.return.confirm')}
-            </Button>
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

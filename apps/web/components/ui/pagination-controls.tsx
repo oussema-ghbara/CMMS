@@ -1,9 +1,7 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Mono } from '@/components/ui/mono';
 
 type PaginationControlsProps = {
   page: number;
@@ -18,31 +16,26 @@ export function PaginationControls({ page, totalPages, onPrevious, onNext, class
 
   if (totalPages <= 1) return null;
 
+  const prevDisabled = page <= 1;
+  const nextDisabled = page >= totalPages;
+
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    background: 'transparent',
+    border: 'none',
+    cursor: disabled ? 'default' : 'pointer',
+    color: disabled ? 'var(--sb-text-tertiary)' : 'var(--sb-text-secondary)',
+    fontSize: 16,
+    lineHeight: 1,
+    padding: '0 4px',
+    opacity: disabled ? 0.4 : 1,
+    flexShrink: 0,
+  });
+
   return (
-    <div className={cn('flex w-full items-center justify-between gap-2', className)}>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        disabled={page <= 1}
-        onClick={onPrevious}
-        aria-label={t('common.previous')}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="text-sm text-muted-foreground">{t('common.pagination', { page, totalPages })}</span>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        disabled={page >= totalPages}
-        onClick={onNext}
-        aria-label={t('common.next')}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className={className}>
+      <button type="button" onClick={onPrevious} disabled={prevDisabled} aria-label={t('common.previous')} style={btnStyle(prevDisabled)}>‹</button>
+      <Mono size={9} color="var(--sb-text-tertiary)">{t('common.pagination', { page, totalPages })}</Mono>
+      <button type="button" onClick={onNext} disabled={nextDisabled} aria-label={t('common.next')} style={btnStyle(nextDisabled)}>›</button>
     </div>
   );
 }

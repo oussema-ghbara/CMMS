@@ -27,6 +27,8 @@ const WEB_ROLE_HOME: Partial<Record<Role, string>> = {
   [Role.ADMIN]: '/admin',
   [Role.SUPERVISOR]: '/supervisor',
   [Role.STOREKEEPER]: '/storekeeper',
+  [Role.REQUESTER]: '/requester',
+  [Role.TECHNICIAN]: '/technician',
 };
 
 export function LoginForm() {

@@ -87,6 +87,9 @@
     "setupAccountSuccessDescription": "Votre compte a été activé avec succès. Vous serez redirigé vers la connexion."
   },
   "nav": {
+    "requesterDashboard": "Accueil demandeur",
+    "myReports": "Mes signalements",
+    "newReport": "Nouveau signalement",
     "dashboard": "Tableau de bord",
     "workOrders": "Ordres de travail",
     "assets": "Équipements",
@@ -105,6 +108,118 @@
     "actions": {
       "collapseSidebar": "Réduire la barre latérale",
       "expandSidebar": "Développer la barre latérale"
+    },
+    "technicianWorkOrders": "Mes bons de travail"
+  },
+  "requester": {
+    "title": "Demandeur",
+    "subtitle": "Soumettez vos signalements et suivez leur traitement sans quitter l'application web.",
+    "summary": {
+      "totalReports": "Signalements",
+      "pending": "En attente",
+      "converted": "Convertis",
+      "archived": "Archivés"
+    },
+    "quickActions": {
+      "title": "Actions rapides",
+      "subtitle": "Soumettez un signalement ou consultez votre historique personnel.",
+      "openReports": "Ouvrir mes signalements"
+    },
+    "submit": {
+      "title": "Soumettre un signalement",
+      "subtitle": "Sélectionnez un actif par recherche ou saisie du QR code, puis décrivez le problème.",
+      "searchLabel": "Recherche d'actif",
+      "searchPlaceholder": "Rechercher par nom ou emplacement",
+      "qrLabel": "QR code",
+      "qrPlaceholder": "Saisir le QR code",
+      "lookup": "Rechercher",
+      "selectedAsset": "Actif sélectionné",
+      "clearAsset": "Effacer",
+      "descriptionLabel": "Description du problème",
+      "descriptionPlaceholder": "Décrivez le problème en quelques phrases précises.",
+      "urgencyLabel": "Perception d'urgence",
+      "duplicateWarning": "Un signalement similaire existe déjà dans les dernières 24 heures. Vous pouvez tout de même soumettre si le problème est différent.",
+      "submit": "Soumettre",
+      "success": "Signalement créé",
+      "error": "Impossible de créer le signalement",
+      "validation": {
+        "assetRequired": "Sélectionnez un actif",
+        "descriptionRequired": "La description doit contenir au moins 10 caractères",
+        "descriptionLength": "La description doit contenir au moins 10 caractères",
+        "urgencyRequired": "Choisissez une perception d'urgence",
+        "searchRequired": "Entrez un nom d'actif ou un emplacement",
+        "qrRequired": "Saisissez un QR code"
+      },
+      "assetState": {
+        "notFound": "Aucun actif trouvé",
+        "decommissioned": "Actif déclassé",
+        "maintenance": "Actif déjà en maintenance",
+        "activeWo": "OT actif existant",
+        "selectHint": "Sélectionnez un actif dans les résultats ou utilisez le QR code"
+      }
+    },
+    "reports": {
+      "title": "Mes signalements",
+      "subtitle": "Historique personnel de vos signalements avec leur statut et leurs commentaires.",
+      "total": "{{count}} signalement(s)",
+      "filters": {
+        "searchPlaceholder": "Rechercher par référence, description ou équipement",
+        "allStatuses": "Tous les statuts",
+        "allUrgencies": "Toutes les urgences",
+        "apply": "Appliquer",
+        "reset": "Réinitialiser"
+      },
+      "columns": {
+        "createdAt": "Créé le",
+        "reference": "Référence",
+        "asset": "Équipement",
+        "urgency": "Urgence",
+        "status": "Statut",
+        "workOrder": "OT lié"
+      },
+      "status": {
+        "PENDING": "En attente",
+        "CONVERTED": "Converti en OT",
+        "REJECTED": "Rejeté",
+        "DEFERRED": "Différé",
+        "ARCHIVED": "Archivé"
+      },
+      "urgency": {
+        "MACHINE_STOPPED": "Machine arrêtée",
+        "ABNORMAL_BEHAVIOR": "Comportement anormal",
+        "MINOR_ISSUE": "Problème mineur"
+      },
+      "states": {
+        "loading": "Chargement des signalements...",
+        "empty": "Aucun signalement trouvé",
+        "error": "Impossible de charger les signalements",
+        "detailLoading": "Chargement du signalement...",
+        "detailError": "Impossible de charger le détail du signalement",
+        "commentsEmpty": "Aucun commentaire",
+        "workOrdersEmpty": "Aucun OT lié"
+      },
+      "detail": {
+        "title": "Détail du signalement",
+        "summary": "Résumé",
+        "asset": "Équipement",
+        "reporter": "Demandeur",
+        "processedBy": "Traité par",
+        "processedAt": "Traité le",
+        "comments": "Commentaires",
+        "commentsDescription": "Ajoutez un commentaire ou consultez l'historique chronologique.",
+        "commentPlaceholder": "Ajouter un commentaire",
+        "commentSubmit": "Publier",
+        "linkedWorkOrders": "Ordres de travail liés",
+        "statusHistory": "Historique",
+        "status": "Statut",
+        "description": "Description",
+        "duplicateBanner": "Des ordres de travail actifs existent déjà pour cet équipement."
+      },
+      "toasts": {
+        "commentAdded": "Commentaire ajouté",
+        "commentError": "Impossible d'ajouter le commentaire",
+        "refreshError": "Impossible de rafraîchir les signalements"
+      }
     }
   },
   "sidebar": {

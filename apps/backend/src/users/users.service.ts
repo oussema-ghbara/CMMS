@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  ConflictException,
-  NotFoundException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Logger, ConflictException, NotFoundException, Inject } from '@nestjs/common';
 import { Prisma } from '@gmao/db';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -89,7 +83,6 @@ export class UsersService {
         name: dto.name,
         roles: dto.roles,
         hourlyRate: dto.hourlyRate ?? null,
-        // No passwordHash yet — user sets it via setup link
         passwordHash: '',
         isActive: false,
       },
@@ -183,7 +176,7 @@ export class UsersService {
 
   async deactivate(id: string, actorId: string): Promise<void> {
     const user = await this.findOne(id);
-    if (!user.isActive) return; // idempotent
+    if (!user.isActive) return;
 
     await this.prisma.user.update({ where: { id }, data: { isActive: false } });
     await this.authService.revokeAllUserTokens(id);
@@ -247,10 +240,7 @@ export class UsersService {
     this.logger.log(`Public setup email resent for user ${user.id}`);
   }
 
-  // ── Token generation (called by AuthService for password reset) ──
-
   async generateResetToken(email: string): Promise<void> {
-    // Always returns 200 regardless — no user enumeration
     const user = await this.prisma.user.findUnique({
       where: { email, isActive: true },
     });
@@ -287,7 +277,6 @@ export class UsersService {
     await this.redis.del(`${prefix}${userId}:${jti}`);
   }
 
-  // ── Private helpers ──────────────────────────────────────────────
 
   private async sendSetupEmail(
     userId: string,

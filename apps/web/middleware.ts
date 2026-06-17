@@ -5,12 +5,16 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: '/admin', roles: [Role.ADMIN] },
   { prefix: '/supervisor', roles: [Role.SUPERVISOR] },
   { prefix: '/storekeeper', roles: [Role.STOREKEEPER] },
+  { prefix: '/requester', roles: [Role.REQUESTER] },
+  { prefix: '/technician', roles: [Role.TECHNICIAN] },
 ];
 
 const ROLE_HOME: Partial<Record<Role, string>> = {
   [Role.ADMIN]: '/admin',
   [Role.SUPERVISOR]: '/supervisor',
   [Role.STOREKEEPER]: '/storekeeper',
+  [Role.REQUESTER]: '/requester',
+  [Role.TECHNICIAN]: '/technician',
 };
 
 export function middleware(request: NextRequest) {

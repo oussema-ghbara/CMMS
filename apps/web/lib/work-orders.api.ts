@@ -7,6 +7,10 @@ import {
   WOReassignmentReason,
   ValidationRejectionReason,
   AssetStatus,
+  InterventionResult,
+  InterventionActionType,
+  ChecklistItemStatus,
+  OnHoldReasonType,
 } from '@gmao/shared';
 
 // ── List types ────────────────────────────────────────────────────────────────
@@ -161,6 +165,18 @@ export interface WorkOrderPartRequest {
   quantityRequested: number;
   quantityFulfilled: number | null;
   part: { id: string; name: string; referenceCode: string } | null;
+  offCatalogDescription: string | null;
+  rejectionReason: string | null;
+  rejectionDetail: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface SubmitPartRequestPayload {
+  partId?: string;
+  offCatalogDescription?: string;
+  quantityRequested: number;
+  note?: string;
 }
 
 export interface WorkOrderDetailAsset {
@@ -350,6 +366,35 @@ export interface UpdateHoldMetadataPayload {
   retryDate?: string;
   resolutionNote?: string;
   supervisorAssetStatusChoice?: AssetStatus;
+}
+
+// ── Technician intervention payloads ──────────────────────────────────────────
+
+export interface InterventionActionPayload {
+  actionType: InterventionActionType;
+  detail?: string;
+}
+
+export interface SubmitClosurePayload {
+  result: InterventionResult;
+  resultExplanation?: string;
+  actions?: InterventionActionPayload[];
+}
+
+export interface PutOnHoldPayload {
+  reasonType: OnHoldReasonType;
+  detail?: string;
+  expectedResolutionDate?: string;
+}
+
+export interface ResumeHoldPayload {
+  contractorCost?: number;
+}
+
+export interface CompleteChecklistItemPayload {
+  status: ChecklistItemStatus;
+  anomalyDescription?: string;
+  notApplicableReason?: string;
 }
 
 export interface CreateFollowUpPayload {
@@ -575,4 +620,29 @@ export const workOrdersApi = {
 
   getDocumentDownloadUrl: (id: string, docId: string) =>
     api.get<string>(`/work-orders/${id}/documents/${docId}/download`).then((r) => r.data),
+
+  // ── Technician intervention actions ────────────────────────────────────────
+
+  start: (id: string) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/start`).then((r) => r.data),
+
+  submitClosure: (id: string, payload: SubmitClosurePayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/submit-closure`, payload).then((r) => r.data),
+
+  putOnHold: (id: string, payload: PutOnHoldPayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/on-hold`, payload).then((r) => r.data),
+
+  resume: (id: string, payload: ResumeHoldPayload) =>
+    api.patch<WorkOrderDetail>(`/work-orders/${id}/resume`, payload).then((r) => r.data),
+
+  getChecklist: (id: string) =>
+    api.get<WorkOrderChecklistItem[]>(`/work-orders/${id}/checklist`).then((r) => r.data),
+
+  completeChecklistItem: (woId: string, itemId: string, payload: CompleteChecklistItemPayload) =>
+    api.patch<WorkOrderChecklistItem>(`/work-orders/${woId}/checklist/${itemId}`, payload).then((r) => r.data),
+
+  submitPartRequest: (woId: string, payload: SubmitPartRequestPayload) =>
+    api.post<{ request: WorkOrderPartRequest; stockWarning?: string }>(
+      `/work-orders/${woId}/part-requests`, payload,
+    ).then((r) => r.data),
 };

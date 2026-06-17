@@ -120,8 +120,17 @@ export interface ReportListQuery {
   search?: string;
   status?: ProblemReportStatus;
   urgencyPerception?: UrgencyPerception;
+  reporterId?: string;
+  assetId?: string;
   page?: number;
   limit?: number;
+}
+
+export interface CreateReportPayload {
+  assetId: string;
+  description: string;
+  urgencyPerception: UrgencyPerception;
+  submittedDespiteWarning?: boolean;
 }
 
 export interface ConvertReportPayload {
@@ -152,6 +161,9 @@ export interface AddReportCommentPayload {
 export const reportsApi = {
   list: (params?: ReportListQuery) =>
     api.get<ReportListResponse>('/reports', { params }).then((r) => r.data),
+
+  submit: (payload: CreateReportPayload) =>
+    api.post<ReportListItem>('/reports', payload).then((r) => r.data),
 
   getOne: (id: string) => api.get<ReportDetailItem>(`/reports/${id}`).then((r) => r.data),
 

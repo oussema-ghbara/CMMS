@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { DocumentType } from '@gmao/db';
+import { DocumentType, AssignmentRole } from '@gmao/db';
 import { DocumentsService } from '../assets/documents.service';
 import { calculateWorkOrderCostSummary, WorkOrderCostSource } from './work-order-costs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
@@ -58,8 +58,18 @@ export class WorkOrdersController {
 
   @Get()
   @ApiOperation({ summary: 'List work orders with filters (all roles)' })
-  findAll(@Query() query: WorkOrderQueryDto) {
-    return this.workOrders.findAll(query);
+  async findAll(@Query() query: WorkOrderQueryDto) {
+    const result = await this.workOrders.findAll(query);
+    return {
+      ...result,
+      data: result.data.map((wo) => ({
+        ...wo,
+        assignments: (wo as any).assignments?.map((a: any) => ({
+          ...a,
+          isPrincipal: a.role === AssignmentRole.PRINCIPAL,
+        })) ?? [],
+      })),
+    };
   }
 
   @Get('analytics')
@@ -132,7 +142,14 @@ export class WorkOrdersController {
   async findById(@Param('id') id: string) {
     const wo = await this.workOrders.findById(id);
     const costSummary = calculateWorkOrderCostSummary(wo as unknown as WorkOrderCostSource);
-    return { ...wo, costSummary };
+    return {
+      ...wo,
+      assignments: (wo as any).assignments?.map((a: any) => ({
+        ...a,
+        isPrincipal: a.role === AssignmentRole.PRINCIPAL,
+      })) ?? [],
+      costSummary,
+    };
   }
 
   @Get(':id/report')

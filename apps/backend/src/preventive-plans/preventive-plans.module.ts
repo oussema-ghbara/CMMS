@@ -11,8 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    // BullModule.forRootAsync is already registered globally in MailModule.
-    // registerQueue here connects to that existing Redis connection.
+
     BullModule.registerQueue({ name: PREVENTIVE_PLAN_QUEUE }),
     AssetsModule,
     NotificationsModule,

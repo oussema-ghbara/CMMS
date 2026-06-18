@@ -150,7 +150,6 @@ export default function ProfilePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
 
-      {/* Page title */}
       <div style={{ marginBottom: 4 }}>
         <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em', marginBottom: 3 }}>
           {t('profile.title')}
@@ -160,7 +159,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Identity & info */}
       <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ background: 'var(--sb-surface)', borderBottom: '1px solid var(--sb-border)', padding: '8px 14px' }}>
           <Mono size={10} color="var(--sb-text-secondary)" tracking="0.13em">
@@ -174,7 +172,7 @@ export default function ProfilePage() {
           </div>
         ) : (
           <>
-            {/* Avatar + name/email + roles */}
+
             <div style={{ padding: '16px 14px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
               <div style={{
                 width: 44,
@@ -210,7 +208,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Metadata rows */}
             <MetaRow
               label={t('profile.fields.lastLogin').toUpperCase()}
               value={formatDate(profile?.lastLoginAt, t('profile.fields.never'))}
@@ -223,7 +220,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Notification preferences */}
       <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ background: 'var(--sb-surface)', borderBottom: '1px solid var(--sb-border)', padding: '8px 14px' }}>
           <Mono size={10} color="var(--sb-text-secondary)" tracking="0.13em">
@@ -289,7 +285,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Security / change password */}
       <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{
           background: 'var(--sb-surface)',

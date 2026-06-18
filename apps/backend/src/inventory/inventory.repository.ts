@@ -10,8 +10,6 @@ import { PartRequestQueryDto } from './dto/part-request-query.dto';
 export class InventoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ── Parts ──────────────────────────────────────────────────────────
-
   async findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
     const { search, isActive, page = 1, limit = 20 } = query;
 
@@ -100,11 +98,8 @@ export class InventoryRepository {
     return this.prisma.part.update({ where: { id }, data: { isActive } });
   }
 
-  // ── Low-stock query (column comparison — requires raw SQL) ──────────
-
   async findLowStockParts(): Promise<Part[]> {
-    // Prisma does not support column-to-column comparisons in where clauses.
-    // $queryRaw is safe here — no user input interpolated.
+
     return this.prisma.$queryRaw<Part[]>`
       SELECT * FROM "Part"
       WHERE "isActive" = true
@@ -113,8 +108,6 @@ export class InventoryRepository {
       ORDER BY ("minimumStockThreshold" - "currentStock") DESC
     `;
   }
-
-  // ── Stock movements ────────────────────────────────────────────────
 
   async findMovementsByPart(partId: string): Promise<StockMovement[]> {
     await this.findPartById(partId);
@@ -258,8 +251,6 @@ export class InventoryRepository {
     });
   }
 
-  // ── Part Requests ──────────────────────────────────────────────────
-
   async findRequestsByWorkOrder(workOrderId: string): Promise<PartRequest[]> {
     return this.prisma.partRequest.findMany({
       where: { workOrderId },
@@ -402,8 +393,6 @@ export class InventoryRepository {
     return result.count;
   }
 
-  // ── Analytics ──────────────────────────────────────────────────────
-
   async getConsumptionAnalytics(periodDays: number) {
     const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
@@ -443,9 +432,6 @@ export class InventoryRepository {
   async getReplenishmentAnalytics(windowDays = 90) {
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
 
-    // Count how many times each part crossed below its minimum threshold
-    // Approximated by counting distinct OUTGOING movements that left stock below threshold
-    // Using raw SQL for the column comparison
     const replenishmentEvents = (await this.prisma.$queryRaw`
       SELECT sm."partId" AS part_id, p.name AS part_name, p."referenceCode" AS part_reference, COUNT(*) AS times_below
       FROM "StockMovement" sm
@@ -587,9 +573,6 @@ export class InventoryRepository {
     }));
   }
 
-  // §10.6: Stock accuracy rate — ratio of ADJUSTMENT movements to total movements per
-  // period. Parts with high adjustment ratios need stricter physical stock controls.
-  // Returns global stats and per-part breakdown sorted by worst accuracy first (max 20).
   async getStockAccuracyRate(periodDays: number) {
     const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
@@ -644,9 +627,6 @@ export class InventoryRepository {
     return { globalRate, totalMovements: globalTotal, adjustmentCount: globalAdjustments, perPart };
   }
 
-  // §10.6: Per-part consumption broken down by asset category and WO type
-  // (CORRECTIVE vs PREVENTIVE). Restricted to the top-20 parts by outgoing
-  // quantity so the payload stays bounded.
   async getConsumptionBreakdown(periodDays: number) {
     const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
@@ -690,7 +670,6 @@ export class InventoryRepository {
       ORDER BY sm."partId", ac.name NULLS LAST, wo.type NULLS LAST
     `;
 
-    // Build nested structure: part → categories → wo types
     const partMap = new Map<
       string,
       {

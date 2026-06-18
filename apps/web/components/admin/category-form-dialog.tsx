@@ -119,7 +119,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSuccess }: 
     >
       <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 420 }}>
 
-        {/* Header */}
+        { }
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
             {isEdit ? t('admin.categories.dialog.editTitle') : t('admin.categories.dialog.createTitle')}
@@ -136,7 +136,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSuccess }: 
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Name */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.categories.form.name')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -153,7 +153,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSuccess }: 
             )}
           </div>
 
-          {/* Description */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.categories.form.description')}
@@ -167,7 +167,7 @@ export function CategoryFormDialog({ open, onOpenChange, category, onSuccess }: 
             />
           </div>
 
-          {/* Footer */}
+          { }
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
             <button
               type="button"

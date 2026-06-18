@@ -120,7 +120,7 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto, actorId: string): Promise<UserResponseDto> {
-    const before = await this.findOne(id); // throws NotFoundException if missing
+    const before = await this.findOne(id); 
 
     if (dto.email) {
       const conflict = await this.prisma.user.findFirst({
@@ -198,7 +198,7 @@ export class UsersService {
   async reactivate(id: string, actorId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('users.notFound');
-    if (user.isActive) return; // idempotent
+    if (user.isActive) return; 
 
     await this.prisma.user.update({ where: { id }, data: { isActive: true } });
 
@@ -220,7 +220,6 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('users.notFound');
 
-    // Invalidate any existing setup token for this user
     await this.invalidateSetupToken(id);
 
     await this.sendSetupEmail(id, user.email, user.name);
@@ -276,7 +275,6 @@ export class UsersService {
   async markTokenUsed(prefix: string, userId: string, jti: string): Promise<void> {
     await this.redis.del(`${prefix}${userId}:${jti}`);
   }
-
 
   private async sendSetupEmail(
     userId: string,

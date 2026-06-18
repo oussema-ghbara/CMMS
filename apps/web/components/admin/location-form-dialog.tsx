@@ -153,7 +153,7 @@ export function LocationFormDialog({ open, onOpenChange, location, locations, on
     >
       <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 460, maxHeight: '90vh', overflowY: 'auto' }}>
 
-        {/* Header */}
+        { }
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
             {isEdit ? t('admin.locations.dialog.editTitle') : t('admin.locations.dialog.createTitle')}
@@ -170,7 +170,7 @@ export function LocationFormDialog({ open, onOpenChange, location, locations, on
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Name */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.locations.form.name')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -187,7 +187,7 @@ export function LocationFormDialog({ open, onOpenChange, location, locations, on
             )}
           </div>
 
-          {/* Level + Code (2-col) */}
+          { }
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -220,7 +220,7 @@ export function LocationFormDialog({ open, onOpenChange, location, locations, on
             </div>
           </div>
 
-          {/* Parent */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.locations.form.parent')}
@@ -238,7 +238,7 @@ export function LocationFormDialog({ open, onOpenChange, location, locations, on
             </select>
           </div>
 
-          {/* Description */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.locations.form.description')}
@@ -252,7 +252,7 @@ export function LocationFormDialog({ open, onOpenChange, location, locations, on
             />
           </div>
 
-          {/* Footer */}
+          { }
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
             <button
               type="button"

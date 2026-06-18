@@ -7,7 +7,6 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// ─── Token refresh state ──────────────────────────────────────────────────────
 let isRefreshing = false;
 let refreshQueue: Array<{
   resolve: (token: string) => void;
@@ -21,7 +20,6 @@ function flushQueue(error: unknown, token: string | null) {
   refreshQueue = [];
 }
 
-// ─── Request interceptor: attach Bearer token ─────────────────────────────────
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -30,7 +28,6 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ─── Response interceptor: silent token refresh on 401 ───────────────────────
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -42,7 +39,6 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't retry the refresh endpoint itself
     if (originalRequest.url?.includes('/auth/refresh')) {
       useAuthStore.getState().clearAuth();
       Cookies.remove('user_roles', { path: '/' });

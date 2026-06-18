@@ -102,7 +102,6 @@ export class PreventivePlansRepository {
     await this.prisma.preventivePlan.update({ where: { id }, data: { nextDueAt } });
   }
 
-  // Plans where isActive = true AND nextDueAt has passed — ready for WO generation.
   async findDuePlans(): Promise<PlanWithRelations[]> {
     const plans = await this.prisma.preventivePlan.findMany({
       where: { isActive: true, nextDueAt: { lte: new Date() } },
@@ -111,14 +110,11 @@ export class PreventivePlansRepository {
     return plans as unknown as PlanWithRelations[];
   }
 
-  // §9.6: Detect when two or more due plans generate WOs for the same asset on the same day.
-  // Returns a map: assetId -> array of plan details.
   async findSameDayAssetConflicts(
     duePlans: PlanWithRelations[],
   ): Promise<Map<string, Array<{ planId: string; planTitle: string; assetName: string }>>> {
     const conflicts = new Map<string, Array<{ planId: string; planTitle: string; assetName: string }>>();
 
-    // Group by assetId
     const byAsset = new Map<string, typeof duePlans>();
     for (const plan of duePlans) {
       if (!byAsset.has(plan.assetId)) {
@@ -127,7 +123,6 @@ export class PreventivePlansRepository {
       byAsset.get(plan.assetId)!.push(plan);
     }
 
-    // If 2+ plans for the same asset, it's a conflict
     for (const [assetId, plans] of byAsset.entries()) {
       if (plans.length >= 2) {
         conflicts.set(
@@ -143,8 +138,6 @@ export class PreventivePlansRepository {
 
     return conflicts;
   }
-
-  // ── Checklist template items ───────────────────────────────────────
 
   async addChecklistItem(planId: string, dto: CreatePlanChecklistItemDto): Promise<PreventivePlanChecklistItem> {
     await this.findById(planId);

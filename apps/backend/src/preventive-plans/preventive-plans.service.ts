@@ -34,7 +34,7 @@ export function computeNextDueAt(
     next.setDate(next.getDate() + intervalDays);
     return next;
   }
-  // CALENDAR — parse cron expression to get next occurrence
+
   if (!calendarExpression) {
     throw new BadRequestException('calendarExpression is required for CALENDAR frequency type');
   }
@@ -120,7 +120,7 @@ export class PreventivePlansService {
   }
 
   updateChecklistItem(planId: string, itemId: string, dto: UpdatePlanChecklistItemDto) {
-    // planId ownership check is done in deleteChecklistItem; update trusts the route params.
+
     return this.repo.updateChecklistItem(itemId, dto);
   }
 
@@ -136,8 +136,6 @@ export class PreventivePlansService {
     return this.repo.reorderChecklistItems(planId, dto.items);
   }
 
-  // ── Manual trigger (Supervisor — for testing or ad-hoc generation) ──
-
   async triggerNow(planId: string): Promise<{ jobId: string | undefined }> {
     const plan = await this.repo.findById(planId);
     if (!plan.isActive) {
@@ -150,8 +148,6 @@ export class PreventivePlansService {
     );
     return { jobId: job.id };
   }
-
-  // ── Core WO generation — called by BullMQ processor ──────────────────
 
   async generateWorkOrder(planId: string): Promise<void> {
     const plan = await this.repo.findById(planId);
@@ -208,7 +204,6 @@ export class PreventivePlansService {
         },
       });
 
-      // Initial status log — fromStatus is null (first entry) per schema definition
       await tx.workOrderStatusLog.create({
         data: {
           workOrderId: created.id,
@@ -247,7 +242,6 @@ export class PreventivePlansService {
       return created;
     });
 
-    // Advance nextDueAt before notifying — if notification fails, WO was still created
     const nextDueAt = computeNextDueAt(plan.frequencyType, plan.intervalDays, plan.calendarExpression);
     await this.repo.updateNextDueAt(planId, nextDueAt);
 
@@ -282,8 +276,6 @@ export class PreventivePlansService {
       );
     }
   }
-
-  // ── Private helpers ────────────────────────────────────────────────
 
   private async validateAsset(assetId: string): Promise<void> {
     const asset = await this.prisma.asset.findUnique({ where: { id: assetId } });
@@ -324,8 +316,6 @@ export class PreventivePlansService {
     }
   }
 
-  // System-generated WOs need a createdById. Use the defaultTechnician if set,
-  // otherwise fall back to the first active ADMIN (always present after seed).
   private async resolveSystemActorId(preferredId: string | null): Promise<string> {
     if (preferredId) return preferredId;
     const admin = await this.prisma.user.findFirst({

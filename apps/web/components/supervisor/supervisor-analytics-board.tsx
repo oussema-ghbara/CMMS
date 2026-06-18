@@ -5,8 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, ZAxis,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis,
   Cell, CartesianGrid,
 } from 'recharts';
 import { Download, Loader2 } from 'lucide-react';
@@ -14,9 +12,6 @@ import { WorkOrderStatus, WorkOrderType, WorkOrderPriority } from '@gmao/shared'
 import {
   workOrdersApi,
   type TechnicianKpiItem,
-  type AssetBreakdownItem,
-  type PlanComplianceEntry,
-  type ChecklistItemAnomalyEntry,
 } from '@/lib/work-orders.api';
 import { categoriesApi } from '@/lib/categories.api';
 import { toast } from 'sonner';
@@ -26,7 +21,7 @@ import { Mono } from '@/components/ui/mono';
 
 const DEFAULT_PERIOD_DAYS = 30;
 
-type AnalyticsTab = 'overview' | 'assets' | 'technicians' | 'preventive' | 'requester' | 'operational';
+type AnalyticsTab = 'overview' | 'assets' | 'technicians' | 'requester';
 
 const C = {
   active:  '#B08B10',
@@ -43,8 +38,6 @@ const C = {
   textSec: '#6B6863',
   textTer: '#9E9A95',
 } as const;
-
-const RADAR_COLORS = [C.norm, C.active, C.crit, C.done, C.wait, C.high, C.cancel, C.accent];
 
 const STATUS_ORDER: WorkOrderStatus[] = [
   WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS,
@@ -123,8 +116,6 @@ export async function exportAnalyticsPdf(
   document.body.removeChild(anchor);
   window.URL.revokeObjectURL(objectUrl);
 }
-
-// ── Design-system inline components ──────────────────────────────────────────
 
 function KpiMetric({ label, value, sub }: { label: string; value: string | number | null; sub?: string }) {
   return (
@@ -235,8 +226,6 @@ const TD_SEC: React.CSSProperties = { ...TD, color: 'var(--sb-text-secondary)' }
 const TD_R: React.CSSProperties = { ...TD, textAlign: 'right', paddingRight: 0 };
 const TD_C: React.CSSProperties = { ...TD, textAlign: 'center' };
 
-// ── Chart primitives ──────────────────────────────────────────────────────────
-
 interface TooltipPayloadItem {
   value: number | string;
   name?: string;
@@ -311,95 +300,6 @@ function PriorityDistributionChart({ entries }: { entries: Array<{ priority: Wor
   );
 }
 
-function AssetReliabilityChart({ items }: { items: AssetBreakdownItem[] }) {
-  const data = items
-    .filter((i) => i.failureCount > 0 && i.mttrHours != null)
-    .map((i) => ({ x: i.failureCount, y: i.mttrHours!, z: Math.max(i.totalCost, 1), name: i.assetName }));
-
-  if (data.length === 0) return null;
-
-  return (
-    <ChartBox title="FIABILITÉ ACTIFS — PANNES × MTTR (taille = coût)">
-      <ResponsiveContainer width="100%" height={280}>
-        <ScatterChart margin={{ left: 8, right: 24, top: 8, bottom: 16 }}>
-          <CartesianGrid stroke={C.border} />
-          <XAxis
-            type="number" dataKey="x" name="Pannes"
-            tick={{ fontSize: 10, fill: C.textSec, fontFamily: 'monospace' }}
-            label={{ value: 'PANNES', position: 'insideBottom', offset: -8, fontSize: 9, fill: C.textSec, fontFamily: 'monospace' }}
-            axisLine={false} tickLine={false}
-          />
-          <YAxis
-            type="number" dataKey="y" name="MTTR (h)"
-            tick={{ fontSize: 10, fill: C.textSec, fontFamily: 'monospace' }}
-            label={{ value: 'MTTR (H)', angle: -90, position: 'insideLeft', offset: 8, fontSize: 9, fill: C.textSec, fontFamily: 'monospace' }}
-            axisLine={false} tickLine={false}
-          />
-          <ZAxis type="number" dataKey="z" range={[40, 400]} />
-          <Tooltip
-            cursor={{ strokeDasharray: '3 3' }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const d = payload[0].payload as { name: string; x: number; y: number; z: number };
-              return (
-                <div style={{ background: '#1A1816', border: '1px solid #3A3630', borderRadius: 2, padding: '8px 12px' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#E8E5E0', marginBottom: 4 }}>{d.name}</div>
-                  <Mono size={9} color="#9E9A95" block>
-                    Pannes: {d.x} · MTTR: {fmtDec(d.y)} h · Coût: {fmtCur(d.z)}
-                  </Mono>
-                </div>
-              );
-            }}
-          />
-          <Scatter data={data} fill={C.norm} opacity={0.85} />
-        </ScatterChart>
-      </ResponsiveContainer>
-    </ChartBox>
-  );
-}
-
-function TechnicianRadarChart({ items }: { items: TechnicianKpiItem[] }) {
-  const visibleItems = items.slice(0, 6);
-  if (visibleItems.length === 0) return null;
-
-  const maxClosed = Math.max(...visibleItems.map((i) => i.closedCount), 1);
-  const maxResp   = Math.max(...visibleItems.map((i) => i.avgResponseTimeHours ?? 0), 1);
-  const maxDur    = Math.max(...visibleItems.map((i) => i.avgActiveDurationMinutes ?? 0), 1);
-
-  const radarData = ['VOLUME', 'QUALITÉ', 'RAPIDITÉ', 'EFFICACITÉ'].map((metric) => {
-    const entry: Record<string, string | number> = { metric };
-    visibleItems.forEach((t) => {
-      if (metric === 'VOLUME')     entry[t.name] = Math.round((t.closedCount / maxClosed) * 100);
-      if (metric === 'QUALITÉ')    entry[t.name] = t.firstPassRate != null ? Math.round(t.firstPassRate * 100) : 0;
-      if (metric === 'RAPIDITÉ')   entry[t.name] = t.avgResponseTimeHours != null ? Math.round((1 - t.avgResponseTimeHours / maxResp) * 100) : 0;
-      if (metric === 'EFFICACITÉ') entry[t.name] = t.avgActiveDurationMinutes != null ? Math.round((1 - t.avgActiveDurationMinutes / maxDur) * 100) : 0;
-    });
-    return entry;
-  });
-
-  return (
-    <ChartBox title="PERFORMANCE COMPARATIVE — RADAR (normalisé 0–100)">
-      <ResponsiveContainer width="100%" height={300}>
-        <RadarChart data={radarData}>
-          <PolarGrid stroke={C.border} />
-          <PolarAngleAxis dataKey="metric" tick={{ fontSize: 9, fill: C.textSec, fontFamily: 'monospace' }} />
-          {visibleItems.map((t, i) => (
-            <Radar
-              key={t.technicianId}
-              name={t.name}
-              dataKey={t.name}
-              stroke={RADAR_COLORS[i % RADAR_COLORS.length]}
-              fill={RADAR_COLORS[i % RADAR_COLORS.length]}
-              fillOpacity={0.15}
-            />
-          ))}
-          <Tooltip content={<ChartTooltipContent />} />
-        </RadarChart>
-      </ResponsiveContainer>
-    </ChartBox>
-  );
-}
-
 function TechnicianDurationChart({ items }: { items: TechnicianKpiItem[] }) {
   const data = items
     .filter((i) => i.avgActiveDurationMinutes != null)
@@ -427,8 +327,6 @@ function TechnicianDurationChart({ items }: { items: TechnicianKpiItem[] }) {
   );
 }
 
-// ── Data table components ─────────────────────────────────────────────────────
-
 function TechRow({ item }: { item: TechnicianKpiItem }) {
   const { t } = useTranslation();
   return (
@@ -454,84 +352,6 @@ function TechRow({ item }: { item: TechnicianKpiItem }) {
     </tr>
   );
 }
-
-function PlanComplianceTable({ entries }: { entries: PlanComplianceEntry[] }) {
-  const { t } = useTranslation();
-  return (
-    <ChartBox title={t('supervisorAnalytics.sections.compliancePerPlan')}>
-      {entries.length === 0 ? (
-        <div style={{ padding: '14px 16px' }}>
-          <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
-        </div>
-      ) : (
-        <div style={{ padding: '0 16px 12px', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={TH}>{t('supervisorAnalytics.columns.plan')}</th>
-                <th style={TH_R}>{t('supervisorAnalytics.columns.total')}</th>
-                <th style={TH_R}>{t('supervisorAnalytics.columns.closedOnTime')}</th>
-                <th style={TH_R}>{t('supervisorAnalytics.columns.complianceRate')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((row) => (
-                <tr key={row.planId} style={{ borderBottom: '1px solid var(--sb-border)' }}>
-                  <td style={{ ...TD, fontWeight: 600 }}>{row.planTitle}</td>
-                  <td style={TD_R}>{fmt(row.total)}</td>
-                  <td style={TD_R}>{fmt(row.closedOnTime)}</td>
-                  <td style={TD_R}>
-                    <RateBadge rate={row.rate} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </ChartBox>
-  );
-}
-
-function ChecklistItemAnomalyTable({ entries }: { entries: ChecklistItemAnomalyEntry[] }) {
-  const { t } = useTranslation();
-  return (
-    <ChartBox title={t('supervisorAnalytics.sections.anomalyPerChecklistItem')}>
-      {entries.length === 0 ? (
-        <div style={{ padding: '14px 16px' }}>
-          <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
-        </div>
-      ) : (
-        <div style={{ padding: '0 16px 12px', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={TH}>{t('supervisorAnalytics.columns.checklistItem')}</th>
-                <th style={TH_R}>{t('supervisorAnalytics.columns.executions')}</th>
-                <th style={TH_R}>{t('supervisorAnalytics.columns.anomalies')}</th>
-                <th style={TH_R}>{t('supervisorAnalytics.columns.anomalyRate')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((row) => (
-                <tr key={row.itemId} style={{ borderBottom: '1px solid var(--sb-border)' }}>
-                  <td style={{ ...TD, fontWeight: 600 }}>{row.description}</td>
-                  <td style={TD_R}>{fmt(row.total)}</td>
-                  <td style={TD_R}>{fmt(row.anomalyCount)}</td>
-                  <td style={TD_R}>
-                    <AnomalyBadge rate={row.rate} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </ChartBox>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 const filterSelectStyle: React.CSSProperties = {
   height: 26,
@@ -629,15 +449,12 @@ export function SupervisorAnalyticsBoard() {
     { key: 'overview',    labelKey: 'supervisorAnalytics.tabs.overview' },
     { key: 'assets',      labelKey: 'supervisorAnalytics.tabs.assets' },
     { key: 'technicians', labelKey: 'supervisorAnalytics.tabs.technicians' },
-    { key: 'preventive',  labelKey: 'supervisorAnalytics.tabs.preventive' },
     { key: 'requester',   labelKey: 'supervisorAnalytics.tabs.requester' },
-    { key: 'operational', labelKey: 'supervisorAnalytics.tabs.operational' },
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
-      {/* ── Filter toolbar ── */}
       <div style={{
         minHeight: 44,
         background: 'var(--sb-surface)',
@@ -753,7 +570,6 @@ export function SupervisorAnalyticsBoard() {
         </button>
       </div>
 
-      {/* ── Export error ── */}
       {exportErrorKey && (
         <div style={{
           border: '1px solid rgba(181,53,37,0.4)',
@@ -767,14 +583,12 @@ export function SupervisorAnalyticsBoard() {
         </div>
       )}
 
-      {/* ── Loading ── */}
       {isLoading && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 160 }}>
           <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: 'var(--sb-text-tertiary)' }} />
         </div>
       )}
 
-      {/* ── Error ── */}
       {isError && !isLoading && (
         <div style={{
           border: '1px solid rgba(181,53,37,0.4)',
@@ -787,11 +601,9 @@ export function SupervisorAnalyticsBoard() {
         </div>
       )}
 
-      {/* ── Data ── */}
       {!isLoading && !isError && data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
-          {/* Tab bar */}
           <div style={{
             display: 'flex',
             borderBottom: '1px solid var(--sb-border)',
@@ -825,7 +637,6 @@ export function SupervisorAnalyticsBoard() {
             ))}
           </div>
 
-          {/* ── Overview ── */}
           {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--sb-border)' }}>
@@ -882,7 +693,6 @@ export function SupervisorAnalyticsBoard() {
             </div>
           )}
 
-          {/* ── Assets ── */}
           {activeTab === 'assets' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--sb-border)' }}>
@@ -908,116 +718,43 @@ export function SupervisorAnalyticsBoard() {
                 />
               </div>
 
-              {data.assetKpis.perAsset.length > 0 && (
-                <AssetReliabilityChart items={data.assetKpis.perAsset} />
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <ChartBox title={t('supervisorAnalytics.sections.topFailingAssets')}>
-                  {data.assetKpis.topByFailureFrequency.length === 0 ? (
-                    <div style={{ padding: '14px 16px' }}>
-                      <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '0 16px 12px' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr>
-                            <th style={TH}>{t('supervisorAnalytics.columns.asset')}</th>
-                            <th style={TH_C}>{t('supervisorAnalytics.columns.failureCount')}</th>
-                            <th style={TH_R}>{t('supervisorAnalytics.columns.lastFailure')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.assetKpis.topByFailureFrequency.map((item) => (
-                            <tr key={item.assetId} style={{ borderBottom: '1px solid var(--sb-border)' }}>
-                              <td style={{ ...TD, fontWeight: 600 }}>{item.assetName}</td>
-                              <td style={TD_C}>
-                                <FailureBadge count={item.failureCount} />
-                              </td>
-                              <td style={{ ...TD_SEC, ...TD_R }}>
-                                {new Date(item.lastFailureDate).toLocaleDateString('fr-FR')}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </ChartBox>
-
-                <ChartBox title={t('supervisorAnalytics.sections.topCostAssets')}>
-                  {data.assetKpis.topByCost.length === 0 ? (
-                    <div style={{ padding: '14px 16px' }}>
-                      <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '0 16px 12px' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr>
-                            <th style={TH}>{t('supervisorAnalytics.columns.asset')}</th>
-                            <th style={TH_R}>{t('supervisorAnalytics.columns.totalCost')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.assetKpis.topByCost.map((item) => (
-                            <tr key={item.assetId} style={{ borderBottom: '1px solid var(--sb-border)' }}>
-                              <td style={{ ...TD, fontWeight: 600 }}>{item.assetName}</td>
-                              <td style={{ ...TD_R, fontWeight: 600 }}>{fmtCur(item.totalCost)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </ChartBox>
-              </div>
-
-              {data.assetKpis.perAsset.length > 0 && (
-                <ChartBox title={t('supervisorAnalytics.sections.perAssetBreakdown')}>
-                  <div style={{ padding: '0 16px 12px', overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+              <ChartBox title={t('supervisorAnalytics.sections.topFailingAssets')}>
+                {data.assetKpis.topByFailureFrequency.length === 0 ? (
+                  <div style={{ padding: '14px 16px' }}>
+                    <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
+                  </div>
+                ) : (
+                  <div style={{ padding: '0 16px 12px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
                           <th style={TH}>{t('supervisorAnalytics.columns.asset')}</th>
                           <th style={TH_C}>{t('supervisorAnalytics.columns.failureCount')}</th>
-                          <th style={TH_C}>{t('supervisorAnalytics.columns.downtimeHours')}</th>
-                          <th style={TH_C}>{t('supervisorAnalytics.columns.mttrHours')}</th>
-                          <th style={TH_C}>{t('supervisorAnalytics.columns.mtbfDays')}</th>
-                          <th style={TH_R}>{t('supervisorAnalytics.columns.totalCost')}</th>
+                          <th style={TH_R}>{t('supervisorAnalytics.columns.lastFailure')}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {data.assetKpis.perAsset.map((item: AssetBreakdownItem) => (
+                        {data.assetKpis.topByFailureFrequency.map((item) => (
                           <tr key={item.assetId} style={{ borderBottom: '1px solid var(--sb-border)' }}>
                             <td style={{ ...TD, fontWeight: 600 }}>{item.assetName}</td>
                             <td style={TD_C}>
-                              {item.failureCount > 0
-                                ? <FailureBadge count={item.failureCount} />
-                                : <span style={{ color: 'var(--sb-text-tertiary)' }}>—</span>}
+                              <FailureBadge count={item.failureCount} />
                             </td>
-                            <td style={TD_C}>{item.downtimeHours > 0 ? `${fmtDec(item.downtimeHours)} h` : '—'}</td>
-                            <td style={TD_C}>{item.mttrHours != null ? `${fmtDec(item.mttrHours)} h` : '—'}</td>
-                            <td style={TD_C}>{item.mtbfDays != null ? `${fmtDec(item.mtbfDays)} j` : '—'}</td>
-                            <td style={{ ...TD_R, fontWeight: 600 }}>{fmtCur(item.totalCost)}</td>
+                            <td style={{ ...TD_SEC, ...TD_R }}>
+                              {new Date(item.lastFailureDate).toLocaleDateString('fr-FR')}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </ChartBox>
-              )}
+                )}
+              </ChartBox>
             </div>
           )}
 
-          {/* ── Technicians ── */}
           {activeTab === 'technicians' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {data.technicianKpis.length > 1 && (
-                <TechnicianRadarChart items={data.technicianKpis} />
-              )}
-
               <ChartBox title={t('supervisorAnalytics.sections.technicianPerformance')}>
                 {data.technicianKpis.length === 0 ? (
                   <div style={{ padding: '14px 16px' }}>
@@ -1047,75 +784,9 @@ export function SupervisorAnalyticsBoard() {
                 )}
               </ChartBox>
 
-              {data.technicianKpis.some((item) => item.rejectionCount > 0) && (
-                <ChartBox title={t('supervisorAnalytics.sections.technicianRejectionBreakdown')}>
-                  <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {data.technicianKpis.filter((item) => item.rejectionCount > 0).map((item) => (
-                      <div key={item.technicianId}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)' }}>{item.name}</span>
-                          <Mono size={8} color="var(--sb-text-tertiary)">
-                            {t('supervisorAnalytics.columns.rejectionCount')}: {item.rejectionCount}
-                          </Mono>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {Object.entries(item.rejectionRateByCategory).map(([reason, entry]) => (
-                            <span key={reason} style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 4,
-                              background: 'var(--sb-p-crit-bg)',
-                              border: '1px solid rgba(181,53,37,0.2)',
-                              borderRadius: 2, padding: '2px 7px',
-                              fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
-                              fontSize: 8, color: 'var(--sb-p-crit)',
-                            }}>
-                              <span>{t(`validationRejectionReason.${reason}`, { defaultValue: reason })}</span>
-                              <span style={{ fontWeight: 700 }}>×{entry.count}</span>
-                              <span style={{ opacity: 0.65 }}>({fmtPct(entry.rate)})</span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ChartBox>
-              )}
             </div>
           )}
 
-          {/* ── Preventive ── */}
-          {activeTab === 'preventive' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--sb-border)' }}>
-                <KpiMetric
-                  label={t('supervisorAnalytics.kpi.planComplianceRate')}
-                  value={data.preventivePlanEfficiency.complianceRate != null ? fmtPct(data.preventivePlanEfficiency.complianceRate) : '—'}
-                  sub={`${data.preventivePlanEfficiency.closedPreventiveWOs} / ${data.preventivePlanEfficiency.totalPreventiveWOs} ${t('supervisorAnalytics.kpi.preventiveClosedDesc')}`}
-                />
-                <KpiMetric
-                  label={t('supervisorAnalytics.kpi.anomalyRate')}
-                  value={data.preventivePlanEfficiency.anomalyRate != null ? fmtPct(data.preventivePlanEfficiency.anomalyRate) : '—'}
-                  sub={t('supervisorAnalytics.kpi.anomalyRateDesc')}
-                />
-                <KpiMetric
-                  label={t('supervisorAnalytics.kpi.totalPreventiveWOs')}
-                  value={fmt(data.preventivePlanEfficiency.totalPreventiveWOs)}
-                  sub={t('supervisorAnalytics.kpi.totalPreventiveWOsDesc')}
-                />
-                <KpiMetric
-                  label={t('supervisorAnalytics.kpi.postPreventiveCorrectiveRate')}
-                  value={data.preventivePlanEfficiency.postPreventiveCorrectiveRate != null ? fmtPct(data.preventivePlanEfficiency.postPreventiveCorrectiveRate) : '—'}
-                  sub={t('supervisorAnalytics.kpi.postPreventiveCorrectiveRateDesc', {
-                    days: data.preventivePlanEfficiency.postPreventiveCorrectiveWindowDays,
-                  })}
-                />
-              </div>
-
-              <PlanComplianceTable entries={data.preventivePlanEfficiency.compliancePerPlan} />
-              <ChecklistItemAnomalyTable entries={data.preventivePlanEfficiency.anomalyPerChecklistItem} />
-            </div>
-          )}
-
-          {/* ── Requester ── */}
           {activeTab === 'requester' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--sb-border)' }}>
               <KpiMetric
@@ -1137,79 +808,6 @@ export function SupervisorAnalyticsBoard() {
                 value={data.requesterAnalytics.reportAccuracyRate != null ? fmtPct(data.requesterAnalytics.reportAccuracyRate) : '—'}
                 sub={t('supervisorAnalytics.kpi.reportAccuracyRateDesc')}
               />
-              <KpiMetric
-                label={t('supervisorAnalytics.kpi.duplicateSubmissionRate')}
-                value={data.requesterAnalytics.duplicateSubmissionRate != null ? fmtPct(data.requesterAnalytics.duplicateSubmissionRate) : '—'}
-                sub={t('supervisorAnalytics.kpi.duplicateSubmissionRateDesc')}
-              />
-            </div>
-          )}
-
-          {/* ── Operational ── */}
-          {activeTab === 'operational' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, background: 'var(--sb-border)' }}>
-                <KpiMetric
-                  label={t('supervisorAnalytics.kpi.reassignmentCount')}
-                  value={fmt(data.operationalOverview.reassignmentCount)}
-                  sub={t('supervisorAnalytics.kpi.reassignmentCountDesc')}
-                />
-                <KpiMetric
-                  label={t('supervisorAnalytics.kpi.avgHoldPeriodsPerWo')}
-                  value={data.operationalOverview.avgHoldPeriodsPerWo != null ? fmtDec(data.operationalOverview.avgHoldPeriodsPerWo) : '—'}
-                  sub={t('supervisorAnalytics.kpi.avgHoldPeriodsDesc')}
-                />
-              </div>
-
-              {data.technicianKpis.length > 0 && (
-                <TechnicianDurationChart items={data.technicianKpis} />
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <ChartBox title={t('supervisorAnalytics.sections.sourceDistribution')}>
-                  {Object.keys(data.operationalOverview.sourceDistribution).length === 0 ? (
-                    <div style={{ padding: '14px 16px' }}>
-                      <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '0 16px 12px' }}>
-                      {Object.entries(data.operationalOverview.sourceDistribution)
-                        .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-                        .map(([source, count]) => (
-                          <div key={source} style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '6px 0', borderBottom: '1px solid var(--sb-border)',
-                          }}>
-                            <span style={{ fontSize: 12, color: 'var(--sb-text-secondary)' }}>{source}</span>
-                            <Mono size={9} color="var(--sb-text-primary)" weight={600}>{String(count ?? 0)}</Mono>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </ChartBox>
-
-                <ChartBox title={t('supervisorAnalytics.sections.rejectionReasons')}>
-                  {Object.keys(data.operationalOverview.rejectionReasonDistribution).length === 0 ? (
-                    <div style={{ padding: '14px 16px' }}>
-                      <Mono size={9} color="var(--sb-text-tertiary)">{t('supervisorAnalytics.states.noData')}</Mono>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '0 16px 12px' }}>
-                      {Object.entries(data.operationalOverview.rejectionReasonDistribution)
-                        .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-                        .map(([reason, count]) => (
-                          <div key={reason} style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '6px 0', borderBottom: '1px solid var(--sb-border)',
-                          }}>
-                            <span style={{ fontSize: 12, color: 'var(--sb-text-secondary)' }}>{reason}</span>
-                            <Mono size={9} color="var(--sb-text-primary)" weight={600}>{String(count ?? 0)}</Mono>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </ChartBox>
-              </div>
             </div>
           )}
         </div>

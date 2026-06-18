@@ -32,8 +32,6 @@ interface AuthenticatedRequest extends Request {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ── Self-service endpoints (all authenticated roles) ────────────────────────
-
   @Get('technicians')
   @Roles(Role.ADMIN, Role.SUPERVISOR)
   @ApiOperation({ summary: 'List all active technicians (Admin + Supervisor) — used in WO creation form §9.2' })
@@ -67,8 +65,6 @@ export class UsersController {
   ): Promise<{ emailNotificationsEnabled: boolean }> {
     return this.usersService.updateEmailNotificationsPreference(req.user.sub, dto.enabled);
   }
-
-  // ── Admin-only endpoints ─────────────────────────────────────────────────────
 
   @Get()
   @ApiOperation({ summary: 'List all users (Admin)' })

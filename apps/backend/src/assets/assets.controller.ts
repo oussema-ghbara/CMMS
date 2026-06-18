@@ -29,8 +29,6 @@ export class AssetsController {
     private readonly documents: DocumentsService,
   ) {}
 
-  // ── Assets ──────────────────────────────────────────────────────
-
   @Get()
   @ApiOperation({ summary: 'List assets with filters and pagination (all roles)' })
   findAll(@Query() query: AssetQueryDto) {
@@ -91,8 +89,6 @@ export class AssetsController {
     return this.assets.getStatusHistory(id);
   }
 
-  // ── Compliance Certificates ──────────────────────────────────────
-
   @Get(':id/certificates')
   @ApiOperation({ summary: 'List certificates for asset (all roles)' })
   listCertificates(@Param('id') id: string) {
@@ -143,8 +139,6 @@ export class AssetsController {
   getCertificateDownload(@Param('certId') certId: string) {
     return this.certificates.getDocumentUrl(certId);
   }
-
-  // ── Asset Documents ──────────────────────────────────────────────
 
   @Get(':id/documents')
   @ApiOperation({ summary: 'List documents for asset (all roles)' })

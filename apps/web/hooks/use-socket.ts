@@ -6,11 +6,6 @@ import { useAuthStore } from '@/store/auth.store';
 
 export let socketInstance: Socket | null = null;
 
-/**
- * Returns the singleton Socket.io connection.
- * Connects when an accessToken is present, disconnects when it's cleared.
- * Usage: const { socket } = useSocket(); socket?.on('work_order_updated', handler)
- */
 export function useSocket() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const socketRef = useRef<Socket | null>(null);
@@ -50,7 +45,7 @@ export function useSocket() {
         }
       });
     } else {
-      // Update auth token on re-connect
+
       socketInstance.auth = { token: accessToken };
     }
 

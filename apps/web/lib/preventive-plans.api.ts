@@ -169,7 +169,7 @@ export interface CalendarPreviewItem {
   planTitle: string;
   assetId: string;
   assetName: string;
-  /** ISO date string of the projected WO generation date */
+
   generationDate: string;
   defaultTechnicianId: string | null;
   defaultTechnicianName: string | null;

@@ -104,12 +104,10 @@ export function PreventivePlansBoard() {
   const openCreateDialog = () => { setEditingPlan(null); setPlanDialogOpen(true); };
   const openEditDialog = (plan: PreventivePlanItem) => { setEditingPlan(plan); setPlanDialogOpen(true); };
 
-  // ── List content ───────────────────────────────────────────────────────────
-
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Column headers */}
+      { }
       {!isLoading && !isError && !!data?.data.length && (
         <div style={{
           display: 'grid',
@@ -125,7 +123,7 @@ export function PreventivePlansBoard() {
         </div>
       )}
 
-      {/* Body */}
+      { }
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -153,7 +151,7 @@ export function PreventivePlansBoard() {
                 onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sb-hover)'; }}
                 onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                {/* Title */}
+                { }
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {plan.title}
@@ -165,14 +163,14 @@ export function PreventivePlansBoard() {
                   )}
                 </div>
 
-                {/* Asset (hidden when panel open) */}
+                { }
                 {!panelOpen && (
                   <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {plan.asset.name}
                   </div>
                 )}
 
-                {/* Frequency (hidden when panel open) */}
+                { }
                 {!panelOpen && (
                   <span style={{
                     display: 'inline-flex', padding: '1px 6px', border: '1px solid var(--sb-border)', borderRadius: 2,
@@ -183,12 +181,10 @@ export function PreventivePlansBoard() {
                   </span>
                 )}
 
-                {/* Next due (hidden when panel open) */}
                 {!panelOpen && (
                   <Mono size={10} color="var(--sb-text-secondary)">{formatDateTime(plan.nextDueAt)}</Mono>
                 )}
 
-                {/* Status dot */}
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: plan.isActive ? 'var(--sb-s-done)' : 'var(--sb-text-tertiary)' }} />
                   {!panelOpen && (
@@ -203,7 +199,6 @@ export function PreventivePlansBoard() {
         )}
       </div>
 
-      {/* Footer: pagination */}
       <div style={{
         height: 36, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
         borderTop: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0,
@@ -218,13 +213,10 @@ export function PreventivePlansBoard() {
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* Board-level toolbar */}
         <div style={{
           minHeight: 44,
           borderBottom: '1px solid var(--sb-border)',
@@ -236,7 +228,7 @@ export function PreventivePlansBoard() {
           background: 'var(--sb-surface)',
           flexShrink: 0,
         }}>
-          {/* Asset search */}
+
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Search
               size={13}
@@ -273,7 +265,6 @@ export function PreventivePlansBoard() {
 
           <div style={{ width: 1, height: 16, background: 'var(--sb-border)', flexShrink: 0 }} />
 
-          {/* Asset filter */}
           <select
             value={assetFilterId}
             onChange={(e) => { setAssetFilterId(e.target.value); setPage(1); }}
@@ -287,7 +278,6 @@ export function PreventivePlansBoard() {
             ))}
           </select>
 
-          {/* Status filter */}
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }}
@@ -300,7 +290,6 @@ export function PreventivePlansBoard() {
             <option value="inactive">{t('supervisorPreventivePlans.filters.inactive')}</option>
           </select>
 
-          {/* Reset — only when filters are active */}
           {hasActiveFilters && (
             <button
               type="button"
@@ -324,14 +313,12 @@ export function PreventivePlansBoard() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Count */}
           {data && activeView === 'list' && (
             <Mono size={9} color="var(--sb-text-tertiary)">
               {t('supervisorPreventivePlans.total', { count: data.total })}
             </Mono>
           )}
 
-          {/* View toggle */}
           <div style={{ display: 'flex', border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
             <button
               type="button"
@@ -363,7 +350,6 @@ export function PreventivePlansBoard() {
             </button>
           </div>
 
-          {/* Create button */}
           <button
             type="button"
             onClick={openCreateDialog}
@@ -387,7 +373,6 @@ export function PreventivePlansBoard() {
           </button>
         </div>
 
-        {/* List view */}
         {activeView === 'list' && (
           <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
             <MasterDetail
@@ -407,7 +392,6 @@ export function PreventivePlansBoard() {
           </div>
         )}
 
-        {/* Calendar view */}
         {activeView === 'calendar' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
             {calendarLoading ? (

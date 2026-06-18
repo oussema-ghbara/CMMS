@@ -4,18 +4,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock,
-  Loader2, Users, XCircle, CalendarClock,
+  AlertTriangle, ChevronLeft, ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { TableLoading } from '@/components/ui/table-loading';
 import { TableEmpty } from '@/components/ui/table-empty';
 import {
   adminApi,
-  type QueueStats,
   type UserActivityStats,
   type UserLoginFrequencyEntry,
-  type SystemHealthStats,
-  type ScheduledJobStat,
 } from '@/lib/admin.api';
 import { FREQUENCY_BADGE_VARIANT, formatLoginDate } from '@/lib/login-frequency-utils';
 import { Button } from '@/components/ui/button';
@@ -76,12 +73,6 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value);
 }
 
-const QUEUE_DISPLAY_NAMES: Record<string, string> = {
-  mail: 'Emails',
-  'report-generation': 'Rapports PDF',
-  'preventive-plan-generation': 'Plans préventifs',
-};
-
 function KpiCell({ title, value, variant }: { title: string; value: number; variant?: 'default' | 'warning' | 'danger' }) {
   const valueColor = variant === 'danger' ? C.pCrit : variant === 'warning' ? C.pHigh : C.textPrimary;
   return (
@@ -89,43 +80,6 @@ function KpiCell({ title, value, variant }: { title: string; value: number; vari
       <Mono size={9} color={C.textTertiary} tracking="0.13em" style={{ display: 'block', marginBottom: 8 }}>{title.toUpperCase()}</Mono>
       <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', color: valueColor, lineHeight: 1 }}>
         {formatNumber(value)}
-      </div>
-    </div>
-  );
-}
-
-function QueueCard({ queue, t }: { queue: QueueStats; t: (key: string) => string }) {
-  const failedColor = queue.failed > 0 ? C.pCrit : C.sDone;
-  const failedBg    = queue.failed > 0 ? C.pCritBg : C.sDoneBg;
-  return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 2, background: 'white', overflow: 'hidden' }}>
-      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '8px 12px' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: C.textPrimary }}>{QUEUE_DISPLAY_NAMES[queue.name] ?? queue.name}</div>
-        <Mono size={9} color={C.textTertiary} tracking="0.08em" style={{ marginTop: 2 }}>{queue.name}</Mono>
-      </div>
-      <div style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueWaiting')}</Mono>
-          <CountBadge value={queue.waiting} color={C.sWait} bg={C.sWaitBg} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueActive')}</Mono>
-          <CountBadge value={queue.active} color={C.sActive} bg={C.sActiveBg} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueFailed')}</Mono>
-          <CountBadge value={queue.failed} color={failedColor} bg={failedBg} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueCompleted')}</Mono>
-          <CountBadge value={queue.completed} color={C.sDone} bg={C.sDoneBg} />
-        </div>
-        {queue.delayed > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Mono size={9} color={C.textTertiary} tracking="0.10em">{t('adminAnalytics.systemStats.queueDelayed')}</Mono>
-            <CountBadge value={queue.delayed} color={C.pHigh} bg={C.pHighBg} />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -150,7 +104,7 @@ function UserActivitySection({ data, t }: { data: UserActivityStats; t: (key: st
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* KPI row */}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
         <KpiCell title={t('adminAnalytics.userStats.totalUsers')} value={data.totalUsers} />
         <KpiCell title={t('adminAnalytics.userStats.activeUsers')} value={data.activeUsers} />
@@ -161,7 +115,7 @@ function UserActivitySection({ data, t }: { data: UserActivityStats; t: (key: st
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {/* Login recency */}
+
         <SectionBox title={t('adminAnalytics.userStats.loginRecency')} description={t('adminAnalytics.userStats.loginRecencyDescription')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {recencyRows.map(({ key, labelKey, warn }) => {
@@ -188,7 +142,6 @@ function UserActivitySection({ data, t }: { data: UserActivityStats; t: (key: st
           </div>
         </SectionBox>
 
-        {/* By role */}
         <SectionBox title={t('adminAnalytics.userStats.byRole')} description={t('adminAnalytics.userStats.byRoleDescription')}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {data.byRole.map(({ role, count }, idx) => (
@@ -225,7 +178,7 @@ function UserLoginFrequencyTable({ t, language }: { t: (key: string, opts?: Reco
         <TableEmpty label={t('adminAnalytics.userStats.loginFrequencyEmpty')} />
       ) : (
         <>
-          {/* Header */}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px 120px', background: C.surface, borderBottom: `1px solid ${C.border}`, margin: '-14px -14px 0', padding: '0 14px' }}>
             {[
               t('adminAnalytics.userStats.loginFrequencyColumns.user'),
@@ -238,7 +191,7 @@ function UserLoginFrequencyTable({ t, language }: { t: (key: string, opts?: Reco
               </div>
             ))}
           </div>
-          {/* Rows */}
+
           {data.data.map((entry: UserLoginFrequencyEntry, idx) => {
             const freqMeta = FREQUENCY_VARIANT_MAP[entry.frequencyCategory] ?? { color: C.sCancel, bg: C.sCancelBg };
             const freqKey = FREQUENCY_BADGE_VARIANT[entry.frequencyCategory];
@@ -285,119 +238,13 @@ function UserLoginFrequencyTable({ t, language }: { t: (key: string, opts?: Reco
   );
 }
 
-function SystemHealthSection({ data, t }: { data: SystemHealthStats; t: (key: string) => string }) {
-  const { notifications } = data;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-        <KpiCell title={t('adminAnalytics.systemStats.emailFailed')} value={notifications.emailFailed} variant={notifications.emailFailed > 0 ? 'danger' : 'default'} />
-        <KpiCell title={t('adminAnalytics.systemStats.emailPending')} value={notifications.emailPendingDelivery} variant={notifications.emailPendingDelivery > 10 ? 'warning' : 'default'} />
-        <KpiCell title={t('adminAnalytics.systemStats.emailSentLast24h')} value={notifications.totalSentLast24h} />
-      </div>
-      <div>
-        <Mono size={9} color={C.textSecondary} tracking="0.13em" style={{ display: 'block', marginBottom: 10 }}>{t('adminAnalytics.systemStats.queues').toUpperCase()}</Mono>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {data.queues.map((queue) => (
-            <QueueCard key={queue.name} queue={queue} t={t} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const JOB_DISPLAY_NAMES: Record<string, string> = {
-  'access-retry-approaching':   'adminAnalytics.scheduledJobs.jobs.accessRetryApproaching',
-  'contractor-date-overdue':    'adminAnalytics.scheduledJobs.jobs.contractorDateOverdue',
-  'daily-summary':              'adminAnalytics.scheduledJobs.jobs.dailySummary',
-  'due-date-approaching':       'adminAnalytics.scheduledJobs.jobs.dueDateApproaching',
-  'priority-escalation':        'adminAnalytics.scheduledJobs.jobs.priorityEscalation',
-  'validation-reminder':        'adminAnalytics.scheduledJobs.jobs.validationReminder',
-};
-
-function jobStatus(job: ScheduledJobStat): 'healthy' | 'failed' | 'unknown' {
-  if (!job.lastRunAt) return 'unknown';
-  if (job.lastFailureAt && (!job.lastSuccessAt || job.lastFailureAt > job.lastSuccessAt)) return 'failed';
-  return 'healthy';
-}
-
-function formatRelative(isoDate: string | null, language: string): string {
-  if (!isoDate) return '—';
-  return new Intl.DateTimeFormat(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(isoDate));
-}
-
-function ScheduledJobsSection({ jobs, t, language }: { jobs: ScheduledJobStat[]; t: (key: string, opts?: Record<string, unknown>) => string; language: string }) {
-  const JOB_STATUS_META = {
-    healthy: { color: C.sDone,   bg: C.sDoneBg,   label: t('adminAnalytics.scheduledJobs.statusHealthy') },
-    failed:  { color: C.pCrit,   bg: C.pCritBg,   label: t('adminAnalytics.scheduledJobs.statusFailed') },
-    unknown: { color: C.sCancel, bg: C.sCancelBg, label: t('adminAnalytics.scheduledJobs.statusUnknown') },
-  };
-
-  return (
-    <SectionBox title={t('adminAnalytics.scheduledJobs.title')} description={t('adminAnalytics.scheduledJobs.description')}>
-      {jobs.length === 0 ? (
-        <Mono size={10} color={C.textTertiary} tracking="0.12em">{t('adminAnalytics.scheduledJobs.noData').toUpperCase()}</Mono>
-      ) : (
-        <>
-          {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 160px 1fr', background: C.surface, borderBottom: `1px solid ${C.border}`, margin: '-14px -14px 0', padding: '0 14px' }}>
-            {[
-              t('adminAnalytics.scheduledJobs.jobName'),
-              t('adminAnalytics.scheduledJobs.status'),
-              t('adminAnalytics.scheduledJobs.lastRun'),
-              t('adminAnalytics.scheduledJobs.lastSuccess'),
-              t('adminAnalytics.scheduledJobs.lastFailure'),
-            ].map((col, i) => (
-              <div key={i} style={{ padding: '8px 0' }}>
-                <Mono size={9} color={C.textSecondary} tracking="0.13em">{col.toUpperCase()}</Mono>
-              </div>
-            ))}
-          </div>
-          {/* Rows */}
-          {jobs.map((job, idx) => {
-            const status = jobStatus(job);
-            const meta = JOB_STATUS_META[status];
-            const nameKey = JOB_DISPLAY_NAMES[job.jobName];
-            const displayName = nameKey ? t(nameKey) : job.jobName;
-            return (
-              <div key={job.jobName} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 160px 1fr', borderTop: `1px solid ${C.border}`, alignItems: 'flex-start', minHeight: 42 }}>
-                <div style={{ padding: '10px 8px 10px 0', fontSize: 12, fontWeight: 500, color: C.textPrimary }}>{displayName}</div>
-                <div style={{ padding: '10px 8px 10px 0' }}>
-                  <SandboxPill color={meta.color} bg={meta.bg} label={meta.label} />
-                </div>
-                <div style={{ padding: '10px 8px 10px 0' }}>
-                  <Mono size={10} color={C.textTertiary} tracking="0.08em">{formatRelative(job.lastRunAt, language)}</Mono>
-                </div>
-                <div style={{ padding: '10px 8px 10px 0' }}>
-                  <Mono size={10} color={C.textTertiary} tracking="0.08em">{formatRelative(job.lastSuccessAt, language)}</Mono>
-                </div>
-                <div style={{ padding: '10px 0' }}>
-                  <Mono size={10} color={job.lastFailureAt ? C.pCrit : C.textTertiary} tracking="0.08em">
-                    {formatRelative(job.lastFailureAt, language)}
-                  </Mono>
-                  {job.lastErrorMessage && (
-                    <div style={{ marginTop: 2, fontSize: 10, color: C.pCrit, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {job.lastErrorMessage}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </>
-      )}
-    </SectionBox>
-  );
-}
-
 export function AdminAnalyticsBoard() {
   const { t, i18n } = useTranslation();
 
-  const userQuery   = useQuery({ queryKey: ['admin', 'analytics', 'users'],  queryFn: () => adminApi.getUserAnalytics() });
-  const systemQuery = useQuery({ queryKey: ['admin', 'analytics', 'system'], queryFn: () => adminApi.getSystemHealth() });
+  const userQuery = useQuery({ queryKey: ['admin', 'analytics', 'users'], queryFn: () => adminApi.getUserAnalytics() });
 
-  const isLoading = userQuery.isLoading || systemQuery.isLoading;
-  const isError   = userQuery.isError   || systemQuery.isError;
+  const isLoading = userQuery.isLoading;
+  const isError   = userQuery.isError;
 
   if (isLoading) {
     return (
@@ -408,7 +255,7 @@ export function AdminAnalyticsBoard() {
     );
   }
 
-  if (isError || !userQuery.data || !systemQuery.data) {
+  if (isError || !userQuery.data) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0', gap: 8, background: C.pCritBg, border: `1px solid ${C.pCrit}28`, borderRadius: 2 }}>
         <AlertTriangle style={{ width: 16, height: 16, color: C.pCrit }} />
@@ -421,7 +268,7 @@ export function AdminAnalyticsBoard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      {/* User Activity */}
+
       <section>
         <div style={sectionHeaderStyle}>
           <Mono size={11} color={C.textSecondary} tracking="0.15em" style={{ display: 'block', marginBottom: 4 }}>{t('adminAnalytics.sections.userActivity').toUpperCase()}</Mono>
@@ -433,26 +280,6 @@ export function AdminAnalyticsBoard() {
         </div>
       </section>
 
-      {/* System Health */}
-      <section>
-        <div style={sectionHeaderStyle}>
-          <Mono size={11} color={C.textSecondary} tracking="0.15em" style={{ display: 'block', marginBottom: 4 }}>{t('adminAnalytics.sections.systemHealth').toUpperCase()}</Mono>
-          <div style={{ fontSize: 12, color: C.textTertiary }}>{t('adminAnalytics.sections.systemHealthDescription')}</div>
-        </div>
-        <SystemHealthSection data={systemQuery.data} t={t} />
-      </section>
-
-      {/* Scheduled Jobs */}
-      <section>
-        <div style={sectionHeaderStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <CalendarClock style={{ width: 13, height: 13, color: C.textTertiary }} />
-            <Mono size={11} color={C.textSecondary} tracking="0.15em">{t('adminAnalytics.sections.scheduledJobs').toUpperCase()}</Mono>
-          </div>
-          <div style={{ fontSize: 12, color: C.textTertiary }}>{t('adminAnalytics.sections.scheduledJobsDescription')}</div>
-        </div>
-        <ScheduledJobsSection jobs={systemQuery.data.scheduledJobs} t={t} language={i18n.language || 'fr'} />
-      </section>
     </div>
   );
 }

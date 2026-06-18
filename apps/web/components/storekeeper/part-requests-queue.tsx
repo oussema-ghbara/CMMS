@@ -174,7 +174,7 @@ export function PartRequestsQueue() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Toolbar */}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Mono size={9} color={C.textSecondary} tracking="0.13em">STATUT</Mono>
@@ -197,9 +197,8 @@ export function PartRequestsQueue() {
         )}
       </div>
 
-      {/* Table */}
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 2, overflow: 'hidden', background: 'var(--sb-bg)' }}>
-        {/* Header */}
+
         <div style={{ display: 'grid', gridTemplateColumns: `${COL.date}px ${COL.wo}px 1fr ${COL.requester}px ${COL.qty}px ${COL.status}px ${COL.actions}px`, background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '0 12px' }}>
           {[
             t('storekeeperPartRequests.columns.createdAt'),
@@ -216,7 +215,6 @@ export function PartRequestsQueue() {
           ))}
         </div>
 
-        {/* Body */}
         {isLoading ? (
           <TableLoading />
         ) : isError ? (
@@ -236,14 +234,13 @@ export function PartRequestsQueue() {
                 minHeight: 44,
               }}
             >
-              {/* Date */}
+
               <div style={{ padding: '10px 0' }}>
                 <Mono size={10} color={C.textTertiary} tracking="0.08em">
                   {formatDateTime(request.createdAt)}
                 </Mono>
               </div>
 
-              {/* Work Order */}
               <div style={{ padding: '10px 0' }}>
                 <div style={{ fontSize: 11, fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace', fontWeight: 600, color: C.textPrimary, letterSpacing: '0.05em' }}>
                   {request.workOrder.referenceNumber}
@@ -253,7 +250,6 @@ export function PartRequestsQueue() {
                 </div>
               </div>
 
-              {/* Part */}
               <div style={{ padding: '10px 8px 10px 0' }}>
                 {request.part ? (
                   <>
@@ -269,10 +265,8 @@ export function PartRequestsQueue() {
                 )}
               </div>
 
-              {/* Requester */}
               <div style={{ padding: '10px 0', fontSize: 12, color: C.textSecondary }}>{request.requester.name}</div>
 
-              {/* Quantity */}
               <div style={{ padding: '10px 0' }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: C.textPrimary }}>
                   {t('storekeeperPartRequests.labels.quantityRequested', { value: request.quantityRequested })}
@@ -284,12 +278,10 @@ export function PartRequestsQueue() {
                 )}
               </div>
 
-              {/* Status */}
               <div style={{ padding: '10px 0' }}>
                 <RequestStatusPill status={request.status} />
               </div>
 
-              {/* Actions */}
               <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
                 {request.status === PartRequestStatus.PENDING && (
                   <>
@@ -322,7 +314,6 @@ export function PartRequestsQueue() {
         onNext={() => setPage((p) => p + 1)}
       />
 
-      {/* Fulfill Modal */}
       {fulfillDialogOpen && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -389,7 +380,6 @@ export function PartRequestsQueue() {
         </div>
       )}
 
-      {/* Reject Modal */}
       {rejectDialogOpen && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

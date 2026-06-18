@@ -110,8 +110,6 @@ export class PreventivePlansController {
     return this.service.triggerNow(id);
   }
 
-  // ── Checklist template management ──────────────────────────────────
-
   @Post(':id/checklist-items')
   @Roles(Role.SUPERVISOR)
   @ApiOperation({ summary: 'Add checklist template item to plan (Supervisor)' })
@@ -145,8 +143,6 @@ export class PreventivePlansController {
   reorderChecklistItems(@Param('id') id: string, @Body() dto: ReorderPlanChecklistItemsDto) {
     return this.service.reorderChecklistItems(id, dto);
   }
-
-  // ── Plan Documents ────────────────────────────────────────────────────────
 
   @Get(':id/documents')
   @ApiOperation({ summary: 'List current-version documents for a plan (all roles)' })

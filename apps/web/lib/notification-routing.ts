@@ -1,11 +1,6 @@
 import { Role } from '@gmao/shared';
 import { type NotificationItem } from './notifications.api';
 
-/**
- * Maps a notification's entityType + entityId to a navigable URL for the
- * current user's role (spec §2.3). Returns null when no route is applicable
- * (e.g. no entity reference, or user's role has no dedicated page for the entity).
- */
 export function resolveNotificationRoute(
   notification: Pick<NotificationItem, 'entityType' | 'entityId'>,
   roles: Role[],

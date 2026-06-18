@@ -7,10 +7,8 @@ import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Loader2 } from 'lucide-react';
-import type { PartConsumptionBreakdown, UnitCostTrendPartEntry } from '@/lib/inventory.api';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { inventoryApi } from '@/lib/inventory.api';
-import { GaugeRing } from '@/components/ui/gauge-ring';
 import { ChartBox } from '@/components/ui/chart-box';
 import { Mono } from '@/components/ui/mono';
 
@@ -38,7 +36,6 @@ const C = {
   accent:     'var(--sb-accent)',
 } as const;
 
-// Recharts SVG needs actual hex values — CSS variables don't resolve in SVG attributes
 const CH = {
   done:   '#2E7A4E',
   active: '#B08B10',
@@ -48,9 +45,8 @@ const CH = {
   accent: '#C49820',
 } as const;
 
-const DEFAULT_PERIOD_DAYS        = 30;
-const DEFAULT_DEAD_STOCK_DAYS    = 90;
-const DEFAULT_LONG_WAITING_HOURS = 24;
+const DEFAULT_PERIOD_DAYS     = 30;
+const DEFAULT_DEAD_STOCK_DAYS = 90;
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('fr-FR').format(n);
@@ -96,12 +92,6 @@ const TD: React.CSSProperties = {
 const TD_SEC: React.CSSProperties = { ...TD, color: 'var(--sb-text-secondary)' };
 const TD_R: React.CSSProperties   = { ...TD, textAlign: 'right', paddingRight: 0 };
 const TD_C: React.CSSProperties   = { ...TD, textAlign: 'center' };
-
-const WO_TYPE_META: Record<string, { color: string; bg: string }> = {
-  CORRECTIVE:   { color: '#B53525', bg: '#FDF0EE' },
-  PREVENTIVE:   { color: '#3A6A8C', bg: '#EDF3F8' },
-  IMPROVEMENT:  { color: '#8A8680', bg: '#F0EEEB' },
-};
 
 function KpiCell({
   title, value, variant,
@@ -210,16 +200,14 @@ function ChartTooltipCur({ active, payload, label }: {
 export function StockAnalyticsBoard() {
   const { t } = useTranslation();
 
-  const [periodInput,      setPeriodInput]      = useState(String(DEFAULT_PERIOD_DAYS));
-  const [deadStockInput,   setDeadStockInput]   = useState(String(DEFAULT_DEAD_STOCK_DAYS));
-  const [longWaitingInput, setLongWaitingInput] = useState(String(DEFAULT_LONG_WAITING_HOURS));
-  const [periodDays,       setPeriodDays]       = useState(DEFAULT_PERIOD_DAYS);
-  const [deadStockDays,    setDeadStockDays]    = useState(DEFAULT_DEAD_STOCK_DAYS);
-  const [longWaitingThresholdHours, setLongWaitingThresholdHours] = useState(DEFAULT_LONG_WAITING_HOURS);
+  const [periodInput,    setPeriodInput]    = useState(String(DEFAULT_PERIOD_DAYS));
+  const [deadStockInput, setDeadStockInput] = useState(String(DEFAULT_DEAD_STOCK_DAYS));
+  const [periodDays,     setPeriodDays]     = useState(DEFAULT_PERIOD_DAYS);
+  const [deadStockDays,  setDeadStockDays]  = useState(DEFAULT_DEAD_STOCK_DAYS);
 
   const queryParams = useMemo(
-    () => ({ periodDays, deadStockDays, longWaitingThresholdHours }),
-    [periodDays, deadStockDays, longWaitingThresholdHours],
+    () => ({ periodDays, deadStockDays }),
+    [periodDays, deadStockDays],
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -228,34 +216,26 @@ export function StockAnalyticsBoard() {
   });
 
   const handleApply = () => {
-    const p = Math.max(1, Number.parseInt(periodInput,      10) || DEFAULT_PERIOD_DAYS);
-    const d = Math.max(1, Number.parseInt(deadStockInput,   10) || DEFAULT_DEAD_STOCK_DAYS);
-    const l = Math.max(1, Number.parseInt(longWaitingInput, 10) || DEFAULT_LONG_WAITING_HOURS);
+    const p = Math.max(1, Number.parseInt(periodInput,    10) || DEFAULT_PERIOD_DAYS);
+    const d = Math.max(1, Number.parseInt(deadStockInput, 10) || DEFAULT_DEAD_STOCK_DAYS);
     setPeriodInput(String(p));
     setDeadStockInput(String(d));
-    setLongWaitingInput(String(l));
     setPeriodDays(p);
     setDeadStockDays(d);
-    setLongWaitingThresholdHours(l);
   };
 
   const handleReset = () => {
     setPeriodInput(String(DEFAULT_PERIOD_DAYS));
     setDeadStockInput(String(DEFAULT_DEAD_STOCK_DAYS));
-    setLongWaitingInput(String(DEFAULT_LONG_WAITING_HOURS));
     setPeriodDays(DEFAULT_PERIOD_DAYS);
     setDeadStockDays(DEFAULT_DEAD_STOCK_DAYS);
-    setLongWaitingThresholdHours(DEFAULT_LONG_WAITING_HOURS);
   };
 
   const topByQuantity = data?.consumption.topByQuantity ?? [];
   const topByCost     = data?.consumption.topByCost     ?? [];
-  const consumptionBreakdown: PartConsumptionBreakdown[] = data?.consumptionBreakdown ?? [];
-  const replenishment        = data?.replenishment        ?? [];
-  const deadStock            = data?.deadStock            ?? [];
-  const costTrend            = data?.costTrend            ?? [];
-  const longWaitingRequests  = data?.longWaitingRequests  ?? [];
-  const unitCostTrendPerPart: UnitCostTrendPartEntry[] = data?.unitCostTrendPerPart ?? [];
+  const replenishment = data?.replenishment             ?? [];
+  const deadStock     = data?.deadStock                 ?? [];
+  const costTrend     = data?.costTrend                 ?? [];
 
   const reqFulfilled   = data?.requests.fulfilled           ?? 0;
   const reqPartial     = data?.requests.partiallyFulfilled  ?? 0;
@@ -296,7 +276,6 @@ export function StockAnalyticsBoard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* Filter bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
         padding: '10px 14px',
@@ -312,11 +291,6 @@ export function StockAnalyticsBoard() {
           label={t('storekeeperAnalytics.filters.deadStockDays')}
           value={deadStockInput}
           onChange={setDeadStockInput}
-        />
-        <FilterGroup
-          label={t('storekeeperAnalytics.filters.longWaitingHours')}
-          value={longWaitingInput}
-          onChange={setLongWaitingInput}
         />
         <div style={{ display: 'flex', gap: 6 }}>
           <button type="button" style={applyBtnStyle} onClick={handleApply}>
@@ -341,7 +315,6 @@ export function StockAnalyticsBoard() {
         </div>
       </div>
 
-      {/* Error */}
       {isError && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
@@ -354,7 +327,6 @@ export function StockAnalyticsBoard() {
         </div>
       )}
 
-      {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         <KpiCell
           title={t('storekeeperAnalytics.kpi.totalRequests')}
@@ -383,7 +355,7 @@ export function StockAnalyticsBoard() {
         </div>
       ) : (
         <>
-          {/* Top consumption charts */}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <ChartBox title={t('storekeeperAnalytics.sections.topConsumption').toUpperCase()}>
               {qtyChartData.length === 0 ? (
@@ -422,7 +394,6 @@ export function StockAnalyticsBoard() {
             </ChartBox>
           </div>
 
-          {/* Cost trend */}
           {trendChartData.length > 0 && (
             <ChartBox title={t('storekeeperAnalytics.sections.costTrend').toUpperCase()}>
               <ResponsiveContainer width="100%" height={160}>
@@ -451,7 +422,6 @@ export function StockAnalyticsBoard() {
             </ChartBox>
           )}
 
-          {/* Request breakdown */}
           <SectionBox
             title={t('storekeeperAnalytics.sections.requestBreakdown').toUpperCase()}
             description={t('storekeeperAnalytics.sections.requestBreakdownDescription')}
@@ -480,7 +450,6 @@ export function StockAnalyticsBoard() {
             </div>
           </SectionBox>
 
-          {/* Replenishment */}
           {replenishment.length > 0 && (
             <SectionBox
               title={t('storekeeperAnalytics.sections.replenishment').toUpperCase()}
@@ -511,7 +480,6 @@ export function StockAnalyticsBoard() {
             </SectionBox>
           )}
 
-          {/* Dead stock */}
           {deadStock.length > 0 && (
             <SectionBox
               title={t('storekeeperAnalytics.sections.deadStock').toUpperCase()}
@@ -542,272 +510,6 @@ export function StockAnalyticsBoard() {
             </SectionBox>
           )}
 
-          {/* Long-waiting requests */}
-          {longWaitingRequests.length > 0 && (
-            <SectionBox
-              title={t('storekeeperAnalytics.sections.longWaitingRequests').toUpperCase()}
-              description={t('storekeeperAnalytics.sections.longWaitingRequestsDescription', {
-                hours: data?.longWaitingThresholdHours ?? longWaitingThresholdHours,
-              })}
-            >
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 10px', marginBottom: 12,
-                background: C.highBg,
-                border: `1px solid ${C.high}40`,
-              }}>
-                <AlertTriangle style={{ width: 12, height: 12, color: C.high, flexShrink: 0 }} />
-                <Mono size={9} color={C.high} tracking="0.08em">
-                  {t('storekeeperAnalytics.labels.longWaitingWarning', {
-                    count: longWaitingRequests.length,
-                    hours: data?.longWaitingThresholdHours ?? longWaitingThresholdHours,
-                  })}
-                </Mono>
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={TH}>{t('storekeeperAnalytics.columns.workOrder')}</th>
-                    <th style={TH}>{t('storekeeperAnalytics.columns.part')}</th>
-                    <th style={TH_R}>{t('storekeeperAnalytics.columns.quantity')}</th>
-                    <th style={TH_R}>{t('storekeeperAnalytics.columns.waitingHours')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {longWaitingRequests.map((req) => (
-                    <tr key={req.id}>
-                      <td style={{ ...TD_SEC, fontFamily: 'ui-monospace,monospace', fontSize: 11 }}>
-                        {req.woReference}
-                      </td>
-                      <td style={TD}>
-                        {req.partName ?? req.offCatalogDescription ?? t('storekeeperAnalytics.labels.offCatalog')}
-                        {req.partReference && (
-                          <span style={{ marginLeft: 4, fontSize: 10, color: C.textTer }}>({req.partReference})</span>
-                        )}
-                      </td>
-                      <td style={TD_R}>{fmt(req.quantityRequested)}</td>
-                      <td style={TD_R}>
-                        <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 12, fontWeight: 700, color: C.crit }}>
-                          {fmt(req.waitingHours)} h
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </SectionBox>
-          )}
-
-          {/* Stock accuracy */}
-          {data?.stockAccuracy && data.stockAccuracy.totalMovements > 0 && (() => {
-            const acc = data.stockAccuracy;
-            const accColor = acc.globalRate < 80 ? '#B53525' : acc.globalRate < 95 ? '#A06020' : '#2E7A4E';
-            return (
-              <SectionBox
-                title={t('storekeeperAnalytics.sections.stockAccuracy').toUpperCase()}
-                description={t('storekeeperAnalytics.sections.stockAccuracyDescription')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: acc.perPart.length > 0 ? 20 : 0 }}>
-                  <GaugeRing value={acc.globalRate} max={100} color={accColor} size={88} unit="%" />
-                  <div>
-                    <Mono size={9} color={C.textTer} tracking="0.10em" block style={{ marginBottom: 4 }}>
-                      {t('storekeeperAnalytics.states.globalAccuracyRate')}
-                    </Mono>
-                    <div style={{ fontSize: 26, fontWeight: 800, color: accColor, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      {fmtPct(acc.globalRate)}
-                    </div>
-                    <Mono size={9} color={C.textTer} tracking="0.08em" block style={{ marginTop: 6 }}>
-                      {t('storekeeperAnalytics.states.globalAccuracyDetail', {
-                        adjustments: acc.adjustmentCount,
-                        total: acc.totalMovements,
-                      })}
-                    </Mono>
-                  </div>
-                </div>
-
-                {acc.perPart.length > 0 && (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={TH}>{t('storekeeperAnalytics.columns.part')}</th>
-                        <th style={TH}>{t('storekeeperAnalytics.columns.reference')}</th>
-                        <th style={TH_R}>{t('storekeeperAnalytics.columns.totalMovements')}</th>
-                        <th style={TH_R}>{t('storekeeperAnalytics.columns.adjustments')}</th>
-                        <th style={TH_R}>{t('storekeeperAnalytics.columns.accuracyRate')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {acc.perPart.map((entry) => {
-                        const ec = entry.accuracyRate < 80 ? '#B53525' : entry.accuracyRate < 95 ? '#A06020' : '#2E7A4E';
-                        const eb = entry.accuracyRate < 80 ? '#FDF0EE' : entry.accuracyRate < 95 ? '#FDF5E8' : '#EAF5EF';
-                        return (
-                          <tr key={entry.partId}>
-                            <td style={TD}>{entry.partName}</td>
-                            <td style={{ ...TD_SEC, fontFamily: 'ui-monospace,monospace', fontSize: 11 }}>
-                              {entry.partReference}
-                            </td>
-                            <td style={TD_R}>{fmt(entry.totalMovements)}</td>
-                            <td style={TD_R}>{fmt(entry.adjustmentMovements)}</td>
-                            <td style={TD_R}>
-                              <span style={{
-                                display: 'inline-block',
-                                background: eb,
-                                border: `1px solid ${ec}28`,
-                                borderRadius: 2,
-                                padding: '1px 6px',
-                                fontFamily: 'ui-monospace,monospace',
-                                fontSize: 9,
-                                fontWeight: 700,
-                                color: ec,
-                                letterSpacing: '0.08em',
-                              }}>
-                                {fmtPct(entry.accuracyRate)}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </SectionBox>
-            );
-          })()}
-
-          {/* Consumption breakdown */}
-          {consumptionBreakdown.length > 0 && (
-            <SectionBox
-              title={t('storekeeperAnalytics.sections.consumptionBreakdown').toUpperCase()}
-              description={t('storekeeperAnalytics.sections.consumptionBreakdownDescription')}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {consumptionBreakdown.map((part) => (
-                  <div key={part.partId} style={{ border: `1px solid ${C.border}` }}>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '6px 12px', background: C.surface, borderBottom: `1px solid ${C.border}`,
-                    }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: C.textPrimary }}>{part.partName}</span>
-                      <Mono size={9} color={C.textTer} tracking="0.08em">{part.partReference}</Mono>
-                    </div>
-                    <div style={{ padding: '0 12px' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr>
-                            <th style={TH}>{t('storekeeperAnalytics.columns.assetCategory')}</th>
-                            <th style={TH}>{t('storekeeperAnalytics.columns.woType')}</th>
-                            <th style={TH_R}>{t('storekeeperAnalytics.columns.quantity')}</th>
-                            <th style={TH_R}>{t('storekeeperAnalytics.columns.cost')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {part.byAssetCategory.flatMap((cat) =>
-                            cat.byWoType.map((entry, idx) => {
-                              const meta = WO_TYPE_META[entry.woType ?? ''] ?? { color: C.textTer, bg: C.surface };
-                              return (
-                                <tr key={`${cat.categoryId ?? 'none'}-${entry.woType ?? 'none'}-${idx}`}>
-                                  {idx === 0 ? (
-                                    <td
-                                      rowSpan={cat.byWoType.length}
-                                      style={{ ...TD, verticalAlign: 'top', paddingTop: 10, fontWeight: 500 }}
-                                    >
-                                      {cat.categoryName ?? t('storekeeperAnalytics.labels.noCategory')}
-                                    </td>
-                                  ) : null}
-                                  <td style={TD}>
-                                    <span style={{
-                                      display: 'inline-block',
-                                      background: meta.bg,
-                                      border: `1px solid ${meta.color}28`,
-                                      borderRadius: 2,
-                                      padding: '1px 6px',
-                                      fontFamily: 'ui-monospace,monospace',
-                                      fontSize: 9,
-                                      fontWeight: 700,
-                                      color: meta.color,
-                                      letterSpacing: '0.08em',
-                                    }}>
-                                      {entry.woType
-                                        ? t(`storekeeperAnalytics.labels.woType.${entry.woType}`)
-                                        : t('storekeeperAnalytics.labels.woType.NONE')}
-                                    </span>
-                                  </td>
-                                  <td style={TD_R}>{fmt(entry.quantity)}</td>
-                                  <td style={TD_R}>{fmtCur(entry.cost)}</td>
-                                </tr>
-                              );
-                            }),
-                          )}
-                          <tr>
-                            <td
-                              colSpan={2}
-                              style={{ ...TD_SEC, fontWeight: 600, fontSize: 11, background: C.surface, borderBottom: 'none' }}
-                            >
-                              {t('storekeeperAnalytics.labels.total').toUpperCase()}
-                            </td>
-                            <td style={{ ...TD_R, fontWeight: 700, background: C.surface, borderBottom: 'none' }}>
-                              {fmt(part.totalQuantity)}
-                            </td>
-                            <td style={{ ...TD_R, fontWeight: 700, background: C.surface, borderBottom: 'none' }}>
-                              {fmtCur(part.totalCost)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionBox>
-          )}
-
-          {/* Unit cost trend per part */}
-          {unitCostTrendPerPart.length > 0 && (
-            <SectionBox
-              title={t('storekeeperAnalytics.sections.unitCostTrend').toUpperCase()}
-              description={t('storekeeperAnalytics.sections.unitCostTrendDescription')}
-            >
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={TH}>{t('storekeeperAnalytics.columns.part')}</th>
-                    <th style={TH}>{t('storekeeperAnalytics.columns.reference')}</th>
-                    <th style={TH}>{t('storekeeperAnalytics.columns.firstMonth')}</th>
-                    <th style={TH_R}>{`${t('storekeeperAnalytics.columns.avgUnitCost')} (début)`}</th>
-                    <th style={TH}>{t('storekeeperAnalytics.columns.lastMonth')}</th>
-                    <th style={TH_R}>{`${t('storekeeperAnalytics.columns.avgUnitCost')} (fin)`}</th>
-                    <th style={TH_C}>{t('storekeeperAnalytics.columns.trend')}</th>
-                    <th style={TH_R}>{t('storekeeperAnalytics.columns.monthsTracked')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unitCostTrendPerPart.map((entry) => {
-                    const first = entry.trend[0];
-                    const last  = entry.trend[entry.trend.length - 1];
-                    const delta = last.avgUnitCost - first.avgUnitCost;
-                    const TrendIcon   = delta > 0 ? ArrowUp : delta < 0 ? ArrowDown : ArrowRight;
-                    const trendColor  = delta > 0 ? C.crit : delta < 0 ? C.done : C.textTer;
-                    return (
-                      <tr key={entry.partId}>
-                        <td style={{ ...TD, fontWeight: 500 }}>{entry.partName}</td>
-                        <td style={{ ...TD_SEC, fontFamily: 'ui-monospace,monospace', fontSize: 11 }}>
-                          {entry.partReference}
-                        </td>
-                        <td style={TD_SEC}>{first.month}</td>
-                        <td style={TD_R}>{fmtCur(first.avgUnitCost)}</td>
-                        <td style={TD_SEC}>{last.month}</td>
-                        <td style={{ ...TD_R, fontWeight: 600 }}>{fmtCur(last.avgUnitCost)}</td>
-                        <td style={TD_C}>
-                          <TrendIcon style={{ width: 14, height: 14, color: trendColor, display: 'inline-block' }} />
-                        </td>
-                        <td style={TD_R}>{entry.trend.length}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </SectionBox>
-          )}
         </>
       )}
     </div>

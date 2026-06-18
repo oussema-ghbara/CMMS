@@ -66,8 +66,6 @@ export const categoriesApi = {
   deactivate: (id: string) => api.patch<CategoryItem>(`/asset-categories/${id}/deactivate`).then((r) => r.data),
   activate: (id: string) => api.patch<CategoryItem>(`/asset-categories/${id}/activate`).then((r) => r.data),
 
-  // ── Checklist template items (Supervisor only) ──────────────────────────────
-
   addChecklistItem: (categoryId: string, payload: CreateChecklistTemplateItemPayload) =>
     api
       .post<CategoryChecklistTemplateItem>(`/asset-categories/${categoryId}/checklist-items`, payload)

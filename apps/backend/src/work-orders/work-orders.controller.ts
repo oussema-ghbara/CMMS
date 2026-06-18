@@ -54,8 +54,6 @@ export class WorkOrdersController {
     private readonly documents: DocumentsService,
   ) {}
 
-  // ── CRUD ────────────────────────────────────────────────────────
-
   @Get()
   @ApiOperation({ summary: 'List work orders with filters (all roles)' })
   async findAll(@Query() query: WorkOrderQueryDto) {
@@ -233,8 +231,6 @@ export class WorkOrdersController {
     return this.workOrders.getStatusHistory(id);
   }
 
-  // ── Assignment ───────────────────────────────────────────────────
-
   @Patch(':id/assign')
   @Roles(Role.SUPERVISOR)
   @ApiOperation({ summary: 'Assign principal + optional contributors — OPEN → ASSIGNED (Supervisor)' })
@@ -274,8 +270,6 @@ export class WorkOrdersController {
     return this.assignment.resolveContributorBlock(blockId);
   }
 
-  // ── Intervention ─────────────────────────────────────────────────
-
   @Patch(':id/start')
   @Roles(Role.TECHNICIAN)
   @ApiOperation({ summary: 'Start work order — ASSIGNED → IN_PROGRESS (Principal Technician)' })
@@ -291,8 +285,6 @@ export class WorkOrdersController {
   submitClosure(@Param('id') id: string, @Body() dto: SubmitClosureDto, @Request() req: AuthRequest): Promise<WorkOrder> {
     return this.intervention.submitClosure(id, dto, req.user.sub);
   }
-
-  // ── On Hold ──────────────────────────────────────────────────────
 
   @Patch(':id/on-hold')
   @Roles(Role.TECHNICIAN)
@@ -328,8 +320,6 @@ export class WorkOrdersController {
     return this.onHold.updateHoldMetadata(id, dto, req.user.sub);
   }
 
-  // ── Validation ───────────────────────────────────────────────────
-
   @Patch(':id/validate')
   @Roles(Role.SUPERVISOR)
   @ApiOperation({
@@ -356,8 +346,6 @@ export class WorkOrdersController {
     return this.validation.reject(id, dto, req.user.sub);
   }
 
-  // ── Checklist ────────────────────────────────────────────────────
-
   @Get(':id/checklist')
   @ApiOperation({ summary: 'Get checklist items (all roles)' })
   getChecklist(@Param('id') id: string) {
@@ -376,8 +364,6 @@ export class WorkOrdersController {
   ) {
     return this.checklist.completeItem(id, itemId, dto, req.user.sub);
   }
-
-  // ── Documents ─────────────────────────────────────────────────────
 
   @Get(':id/documents')
   @ApiOperation({ summary: 'List current-version documents for a work order (Supervisor)' })

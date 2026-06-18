@@ -23,8 +23,6 @@ export class ValidationService {
     const wo = await this.repo.findById(woId);
     assertTransitionAllowed(wo.status, WorkOrderStatus.CLOSED, [Role.SUPERVISOR]);
 
-    // Determine whether the last completed intervention reported COULD_NOT_INTERVENE.
-    // We look for the most recent log that has a result recorded (endedAt IS NOT NULL).
     const lastCompletedLog = (wo as any).interventionLogs
       ?.filter((l: { endedAt: Date | null; result: string | null }) => l.endedAt !== null && l.result !== null)
       .sort(
@@ -88,9 +86,6 @@ export class ValidationService {
       });
     });
 
-    // §8.8, §9.5: When the technician reported COULD_NOT_INTERVENE the Supervisor —
-    // not the technician — must be prompted to create a follow-up WO or set the
-    // asset to Out of Service. The technician cannot act on this notification.
     if (isCouldNotIntervene) {
       await this.notifications.notifySupervisors(
         NotificationType.FOLLOW_UP_PROMPT,
@@ -103,7 +98,6 @@ export class ValidationService {
       );
     }
 
-    // Notify the original requester when the WO was created from a problem report (§12.4).
     type SourceReport = { reporter: { id: string; name: string } };
     const sourceReport = (wo as unknown as { sourceReport: SourceReport | null }).sourceReport;
     if (sourceReport?.reporter?.id) {
@@ -119,8 +113,6 @@ export class ValidationService {
       });
     }
 
-    // Enqueue PDF report generation job (fire-and-forget)
-    // This runs asynchronously after the WO is successfully closed
     void this.reportGenerationJob.enqueueReportGeneration(woId);
 
     return this.repo.findById(woId);

@@ -20,10 +20,6 @@ export class MailService implements OnModuleInit {
     );
   }
 
-  /**
-   * Enqueues a mail job. Never sends synchronously.
-   * Callers fire-and-forget; failures are logged by the processor with retry.
-   */
   async enqueue(dto: SendMailDto): Promise<void> {
     await this.mailQueue.add(MAIL_JOB_SEND, dto, {
       attempts: 5,

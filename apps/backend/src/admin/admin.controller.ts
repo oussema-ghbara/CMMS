@@ -35,8 +35,6 @@ export class AdminController {
     private readonly adminAnalytics: AdminAnalyticsService,
   ) {}
 
-  // ── System config ────────────────────────────────────────────────────────────
-
   @Get('system-config')
   @ApiOperation({ summary: 'List all system config entries (Admin)' })
   getSystemConfig() {
@@ -53,8 +51,6 @@ export class AdminController {
     await this.systemConfig.set(key, dto.value, req.user.sub);
     return this.prisma.systemConfig.findUnique({ where: { key } });
   }
-
-  // ── Analytics ────────────────────────────────────────────────────────────────
 
   @Get('analytics/users')
   @ApiOperation({ summary: 'User activity analytics — inactive accounts, login frequency (Admin)' })
@@ -81,8 +77,6 @@ export class AdminController {
   getSystemHealth() {
     return this.adminAnalytics.getSystemHealthStats();
   }
-
-  // ── Audit log ────────────────────────────────────────────────────────────────
 
   @Get('audit-log')
   @Throttle({ default: AUDIT_LOG_RATE_LIMIT })

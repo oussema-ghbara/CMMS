@@ -182,8 +182,6 @@ export function SystemConfigPanel() {
   }
 
   const configByKey = Object.fromEntries(configs.map((c) => [c.key, c]));
-  const knownKeys = new Set(SYSTEM_CONFIG_GROUPS.flatMap((g) => g.keys));
-  const unknownEntries = configs.filter((c) => !knownKeys.has(c.key));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 640 }}>
@@ -222,29 +220,6 @@ export function SystemConfigPanel() {
           </div>
         );
       })}
-
-      {unknownEntries.length > 0 && (
-        <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ background: 'var(--sb-surface)', borderBottom: '1px solid var(--sb-border)', padding: '8px 14px' }}>
-            <Mono size={10} color="var(--sb-text-secondary)" tracking="0.13em">
-              {t('admin.systemConfig.groups.other').toUpperCase()}
-            </Mono>
-          </div>
-          <div>
-            {unknownEntries.map((entry, i) => (
-              <div key={entry.key} style={i === unknownEntries.length - 1 ? { borderBottom: 'none' } : undefined}>
-                <ConfigRow
-                  entry={entry}
-                  label={entry.key}
-                  description=""
-                  onSave={handleSave}
-                  isSaving={savingKey === entry.key}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

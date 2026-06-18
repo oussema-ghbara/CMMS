@@ -81,7 +81,7 @@ export function PartDetailPanel({ part, onClose, onEdit }: PartDetailPanelProps)
       className="flex flex-col h-full"
       style={{ borderLeft: '1px solid var(--sb-border)', background: 'var(--sb-surface)' }}
     >
-      {/* header */}
+      { }
       <div
         className="flex items-start justify-between gap-3 px-4 py-3 flex-shrink-0"
         style={{ background: '#181613', borderBottom: '1px solid var(--sb-border)' }}
@@ -115,7 +115,7 @@ export function PartDetailPanel({ part, onClose, onEdit }: PartDetailPanelProps)
         </button>
       </div>
 
-      {/* tabs */}
+      { }
       <div
         className="flex flex-shrink-0"
         style={{ borderBottom: '1px solid var(--sb-border)' }}
@@ -134,11 +134,10 @@ export function PartDetailPanel({ part, onClose, onEdit }: PartDetailPanelProps)
         </button>
       </div>
 
-      {/* body */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'detail' && (
           <div>
-            {/* stock */}
+
             <div className={ROW}>
               <div className={LABEL}>{t('storekeeperInventory.columns.stock')}</div>
               <div className="flex items-center gap-2">
@@ -290,7 +289,6 @@ export function PartDetailPanel({ part, onClose, onEdit }: PartDetailPanelProps)
         )}
       </div>
 
-      {/* stock dialogs — self-contained in panel */}
       <StockIncomingDialog
         open={incomingOpen}
         onOpenChange={setIncomingOpen}

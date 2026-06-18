@@ -186,23 +186,6 @@ export function LoginForm() {
             >
               {t('auth.forgotPassword')}
             </button>
-            <button
-              type="button"
-              onClick={() => router.push('/resend-setup')}
-              style={{
-                fontFamily: MONO,
-                fontSize: '10px',
-                color: 'var(--sb-text-secondary)',
-                letterSpacing: '0.06em',
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                textDecoration: 'underline',
-              }}
-            >
-              {t('auth.resendSetupButton')}
-            </button>
           </div>
         </div>
 

@@ -27,7 +27,6 @@ export class LocationsController {
     return this.service.findAll();
   }
 
-  // §4.1, §6.2: Must be declared BEFORE :id to avoid route shadowing.
   @Get('level-names')
   @ApiOperation({ summary: 'Get configured level names (all roles)' })
   getLevelNames() {

@@ -7,7 +7,6 @@ export class PromoteTechnicianDto {
   @IsString()
   newPrincipalId: string;
 
-  /** §5.3: The reason for this promotion, recorded in the WorkOrderReassignment log. */
   @ApiPropertyOptional({ enum: WOReassignmentReason })
   @IsOptional()
   @IsEnum(WOReassignmentReason)

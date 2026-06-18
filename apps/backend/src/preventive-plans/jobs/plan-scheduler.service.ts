@@ -28,18 +28,16 @@ export class PlanSchedulerService {
 
     this.logger.log(`Enqueueing WO generation for ${duePlans.length} due plan(s)`);
 
-    // §9.6: Detect same-asset conflicts
     const conflicts = await this.repo.findSameDayAssetConflicts(duePlans);
     if (conflicts.size > 0) {
       this.logger.warn(`Detected ${conflicts.size} asset(s) with multiple due plans today`);
-      
-      // Notify supervisors of each conflict
+
       for (const [assetId, planDetails] of conflicts.entries()) {
         const planList = planDetails.map((p) => `"${p.planTitle}"`).join(', ');
         const assetName = planDetails[0]!.assetName;
-        
+
         this.logger.log(`Plan conflict on asset "${assetName}": ${planList}`);
-        
+
         await this.notifications.notifySupervisors(
           NotificationType.PREVENTIVE_PLAN_GENERATED,
           'Conflit détecté : plusieurs plans préventifs',
@@ -60,7 +58,6 @@ export class PlanSchedulerService {
           backoff: { type: 'exponential' as const, delay: 60_000 },
           removeOnComplete: 50,
           removeOnFail: 200,
-          // Deduplicate — if somehow enqueued twice, same jobId prevents double-generation
           jobId: `plan-gen-${plan.id}-${new Date().toISOString().slice(0, 10)}`,
         },
       })),

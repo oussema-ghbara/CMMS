@@ -1,12 +1,12 @@
 import { Role } from '@gmao/shared';
 
 export interface AccessTokenPayload {
-  sub: string;    // userId
+  sub: string;    
   email: string;
   roles: Role[];
 }
 
 export interface RefreshTokenPayload {
-  sub: string;    // userId
-  jti: string;    // UUID — keyed in Redis for revocation
+  sub: string;    
+  jti: string;    
 }

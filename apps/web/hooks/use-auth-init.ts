@@ -14,12 +14,6 @@ interface RefreshResponse {
   idleTimeoutHours: number;
 }
 
-/**
- * Called once in <Providers> on mount.
- * Attempts a silent token refresh using the httpOnly refresh_token cookie.
- * On success: hydrates the Zustand store and sets the user_roles cookie.
- * On failure: silently clears auth — middleware handles redirect.
- */
 export function useAuthInit() {
   const { setAuth, clearAuth, setInitialized } = useAuthStore();
 

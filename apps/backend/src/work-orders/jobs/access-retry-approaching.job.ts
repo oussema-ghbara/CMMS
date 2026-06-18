@@ -5,7 +5,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { JobLoggerService } from '../../job-logger/job-logger.service';
 
-// Avoid re-notifying within the same 23-hour window (job runs hourly).
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 const JOB_NAME = 'access-retry-approaching';
@@ -36,7 +35,6 @@ export class AccessRetryApproachingJob {
     const now = new Date();
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find ACCESS_DENIED holds whose retry date is within the next 24 hours.
     const approachingHolds = await this.prisma.onHoldPeriod.findMany({
       where: {
         reasonType: OnHoldReasonType.ACCESS_DENIED,

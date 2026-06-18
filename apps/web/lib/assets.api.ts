@@ -1,8 +1,6 @@
 import { api } from './api';
 import type { AssetCriticality, AssetStatus } from '@gmao/shared';
 
-// ── List types ────────────────────────────────────────────────────────────────
-
 export interface AssetCategory {
   id: string;
   name: string;
@@ -53,8 +51,6 @@ export interface AssetListQuery {
   limit?: number;
 }
 
-// ── Detail types ──────────────────────────────────────────────────────────────
-
 export interface AssetStatusLogEntry {
   id: string;
   fromStatus: AssetStatus | null;
@@ -102,8 +98,6 @@ export interface AssetDetail extends AssetListItem {
   statusLogs: AssetStatusLogEntry[];
 }
 
-// ── Payloads ──────────────────────────────────────────────────────────────────
-
 export interface CreateAssetPayload {
   name: string;
   categoryId: string;
@@ -125,8 +119,6 @@ export interface AssetStatusTransitionPayload {
   reason?: string;
 }
 
-// ── Certificate payloads ──────────────────────────────────────────────────────
-
 export interface CreateCertificatePayload {
   certificateType: string;
   otherType?: string;
@@ -137,8 +129,6 @@ export interface CreateCertificatePayload {
 
 export type UpdateCertificatePayload = Partial<CreateCertificatePayload>;
 
-// ── Certificate Alerts ────────────────────────────────────────────────────────
-
 export interface CertificateAlertItem {
   assetId: string;
   assetName: string;
@@ -148,9 +138,6 @@ export interface CertificateAlertItem {
   status: 'EXPIRING_SOON' | 'EXPIRED';
 }
 
-// ── QR Lookup ─────────────────────────────────────────────────────────────────
-
-/** Minimal shape returned by GET /assets/qr/:qrCode (no documents, no status-history) */
 export interface QrLookupResult {
   id: string;
   name: string;
@@ -170,8 +157,6 @@ export interface QrLookupResult {
   parent: AssetParent | null;
 }
 
-// ── API ───────────────────────────────────────────────────────────────────────
-
 export const assetsApi = {
   list: (params?: AssetListQuery) =>
     api.get<AssetListResponse>('/assets', { params }).then((r) => r.data),
@@ -190,8 +175,6 @@ export const assetsApi = {
 
   transitionStatus: (id: string, payload: AssetStatusTransitionPayload) =>
     api.patch<AssetDetail>(`/assets/${id}/status`, payload).then((r) => r.data),
-
-  // ── Certificates ────────────────────────────────────────────────────────────
 
   listCertificates: (id: string) =>
     api.get<AssetCertificate[]>(`/assets/${id}/certificates`).then((r) => r.data),
@@ -223,8 +206,6 @@ export const assetsApi = {
 
   getCertificateDownloadUrl: (id: string, certId: string) =>
     api.get<string>(`/assets/${id}/certificates/${certId}/download`).then((r) => r.data),
-
-  // ── Documents ───────────────────────────────────────────────────────────────
 
   listDocuments: (id: string) =>
     api.get<AssetDocument[]>(`/assets/${id}/documents`).then((r) => r.data),

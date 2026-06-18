@@ -71,7 +71,6 @@ export class CategoriesController {
     return this.service.activate(id, req.user.sub);
   }
 
-  // Checklist template item management — Supervisor only
   @Post(':id/checklist-items')
   @Roles(Role.SUPERVISOR)
   @ApiOperation({ summary: 'Add checklist template item to category (Supervisor)' })

@@ -15,8 +15,7 @@ export class SystemConfigService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit(): Promise<void> {
-    // Eagerly validate that required config keys exist at startup.
-    // Fails fast rather than crashing silently at first use.
+
     const required = ['PASSWORD_MIN_LENGTH', 'PASSWORD_REQUIRE_UPPERCASE'];
     for (const key of required) {
       const row = await this.prisma.systemConfig.findUnique({ where: { key } });
@@ -81,10 +80,6 @@ export class SystemConfigService implements OnModuleInit {
     };
   }
 
-  /**
-   * Validates a plaintext password against the current policy.
-   * Returns null on success, or an i18n key describing the violation.
-   */
   async validatePassword(password: string): Promise<string | null> {
     const policy = await this.getPasswordPolicy();
 

@@ -465,13 +465,11 @@ export default function SupervisorDashboardPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Page title */}
       <div>
         <Mono size={10} color={C.textTer} tracking="0.15em" block>{t('supervisorDashboard.title')}</Mono>
         <div style={{ fontSize: 13, color: C.textSec, marginTop: 3 }}>{t('supervisorDashboard.subtitle')}</div>
       </div>
 
-      {/* Error banner */}
       {hasError && (
         <div style={{
           border: `1px solid ${C.crit}44`,
@@ -485,7 +483,6 @@ export default function SupervisorDashboardPage() {
         </div>
       )}
 
-      {/* E1 — KPI metric cells */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
@@ -526,7 +523,6 @@ export default function SupervisorDashboardPage() {
         />
       </div>
 
-      {/* E2 — Overdue panel (only if items exist) */}
       {((overdueWorkOrders.data?.total ?? 0) > 0 || overdueWorkOrders.isLoading) && (
         <div style={{ ...SECTION_WRAP, borderColor: `${C.crit}66` }}>
           <SectionHeader
@@ -552,10 +548,8 @@ export default function SupervisorDashboardPage() {
         </div>
       )}
 
-      {/* E2 — Technician load + Asset health (two-column) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
-        {/* Technician load */}
         <div style={SECTION_WRAP}>
           <SectionHeader label={t('supervisorDashboard.technicianLoad.title')} />
           {technicianLoad.isLoading ? (
@@ -569,7 +563,6 @@ export default function SupervisorDashboardPage() {
           )}
         </div>
 
-        {/* Asset health */}
         <div style={{ ...SECTION_WRAP, borderColor: assetHealthItems.length > 0 ? `${C.crit}55` : C.border }}>
           <SectionHeader label={t('supervisorDashboard.assetHealth.title')} />
           {assetHealth.isLoading ? (
@@ -584,14 +577,12 @@ export default function SupervisorDashboardPage() {
         </div>
       </div>
 
-      {/* E2 — Operational panels (3-column) */}
       <div>
         <Mono size={9} color={C.textTer} tracking="0.15em" block style={{ marginBottom: 10 }}>
           {t('supervisorDashboard.operational.title')}
         </Mono>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
 
-          {/* Closures today */}
           <div style={SECTION_WRAP}>
             <SectionHeader
               label={t('supervisorDashboard.operational.closedToday.title')}
@@ -631,7 +622,6 @@ export default function SupervisorDashboardPage() {
             </div>
           </div>
 
-          {/* Blocked part requests */}
           <div style={{ ...SECTION_WRAP, borderColor: blockedPartRequestsCount > 0 ? `${C.high}66` : C.border }}>
             <SectionHeader label={t('supervisorDashboard.operational.blockedPartRequests.title')} />
             <div style={{ padding: '16px 20px' }}>
@@ -667,7 +657,6 @@ export default function SupervisorDashboardPage() {
             </div>
           </div>
 
-          {/* Certificate alerts */}
           <div style={{
             ...SECTION_WRAP,
             borderColor: expiredCount > 0 ? `${C.crit}55` : expiringSoonCount > 0 ? `${C.high}55` : C.border,

@@ -99,7 +99,6 @@ export class LocationsService {
     return location;
   }
 
-  // §4.1, §6.2: Read configured level names, falling back to French defaults.
   async getLevelNames(): Promise<LevelNameItem[]> {
     const results = await Promise.all(
       SUPPORTED_LEVELS.map(async (level) => {

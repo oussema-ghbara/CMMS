@@ -19,8 +19,6 @@ export class InventoryService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  // ── Parts ──────────────────────────────────────────────────────────
-
 findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
     return this.repo.findAllParts(query);
   }
@@ -50,39 +48,32 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
   }
 
   async findMovementsByPart(partId: string): Promise<StockMovementResponseDto[]> {
-    // Fetch both the part's current stock (needed to compute balanceAfter)
-    // and the raw movements with performer included.
+
     const [part, rawMovements] = await Promise.all([
       this.repo.findPartById(partId),
       this.prisma.stockMovement.findMany({
         where: { partId },
-        orderBy: { createdAt: 'desc' }, // newest first — matches frontend expectation
+        orderBy: { createdAt: 'desc' }, 
         include: { performedBy: { select: { id: true, name: true } } },
       }),
     ]);
 
     if (rawMovements.length === 0) return [];
 
-    // Helper: net change each movement contributed to stock.
-    // OUTGOING stores positive quantity but decreases stock → negate.
-    // ADJUSTMENT quantity is already signed (negative when stock decreased).
-    // INCOMING and RETURN are always positive additions.
     function netChange(m: typeof rawMovements[0]): number {
       if (m.type === StockMovementType.OUTGOING) return -m.quantity;
-      return m.quantity; // INCOMING, RETURN, ADJUSTMENT (signed)
+      return m.quantity; 
     }
 
-    // Walk backwards from current stock to assign balanceAfter to each movement.
-    // rawMovements is newest-first so index 0 → balanceAfter = currentStock.
     let runningBalance = part.currentStock;
     return rawMovements.map((m) => {
       const balanceAfter = runningBalance;
-      runningBalance -= netChange(m); // undo this movement to reach the balance before it
+      runningBalance -= netChange(m); 
 
       return {
         id: m.id,
         type: m.type as StockMovementType,
-        quantity: netChange(m),       // signed quantity for the frontend
+        quantity: netChange(m),       
         balanceAfter,
         reason: m.note ?? (m.adjustmentReason as string | null) ?? null,
         referenceId: m.workOrderId ?? m.partRequestId ?? null,
@@ -91,8 +82,6 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
       };
     });
   }
-
-  // ── Incoming stock ─────────────────────────────────────────────────
 
   async recordIncomingStock(dto: RecordIncomingStockDto, actorId: string): Promise<{ part: Part; movement: StockMovement }> {
     const part = await this.repo.findPartById(dto.partId);
@@ -112,7 +101,6 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
       dto.receivedDate ? new Date(dto.receivedDate) : undefined,
     );
 
-    // Update catalog unit cost if price changed
     if (dto.unitCost !== undefined && dto.unitCost !== Number(part.unitCost)) {
       await this.prisma.part.update({
         where: { id: dto.partId },
@@ -123,8 +111,6 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
     const freshPart = await this.repo.findPartById(dto.partId);
     return { part: freshPart, movement };
   }
-
-  // ── Stock adjustment ───────────────────────────────────────────────
 
   async recordAdjustment(dto: StockAdjustmentDto, actorId: string) {
     if (dto.reason === 'OTHER' && !dto.detail) {
@@ -142,8 +128,6 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
     );
   }
 
-  // ── Analytics ──────────────────────────────────────────────────────
-
   async getAnalytics(periodDays = 30, deadStockDays = 90, longWaitingThresholdHours = 24): Promise<Record<string, unknown>> {
     const [consumption, consumptionBreakdown, replenishment, deadStock, requests, costTrend, longWaitingRequests, stockAccuracy, unitCostTrendPerPart] = await Promise.all([
       this.repo.getConsumptionAnalytics(periodDays),
@@ -159,8 +143,6 @@ findAllParts(query: PartQueryDto): Promise<{ data: Part[]; total: number }> {
 
     return { periodDays, consumption, consumptionBreakdown, replenishment, deadStock, requests, costTrend, longWaitingRequests, longWaitingThresholdHours, stockAccuracy, unitCostTrendPerPart };
   }
-
-  // ── Low-stock alert — called after every outgoing movement ─────────
 
   async checkAndNotifyLowStock(partId: string): Promise<void> {
     const part = await this.prisma.part.findUnique({ where: { id: partId } });

@@ -31,8 +31,6 @@ import { StatusPill } from '@/components/ui/status-pill';
 import { PriorityChip } from '@/components/ui/priority-chip';
 import { Mono } from '@/components/ui/mono';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const rawMessage = axiosError.response?.data?.message;
@@ -99,8 +97,6 @@ const CHECKLIST_STATUS_LABEL: Record<string, string> = {
   [ChecklistItemStatus.ANOMALY_DETECTED]:  'Anomalie',
   [ChecklistItemStatus.NOT_APPLICABLE]:    'N/A',
 };
-
-// ── Style constants ───────────────────────────────────────────────────────────
 
 const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
 
@@ -210,8 +206,6 @@ function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
-
-// ── Checklist item row ────────────────────────────────────────────────────────
 
 const CHECKLIST_DOT_COLOR: Record<string, string> = {
   [ChecklistItemStatus.PENDING]:          'var(--sb-text-tertiary)',
@@ -352,14 +346,10 @@ function ChecklistItemRow({ item, canComplete, isPrincipal, woId, onUpdated }: C
   );
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 interface TechnicianWorkOrderDetailPanelProps {
   workOrderId: string;
   onClose: () => void;
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 type ActiveAction = 'start' | 'hold' | 'resume' | 'closure' | null;
 
@@ -370,20 +360,16 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
   const [activeTab, setActiveTab] = useState<'detail' | 'pieces' | 'history'>('detail');
 
-  // ── Closure form state ────────────────────────────────────────────────────
   const [closureResult, setClosureResult] = useState<InterventionResult>(InterventionResult.RESOLVED);
   const [closureExplanation, setClosureExplanation] = useState('');
   const [closureActions, setClosureActions] = useState<InterventionActionPayload[]>([]);
 
-  // ── Hold form state ───────────────────────────────────────────────────────
   const [holdReason, setHoldReason] = useState<OnHoldReasonType>(OnHoldReasonType.MISSING_PART);
   const [holdDetail, setHoldDetail] = useState('');
   const [holdDate, setHoldDate] = useState('');
 
-  // ── Resume form state ─────────────────────────────────────────────────────
   const [contractorCost, setContractorCost] = useState('');
 
-  // ── Part request form state ───────────────────────────────────────────────
   const [prMode, setPrMode] = useState<'catalog' | 'offcatalog'>('catalog');
   const [partSearch, setPartSearch] = useState('');
   const [selectedPart, setSelectedPart] = useState<PartCatalogItem | null>(null);
@@ -392,8 +378,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
   const [prNote, setPrNote] = useState('');
   const [prOffCatalog, setPrOffCatalog] = useState('');
   const partSearchRef = useRef<HTMLDivElement>(null);
-
-  // ── Data ──────────────────────────────────────────────────────────────────
 
   const { data: wo, isLoading, isError } = useQuery({
     queryKey: ['technician', 'work-order', workOrderId],
@@ -404,8 +388,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
     void queryClient.invalidateQueries({ queryKey: ['technician', 'work-order', workOrderId] });
     void queryClient.invalidateQueries({ queryKey: ['technician', 'work-orders'] });
   };
-
-  // ── Mutations ─────────────────────────────────────────────────────────────
 
   const startMut = useMutation({
     mutationFn: () => workOrdersApi.start(workOrderId),
@@ -446,14 +428,12 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
     onError: (err) => toast.error(getErrorMessage(err, 'Impossible de soumettre la demande.')),
   });
 
-  // ── Parts search query (catalog mode) ────────────────────────────────────
   const { data: partsData } = useQuery({
     queryKey: ['parts-search', partSearch],
     queryFn: () => inventoryApi.getParts({ search: partSearch, isActive: true, limit: 20 }),
     enabled: prMode === 'catalog' && prShowDropdown,
   });
 
-  // ── Click-outside to close dropdown ──────────────────────────────────────
   useEffect(() => {
     if (!prShowDropdown) return;
     const handler = (e: MouseEvent) => {
@@ -464,8 +444,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [prShowDropdown]);
-
-  // ── Derived state ─────────────────────────────────────────────────────────
 
   const isPrincipal = wo
     ? wo.assignments.some((a) => a.isPrincipal && a.isActive && a.technicianId === user?.id)
@@ -487,8 +465,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
     && wo.status !== WorkOrderStatus.CLOSED
     && wo.status !== WorkOrderStatus.CANCELLED
     && isActiveAssignee;
-
-  // ── Action handlers ───────────────────────────────────────────────────────
 
   const handleHoldSubmit = () => {
     const payload: PutOnHoldPayload = { reasonType: holdReason };
@@ -524,12 +500,9 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
     setClosureActions((prev) => prev.map((a, i) => i === idx ? { ...a, ...patch } : a));
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Header */}
       <div
         style={{
           height: 44, borderBottom: '1px solid var(--sb-border)',
@@ -559,7 +532,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
         </button>
       </div>
 
-      {/* Tab bar */}
       <div
         style={{
           height: 36, borderBottom: '1px solid var(--sb-border)',
@@ -591,7 +563,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
         ))}
       </div>
 
-      {/* Body */}
+      { }
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
         {isLoading && (
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
@@ -606,7 +578,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
 
         {wo && activeTab === 'detail' && (
           <>
-            {/* WO info */}
+            { }
             <div style={{ marginBottom: 16 }}>
               <SectionLabel>Bon de travail</SectionLabel>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-primary)', marginBottom: 8 }}>
@@ -624,12 +596,12 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               )}
             </div>
 
-            {/* Intervention actions */}
+            { }
             {(canStart || canHold || canResume || canClosure) && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Actions</SectionLabel>
 
-                {/* Start */}
+                { }
                 {canStart && (
                   <div style={actionBoxStyle}>
                     <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--sb-text-secondary)' }}>
@@ -649,7 +621,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                   </div>
                 )}
 
-                {/* Put on hold */}
+                { }
                 {canHold && (
                   <div style={actionBoxStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: activeAction === 'hold' ? 10 : 0 }}>
@@ -704,7 +676,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                   </div>
                 )}
 
-                {/* Resume */}
+                { }
                 {canResume && (
                   <div style={actionBoxStyle}>
                     {currentHold && (
@@ -756,7 +728,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                   </div>
                 )}
 
-                {/* Submit closure */}
+                { }
                 {canClosure && (
                   <div style={actionBoxStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: activeAction === 'closure' ? 10 : 0 }}>
@@ -793,7 +765,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                           />
                         </div>
 
-                        {/* Actions performed */}
+                        { }
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                             <SectionLabel>Actions réalisées (optionnel)</SectionLabel>
@@ -858,7 +830,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* Checklist */}
+            { }
             {wo.checklistItems.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>
@@ -880,7 +852,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* Assignments */}
+            { }
             {wo.assignments.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Assignations</SectionLabel>
@@ -895,7 +867,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* Internal notes */}
+            { }
             {wo.internalNotes && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Notes internes</SectionLabel>
@@ -909,7 +881,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* Cost summary (visible after closure submission) */}
+            { }
             {wo.status === WorkOrderStatus.PENDING_VALIDATION || wo.status === WorkOrderStatus.CLOSED ? (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Résumé des coûts</SectionLabel>
@@ -924,7 +896,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
 
         {wo && activeTab === 'pieces' && (
           <>
-            {/* Existing part requests */}
+
             <div style={{ marginBottom: 16 }}>
               <SectionLabel>Demandes en cours</SectionLabel>
               {wo.partRequests.length === 0 ? (
@@ -997,13 +969,11 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               )}
             </div>
 
-            {/* New part request form */}
             {canRequestPart && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Nouvelle demande</SectionLabel>
                 <div style={{ border: '1px solid var(--sb-border)', borderRadius: 2, padding: '12px 14px', background: 'var(--sb-surface)' }}>
 
-                  {/* Mode toggle */}
                   <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
                     {(['catalog', 'offcatalog'] as const).map((mode) => (
                       <button
@@ -1023,7 +993,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                     ))}
                   </div>
 
-                  {/* Catalog part search */}
                   {prMode === 'catalog' && (
                     <div style={{ marginBottom: 10 }} ref={partSearchRef}>
                       <Mono size={9} color="var(--sb-text-tertiary)" style={{ display: 'block', marginBottom: 4 }}>
@@ -1101,7 +1070,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                     </div>
                   )}
 
-                  {/* Off-catalog description */}
                   {prMode === 'offcatalog' && (
                     <div style={{ marginBottom: 10 }}>
                       <Mono size={9} color="var(--sb-text-tertiary)" style={{ display: 'block', marginBottom: 4 }}>
@@ -1117,7 +1085,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                     </div>
                   )}
 
-                  {/* Quantity */}
                   <div style={{ marginBottom: 10 }}>
                     <Mono size={9} color="var(--sb-text-tertiary)" style={{ display: 'block', marginBottom: 4 }}>
                       Quantité
@@ -1131,7 +1098,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
                     />
                   </div>
 
-                  {/* Note */}
                   <div style={{ marginBottom: 12 }}>
                     <Mono size={9} color="var(--sb-text-tertiary)" style={{ display: 'block', marginBottom: 4 }}>
                       Note pour le magasinier (optionnel)
@@ -1170,7 +1136,7 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
 
         {wo && activeTab === 'history' && (
           <>
-            {/* Intervention logs */}
+
             {wo.interventionLogs.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Interventions</SectionLabel>
@@ -1217,7 +1183,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* On-hold periods */}
             {wo.onHoldPeriods.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Périodes d'attente</SectionLabel>
@@ -1238,7 +1203,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* Validation actions */}
             {wo.validationActions.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel>Validations</SectionLabel>
@@ -1262,7 +1226,6 @@ export function TechnicianWorkOrderDetailPanel({ workOrderId, onClose }: Technic
               </div>
             )}
 
-            {/* Status log */}
             <div style={{ marginBottom: 16 }}>
               <SectionLabel>Historique des statuts</SectionLabel>
               {wo.statusLogs.map((log) => (

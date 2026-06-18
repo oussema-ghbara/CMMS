@@ -66,8 +66,6 @@ export class PartsController {
     return this.inventory.activatePart(id);
   }
 
-  // ── Part Documents ────────────────────────────────────────────────────────
-
   @Get(':id/documents')
   @ApiOperation({ summary: 'List current-version documents for a part (all roles)' })
   listDocuments(@Param('id') id: string) {

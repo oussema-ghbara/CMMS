@@ -289,7 +289,7 @@ export function InventoryCatalog() {
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
+      { }
       <div
         style={{
           minHeight: 44,
@@ -404,7 +404,7 @@ export function InventoryCatalog() {
         </button>
       </div>
 
-      {/* Low-stock banner */}
+      { }
       {lowStockParts && lowStockParts.length > 0 && !lowStockBannerDismissed && (
         <div
           style={{
@@ -442,7 +442,7 @@ export function InventoryCatalog() {
         </div>
       )}
 
-      {/* Column headers */}
+      { }
       {!isLoading && !isError && !!data?.data.length && (
         <div
           style={{
@@ -467,7 +467,7 @@ export function InventoryCatalog() {
         </div>
       )}
 
-      {/* Rows */}
+      { }
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -588,7 +588,6 @@ export function InventoryCatalog() {
         )}
       </div>
 
-      {/* Footer */}
       <div
         style={{
           height: 36,
@@ -628,7 +627,6 @@ export function InventoryCatalog() {
         panelOpen={panelOpen}
       />
 
-      {/* Part create / edit dialog */}
       {dialogOpen && (
         <div
           style={{
@@ -652,7 +650,7 @@ export function InventoryCatalog() {
               flexDirection: 'column',
             }}
           >
-            {/* Dialog header */}
+
             <div
               style={{
                 background: 'var(--sb-rail)',
@@ -689,12 +687,11 @@ export function InventoryCatalog() {
               </button>
             </div>
 
-            {/* Form */}
             <form
               onSubmit={handleSubmit(submitPart)}
               style={{ flex: 1, overflowY: 'auto', padding: 20 }}
             >
-              {/* Name */}
+
               <div style={{ marginBottom: 14 }}>
                 <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
                   {t('storekeeperInventory.form.name')}
@@ -712,7 +709,6 @@ export function InventoryCatalog() {
                 )}
               </div>
 
-              {/* Reference + Unit */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -746,7 +742,6 @@ export function InventoryCatalog() {
                 </div>
               </div>
 
-              {/* Description */}
               <div style={{ marginBottom: 14 }}>
                 <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
                   {t('storekeeperInventory.form.description')}
@@ -758,7 +753,6 @@ export function InventoryCatalog() {
                 />
               </div>
 
-              {/* Min stock + Unit cost */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -799,7 +793,6 @@ export function InventoryCatalog() {
                 </div>
               </div>
 
-              {/* Warehouse location */}
               <div style={{ marginBottom: 20 }}>
                 <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
                   {t('storekeeperInventory.form.warehouseLocation')}
@@ -811,7 +804,6 @@ export function InventoryCatalog() {
                 />
               </div>
 
-              {/* Form actions */}
               <div
                 style={{
                   display: 'flex',

@@ -121,7 +121,6 @@ export function TechnicianWorkOrdersBoard() {
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
       <div
         style={{
           minHeight: 44,
@@ -215,7 +214,6 @@ export function TechnicianWorkOrdersBoard() {
         )}
       </div>
 
-      {/* Column headers */}
       {!isLoading && !isError && !!data?.data.length && (
         <div
           style={{
@@ -238,7 +236,6 @@ export function TechnicianWorkOrdersBoard() {
         </div>
       )}
 
-      {/* Row list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label="Chargement..." />
@@ -323,7 +320,6 @@ export function TechnicianWorkOrdersBoard() {
         )}
       </div>
 
-      {/* Footer: priority legend + pagination */}
       <div
         style={{
           height: 36,

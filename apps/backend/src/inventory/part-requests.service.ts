@@ -28,7 +28,7 @@ export class PartRequestsService {
   }
 
   async submit(workOrderId: string, dto: SubmitPartRequestDto, actorId: string) {
-    // Exactly one of partId / offCatalogDescription must be provided
+
     if (!dto.partId && !dto.offCatalogDescription) {
       throw new BadRequestException('Provide either partId (catalog request) or offCatalogDescription (off-catalog request)');
     }
@@ -36,7 +36,6 @@ export class PartRequestsService {
       throw new BadRequestException('Provide partId or offCatalogDescription, not both');
     }
 
-    // WO must exist and not be terminal
     const wo = await this.prisma.workOrder.findUnique({
       where: { id: workOrderId },
       select: { id: true, referenceNumber: true, status: true },
@@ -46,7 +45,6 @@ export class PartRequestsService {
       throw new BadRequestException(`Cannot submit a part request for a ${wo.status.toLowerCase()} work order`);
     }
 
-    // Actor must be actively assigned
     const assignment = await this.prisma.workOrderAssignment.findFirst({
       where: { workOrderId, technicianId: actorId, isActive: true },
     });
@@ -54,7 +52,6 @@ export class PartRequestsService {
       throw new ForbiddenException('You must be actively assigned to this work order to submit part requests');
     }
 
-    // Catalog request: validate part exists and is active; warn on low stock (non-blocking)
     let stockWarning: string | undefined;
     if (dto.partId) {
       const part = await this.repo.findPartById(dto.partId);
@@ -75,7 +72,6 @@ export class PartRequestsService {
       dto.note,
     );
 
-    // Notify all storekeepers
     const storekeepers = await this.prisma.user.findMany({
       where: { roles: { has: 'STOREKEEPER' }, isActive: true },
       select: { id: true },
@@ -102,13 +98,12 @@ export class PartRequestsService {
     }
 
     if (!request.partId) {
-      // Off-catalog request — storekeeper must create the part first, then fulfill normally
+
       throw new BadRequestException(
         'This is an off-catalog request. Create the part in the catalog first, then re-submit or process it as a return manually.',
       );
     }
 
-    // Re-verify stock at processing time (not at request creation)
     const part = await this.repo.findPartById(request.partId);
     const requested = dto.quantity ?? request.quantityRequested;
 
@@ -121,7 +116,6 @@ export class PartRequestsService {
     const toFulfill = Math.min(requested, part.currentStock);
     const isPartial = toFulfill < request.quantityRequested;
 
-    // Create outgoing stock movement and decrement stock
     await this.repo.createOutgoingMovement(
       request.partId,
       toFulfill,
@@ -131,16 +125,13 @@ export class PartRequestsService {
       Number(part.unitCost),
     );
 
-    // Update request status
     const newStatus = isPartial ? PartRequestStatus.PARTIALLY_FULFILLED : PartRequestStatus.FULFILLED;
     await this.repo.updateRequestStatus(requestId, newStatus, actorId, {
       quantityFulfilled: toFulfill,
     });
 
-    // Low-stock alert after outgoing movement
     await this.inventory.checkAndNotifyLowStock(request.partId);
 
-    // Notify the requesting technician
     await this.notifications.notify({
       recipientId: request.requesterId,
       type: NotificationType.PART_REQUEST_FULFILLED,
@@ -167,7 +158,6 @@ export class PartRequestsService {
       rejectionDetail: dto.detail,
     });
 
-    // Notify requesting technician with the rejection reason
     const partLabel = request.offCatalogDescription
       ?? (request as PartRequest & { part?: { name: string } | null }).part?.name
       ?? 'requested part';
@@ -184,10 +174,8 @@ export class PartRequestsService {
     return this.repo.findRequestById(requestId);
   }
 
-  // ── Called by WorkOrdersService when a WO is cancelled ─────────────
-
   async handleWorkOrderCancellation(workOrderId: string, actorId: string): Promise<void> {
-    // 1. Find and cancel all pending requests — notify storekeepers for each
+
     const pendingRequests = await this.repo.findPendingRequestsForWorkOrder(workOrderId);
 
     await this.repo.cancelPendingRequestsForWorkOrder(workOrderId, actorId);
@@ -214,7 +202,6 @@ export class PartRequestsService {
       await this.notifications.notifyMany(notifications);
     }
 
-    // 2. Prompt storekeepers to return fulfilled parts
     const fulfilledRequests = await this.repo.findFulfilledRequestsForWorkOrder(workOrderId);
 
     if (fulfilledRequests.length > 0) {

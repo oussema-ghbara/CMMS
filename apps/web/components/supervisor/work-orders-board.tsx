@@ -182,18 +182,13 @@ export function WorkOrdersBoard() {
 
   const hasActiveFilters = !!(searchInput || search || status || type || priority || technicianId || isActive || isOverdue);
 
-  // ── Column layout ──────────────────────────────────────────────────────────
-
   const colTemplate = panelOpen
     ? '100px 1fr 96px 130px 60px'
     : '100px 1fr 96px 130px 140px 60px';
 
-  // ── List column ────────────────────────────────────────────────────────────
-
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
       <div
         style={{
           minHeight: 44,
@@ -207,7 +202,7 @@ export function WorkOrdersBoard() {
           flexShrink: 0,
         }}
       >
-        {/* Search */}
+
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <Search
             size={13}
@@ -245,7 +240,6 @@ export function WorkOrdersBoard() {
 
         <div style={{ width: 1, height: 16, background: 'var(--sb-border)', flexShrink: 0 }} />
 
-        {/* Status filter */}
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value as WorkOrderStatus | ''); setPage(1); }}
@@ -259,7 +253,6 @@ export function WorkOrdersBoard() {
           ))}
         </select>
 
-        {/* Type filter */}
         <select
           value={type}
           onChange={(e) => { setType(e.target.value as WorkOrderType | ''); setPage(1); }}
@@ -273,7 +266,6 @@ export function WorkOrdersBoard() {
           ))}
         </select>
 
-        {/* Priority filter */}
         <select
           value={priority}
           onChange={(e) => { setPriority(e.target.value as WorkOrderPriority | ''); setPage(1); }}
@@ -287,7 +279,6 @@ export function WorkOrdersBoard() {
           ))}
         </select>
 
-        {/* URL-driven filter tags */}
         {technicianId && (
           <FilterTag
             label={t('supervisorWorkOrders.filters.technicianFilter')}
@@ -301,7 +292,6 @@ export function WorkOrdersBoard() {
           />
         )}
 
-        {/* Reset — only when filters are active */}
         {hasActiveFilters && (
           <button
             type="button"
@@ -325,14 +315,12 @@ export function WorkOrdersBoard() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Count */}
         {data && (
           <Mono size={9} color="var(--sb-text-tertiary)">
             {t('supervisorWorkOrders.total', { count: data.total })}
           </Mono>
         )}
 
-        {/* Create button */}
         <button
           type="button"
           onClick={() => setCreateDialogOpen(true)}
@@ -356,7 +344,6 @@ export function WorkOrdersBoard() {
         </button>
       </div>
 
-      {/* Column headers */}
       {!isLoading && !isError && !!data?.data.length && (
         <div
           style={{
@@ -380,7 +367,6 @@ export function WorkOrdersBoard() {
         </div>
       )}
 
-      {/* Row list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -424,7 +410,7 @@ export function WorkOrdersBoard() {
                   transition: 'background 0.1s',
                 }}
               >
-                {/* Reference */}
+
                 <div style={{ paddingLeft: 13, paddingRight: 12, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Mono size={10} color="var(--sb-text-primary)" tracking="0.06em" weight={600}>
@@ -436,7 +422,6 @@ export function WorkOrdersBoard() {
                   </div>
                 </div>
 
-                {/* Asset + location */}
                 <div style={{ padding: '0 12px', minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sb-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.asset?.name ?? t('common.noData')}
@@ -448,17 +433,14 @@ export function WorkOrdersBoard() {
                   )}
                 </div>
 
-                {/* Type */}
                 <div style={{ padding: '0 12px' }}>
                   <TypeBadge type={item.type} />
                 </div>
 
-                {/* Status */}
                 <div style={{ padding: '0 12px' }}>
                   <StatusPill status={item.status} />
                 </div>
 
-                {/* Technician (hidden when panel open) */}
                 {!panelOpen && (
                   <div style={{ padding: '0 12px', minWidth: 0 }}>
                     <span style={{
@@ -474,7 +456,6 @@ export function WorkOrdersBoard() {
                   </div>
                 )}
 
-                {/* Elapsed */}
                 <div style={{ padding: '0 12px' }}>
                   <Mono size={10} color="var(--sb-text-secondary)">
                     {formatElapsed(item.createdAt)}
@@ -486,7 +467,6 @@ export function WorkOrdersBoard() {
         )}
       </div>
 
-      {/* Footer: priority legend + pagination */}
       <div
         style={{
           height: 36,
@@ -516,8 +496,6 @@ export function WorkOrdersBoard() {
     </div>
   );
 
-  // ── Panel column ───────────────────────────────────────────────────────────
-
   const panelContent = selectedWorkOrder ? (
     <WorkOrderDetailPanel
       key={selectedWorkOrder.id}
@@ -525,8 +503,6 @@ export function WorkOrdersBoard() {
       onClose={() => setSelectedWorkOrder(null)}
     />
   ) : null;
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <>

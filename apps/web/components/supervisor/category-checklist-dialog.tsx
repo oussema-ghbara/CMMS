@@ -204,7 +204,7 @@ export function CategoryChecklistDialog({
           display: 'flex',
           flexDirection: 'column',
         }}>
-          {/* Header */}
+          { }
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--sb-border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexShrink: 0 }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
@@ -223,7 +223,7 @@ export function CategoryChecklistDialog({
             </button>
           </div>
 
-          {/* Subheader — category meta */}
+          { }
           {detail && (
             <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -243,7 +243,7 @@ export function CategoryChecklistDialog({
             </div>
           )}
 
-          {/* Body */}
+          { }
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
             {isLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140 }}>
@@ -281,7 +281,7 @@ export function CategoryChecklistDialog({
                         cursor: 'default',
                       }}
                     >
-                      {/* Drag handle */}
+
                       <button
                         type="button"
                         aria-label={t('supervisorCategories.checklist.dragHandle')}
@@ -290,25 +290,23 @@ export function CategoryChecklistDialog({
                         <GripVertical style={{ width: 14, height: 14 }} />
                       </button>
 
-                      {/* Position index */}
                       <div style={{ flexShrink: 0, width: 22, textAlign: 'right', paddingTop: 1 }}>
                         <Mono size={9} color="var(--sb-text-tertiary)" weight={600}>#{index + 1}</Mono>
                       </div>
 
-                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5 }}>
-                          {/* Task type */}
+
                           <span style={{ display: 'inline-block', background: typeBg, border: `1px solid ${typeColor}44`, borderRadius: 2, padding: '1px 6px' }}>
                             <Mono size={8} color={typeColor} tracking="0.08em">{item.taskType}</Mono>
                           </span>
-                          {/* Mandatory */}
+
                           {item.isMandatory && (
                             <span style={{ display: 'inline-block', background: 'var(--sb-p-crit-bg)', border: '1px solid var(--sb-p-crit)44', borderRadius: 2, padding: '1px 6px' }}>
                               <Mono size={8} color="var(--sb-p-crit)" tracking="0.08em">{t('supervisorCategories.checklist.mandatory').toUpperCase()}</Mono>
                             </span>
                           )}
-                          {/* Auto WO */}
+
                           {item.autoCreateCorrectiveWO && (
                             <span style={{ display: 'inline-block', background: 'var(--sb-s-done-bg)', border: '1px solid var(--sb-s-done)44', borderRadius: 2, padding: '1px 6px' }}>
                               <Mono size={8} color="var(--sb-s-done)" tracking="0.08em">{t('supervisorCategories.checklist.autoCreateCorrectiveWO').toUpperCase()}</Mono>
@@ -325,9 +323,8 @@ export function CategoryChecklistDialog({
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                        {/* Move up */}
+
                         <button
                           type="button"
                           title={t('supervisorCategories.checklist.moveUp')}
@@ -337,7 +334,7 @@ export function CategoryChecklistDialog({
                         >
                           <ArrowUp style={{ width: 13, height: 13 }} />
                         </button>
-                        {/* Move down */}
+
                         <button
                           type="button"
                           title={t('supervisorCategories.checklist.moveDown')}
@@ -347,7 +344,7 @@ export function CategoryChecklistDialog({
                         >
                           <ArrowDown style={{ width: 13, height: 13 }} />
                         </button>
-                        {/* Edit */}
+
                         <button
                           type="button"
                           title={t('common.edit')}
@@ -358,7 +355,7 @@ export function CategoryChecklistDialog({
                         >
                           <Pencil style={{ width: 13, height: 13 }} />
                         </button>
-                        {/* Delete */}
+
                         <button
                           type="button"
                           title={t('common.delete')}
@@ -378,7 +375,6 @@ export function CategoryChecklistDialog({
             )}
           </div>
 
-          {/* Footer */}
           <div style={{ padding: '12px 20px', borderTop: '1px solid var(--sb-border)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexShrink: 0, background: 'var(--sb-surface)' }}>
             <button
               type="button"

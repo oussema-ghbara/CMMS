@@ -221,7 +221,6 @@ export class DailySummaryJob {
       }),
     ]);
 
-    // Column-to-column comparison requires a separate query outside the transaction.
     const [overdueRaw, onHoldRaw, lowStockParts, criticalDeferredRaw] = await Promise.all([
       this.prisma.workOrder.findMany({
         where: {

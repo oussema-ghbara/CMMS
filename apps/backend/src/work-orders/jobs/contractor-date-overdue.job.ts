@@ -5,7 +5,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { JobLoggerService } from '../../job-logger/job-logger.service';
 
-// Avoid re-notifying within the same 23-hour window (job runs hourly).
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 const JOB_NAME = 'contractor-date-overdue';
@@ -35,7 +34,6 @@ export class ContractorDateOverdueJob {
   private async doRun(): Promise<void> {
     const now = new Date();
 
-    // Find ON_HOLD periods where the contractor expected resolution date has passed.
     const overdueHolds = await this.prisma.onHoldPeriod.findMany({
       where: {
         reasonType: OnHoldReasonType.EXTERNAL_CONTRACTOR,

@@ -25,7 +25,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
-    // ConfigModule must be first — all others depend on ConfigService
+
     ConfigModule,
 
     LoggerModule.forRootAsync({
@@ -40,7 +40,7 @@ import { RolesGuard } from './common/guards/roles.guard';
         },
       }),
     }),
-   
+
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
@@ -69,7 +69,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ReportsModule,
     AdminModule,
   ],
-  
+
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },

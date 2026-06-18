@@ -14,9 +14,6 @@ export class ReportGenerationService {
     private readonly repo: WorkOrdersRepository,
   ) {}
 
-  /**
-   * Generates a PDF report for a closed work order.
-   */
   async generateReport(woId: string): Promise<Buffer> {
     const wo = await this.repo.findById(woId);
     if (wo.status !== WorkOrderStatus.CLOSED) {

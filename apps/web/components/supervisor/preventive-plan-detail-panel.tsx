@@ -393,7 +393,6 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
     <>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-        {/* Panel header */}
         <div style={{
           background: 'var(--sb-surface)',
           padding: '12px 16px 10px',
@@ -446,7 +445,6 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
           </div>
         </div>
 
-        {/* Sub-tab navigation */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0 }}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -464,13 +462,11 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
           })}
         </div>
 
-        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
 
-          {/* ── DÉTAIL ── */}
           {activeTab === 'detail' && (
             <div>
-              {/* Metadata grid */}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--sb-border)', marginBottom: 16 }}>
                 <div style={{ background: 'var(--sb-bg)', padding: '9px 12px' }}>
                   <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 3 }}>
@@ -528,7 +524,6 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
                 </div>
               </div>
 
-              {/* Description */}
               {plan.description && (
                 <div>
                   <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 6 }}>
@@ -542,7 +537,6 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
             </div>
           )}
 
-          {/* ── CHECKLIST ── */}
           {activeTab === 'checklist' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {orderedItems.length === 0 ? (
@@ -637,11 +631,9 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
             </div>
           )}
 
-          {/* ── DOCUMENTS ── */}
           {activeTab === 'documents' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-              {/* Document list */}
               {documentsQuery.isLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '28px 0' }}>
                   <Loader2 size={18} style={{ color: 'var(--sb-text-tertiary)', animation: 'spin 1s linear infinite' }} />
@@ -688,7 +680,6 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
                 </div>
               )}
 
-              {/* Upload form */}
               <div style={{ border: '1px solid var(--sb-border)', padding: '10px 12px' }}>
                 <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 10 }}>
                   {t('supervisorPreventivePlans.documents.uploadTitle')}
@@ -778,7 +769,6 @@ export function PreventivePlanDetailPanel({ plan, onClose, onEdit }: PreventiveP
             </div>
           )}
 
-          {/* ── ACTIONS ── */}
           {activeTab === 'actions' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <button

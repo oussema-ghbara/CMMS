@@ -110,7 +110,7 @@ export default function SupervisorCategoriesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {/* Page header */}
+      { }
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em', marginBottom: 3 }}>
@@ -127,9 +127,9 @@ export default function SupervisorCategoriesPage() {
         )}
       </div>
 
-      {/* List panel */}
+      { }
       <div style={{ border: '1px solid var(--sb-border)', background: 'white' }}>
-        {/* Column headers */}
+        { }
         <div style={{
           display: 'grid',
           gridTemplateColumns: COL,
@@ -144,7 +144,7 @@ export default function SupervisorCategoriesPage() {
           <div />
         </div>
 
-        {/* Rows */}
+        { }
         {isLoading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}>
             <Loader2 style={{ width: 20, height: 20, color: 'var(--sb-text-tertiary)', animation: 'spin 1s linear infinite' }} />
@@ -163,7 +163,7 @@ export default function SupervisorCategoriesPage() {
           ))
         )}
 
-        {/* Footer count bar */}
+        { }
         {!isLoading && !isError && categories.length > 0 && (
           <div style={{ height: 32, background: 'var(--sb-surface)', borderTop: '1px solid var(--sb-border)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 12 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>

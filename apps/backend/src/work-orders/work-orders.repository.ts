@@ -188,9 +188,6 @@ export class WorkOrdersRepository {
         data: { workOrderId: wo.id, toStatus: status, actorId, label: 'Created' },
       });
 
-      // Assignments are created exclusively through the assign endpoint (OPEN → ASSIGNED).
-      // A freshly created WO is always DRAFT — no technician assignment at this stage.
-
       return wo;
     });
   }
@@ -247,9 +244,7 @@ export class WorkOrdersRepository {
   }
 
   findOverdueForEscalation(now: Date): Promise<Array<Pick<WorkOrder, 'id' | 'priority' | 'referenceNumber'>>> {
-    // Escalation only applies to WOs that have NOT yet started (OPEN or ASSIGNED).
-    // IN_PROGRESS, ON_HOLD, and PENDING_VALIDATION are explicitly excluded — the technician
-    // is already working on these and escalating would contradict the operational model.
+
     return this.prisma.workOrder.findMany({
       where: {
         status: { in: [WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED] },
@@ -260,8 +255,6 @@ export class WorkOrdersRepository {
     });
   }
 
-  // CRITICAL WOs that become overdue do not escalate further but trigger an
-  // immediate supervisor notification.
   findOverdueCritical(now: Date): Promise<Array<Pick<WorkOrder, 'id' | 'referenceNumber'>>> {
     return this.prisma.workOrder.findMany({
       where: {

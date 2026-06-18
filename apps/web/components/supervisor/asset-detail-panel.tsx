@@ -20,8 +20,6 @@ import { Mono } from '@/components/ui/mono';
 import { CertificateFormDialog } from './certificate-form-dialog';
 import { DocumentUploadDialog } from './document-upload-dialog';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const rawMessage = axiosError.response?.data?.message;
@@ -143,8 +141,6 @@ function SectionDivider() {
   return <div style={{ borderTop: '1px solid var(--sb-border)', margin: '16px 0' }} />;
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 type TransitionTarget = 'OUT_OF_SERVICE' | 'DECOMMISSIONED' | 'OPERATIONAL';
 type PanelTab = 'detail' | 'actions';
 
@@ -153,8 +149,6 @@ interface AssetDetailPanelProps {
   onClose: () => void;
   onEdit: (asset: AssetListItem) => void;
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelProps) {
   const { t } = useTranslation();
@@ -175,8 +169,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
   const { register: registerReason, handleSubmit: handleTransitionSubmit, reset: resetReason } =
     useForm<{ reason: string }>({ defaultValues: { reason: '' } });
 
-  // ── Queries ────────────────────────────────────────────────────────────────
-
   const { data: detail, isLoading, isError } = useQuery({
     queryKey: ['supervisor', 'assets', asset.id, 'detail'],
     queryFn: () => assetsApi.getById(asset.id),
@@ -191,8 +183,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
     queryKey: ['supervisor', 'assets', asset.id, 'documents'],
     queryFn: () => assetsApi.listDocuments(asset.id),
   });
-
-  // ── Mutations ──────────────────────────────────────────────────────────────
 
   function invalidateAsset() {
     void queryClient.invalidateQueries({ queryKey: ['supervisor', 'assets'] });
@@ -262,8 +252,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
     transitionMutation.mutate({ status: AssetStatus[transitionTarget], reason });
   };
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-
   const currentStatus = (detail?.status ?? asset.status) as AssetStatus;
   const isDecommissioned = currentStatus === AssetStatus.DECOMMISSIONED;
   const certificates = certificatesQuery.data ?? detail?.certificates ?? [];
@@ -279,13 +267,10 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
     OPERATIONAL:    { title: t('supervisorAssets.statusTransition.setOperationalTitle'),   description: t('supervisorAssets.statusTransition.setOperationalDescription')   },
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-        {/* Panel header */}
         <div
           style={{
             background: 'var(--sb-surface)',
@@ -334,7 +319,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
           </div>
         </div>
 
-        {/* Sub-tab navigation */}
         <div
           style={{
             display: 'flex',
@@ -374,7 +358,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
           })}
         </div>
 
-        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
 
           {isLoading ? (
@@ -387,11 +370,10 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
             </p>
           ) : detail ? (
             <>
-              {/* ── DÉTAIL tab ── */}
+
               {activeTab === 'detail' && (
                 <div>
 
-                  {/* Metadata grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--sb-border)', marginBottom: 16 }}>
                     <div style={{ background: 'var(--sb-bg)', padding: '9px 12px' }}>
                       <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 3 }}>{t('supervisorAssets.detail.category')}</Mono>
@@ -443,7 +425,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                     )}
                   </div>
 
-                  {/* QR Code */}
                   <div
                     style={{
                       border: '1px solid var(--sb-border)',
@@ -482,7 +463,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                     </div>
                   </div>
 
-                  {/* Sub-components */}
                   {detail.children.length > 0 && (
                     <div style={{ marginBottom: 16 }}>
                       <SectionDivider />
@@ -509,7 +489,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                     </div>
                   )}
 
-                  {/* Certificates */}
                   <SectionDivider />
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -605,7 +584,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                     )}
                   </div>
 
-                  {/* Documents */}
                   <SectionDivider />
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -680,7 +658,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                     )}
                   </div>
 
-                  {/* Status history */}
                   <SectionDivider />
                   <div style={{ marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>
@@ -724,7 +701,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                     )}
                   </div>
 
-                  {/* Edit button */}
                   {!isDecommissioned && (
                     <>
                       <SectionDivider />
@@ -741,7 +717,6 @@ export function AssetDetailPanel({ asset, onClose, onEdit }: AssetDetailPanelPro
                 </div>
               )}
 
-              {/* ── ACTIONS tab ── */}
               {activeTab === 'actions' && !isDecommissioned && (
                 <div>
                   {transitionTarget ? (

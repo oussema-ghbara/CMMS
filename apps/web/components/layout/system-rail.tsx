@@ -38,21 +38,19 @@ function LiveClock() {
 }
 
 function ConnectionStatus() {
-  useSocket(); // ensure socket is initialized
+  useSocket(); 
   const [connected, setConnected] = React.useState(() => !!socketInstance?.connected);
 
   React.useEffect(() => {
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
 
-    // socketInstance may not exist yet on first mount; poll once
     if (socketInstance) {
       setConnected(socketInstance.connected);
       socketInstance.on('connect', onConnect);
       socketInstance.on('disconnect', onDisconnect);
     }
 
-    // re-check after a tick in case the effect in useSocket runs after this one
     const t = window.setTimeout(() => {
       if (socketInstance) {
         setConnected(socketInstance.connected);

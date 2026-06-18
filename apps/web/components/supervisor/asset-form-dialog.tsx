@@ -182,7 +182,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
     >
       <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
 
-        {/* Header */}
+        { }
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
             {isEdit ? t('supervisorAssets.form.editTitle') : t('supervisorAssets.form.createTitle')}
@@ -199,12 +199,12 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Identification section */}
+          { }
           <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: -6, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             {t('supervisorAssets.form.section.identification')}
           </Mono>
 
-          {/* Name */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorAssets.form.name')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -216,7 +216,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
             {errors.name && <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorAssets.validation.nameRequired')}</Mono>}
           </div>
 
-          {/* Category + Criticality (2-col) */}
+          { }
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -248,7 +248,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
             </div>
           </div>
 
-          {/* Location */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorAssets.form.location')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -265,7 +265,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
             {errors.locationId && <Mono size={8} color="var(--sb-p-crit)" block style={{ marginTop: 4 }}>{t('supervisorAssets.validation.locationRequired')}</Mono>}
           </div>
 
-          {/* Description */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorAssets.form.description')}
@@ -276,7 +276,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
             />
           </div>
 
-          {/* Technical section */}
+          { }
           <div style={{ borderTop: '1px solid var(--sb-border)', paddingTop: 14 }}>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               {t('supervisorAssets.form.section.technical')}
@@ -324,7 +324,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
             </div>
           </div>
 
-          {/* Hierarchy section */}
+          { }
           <div style={{ borderTop: '1px solid var(--sb-border)', paddingTop: 14 }}>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               {t('supervisorAssets.form.section.hierarchy')}
@@ -343,7 +343,7 @@ export function AssetFormDialog({ open, onOpenChange, asset, onSuccess }: AssetF
             </div>
           </div>
 
-          {/* Footer */}
+          { }
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
             <button
               type="button"

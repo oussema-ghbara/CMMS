@@ -10,8 +10,6 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-// The config schema defines three buckets by concern. StorageService routes
-// uploads to the correct bucket based on the entity type passed by callers.
 const BUCKET_KEYS = {
   documents: 'MINIO_BUCKET_DOCUMENTS',
   photos: 'MINIO_BUCKET_PHOTOS',
@@ -27,8 +25,7 @@ export class StorageService implements OnModuleInit {
   private readonly presignedTtlSeconds: number;
 
   constructor(private readonly config: ConfigService) {
-    // MINIO_ENDPOINT may be a bare hostname (e.g. "localhost") or a full URL
-    // (e.g. "http://localhost"). Normalise to a full http:// URL with port.
+
     const endpointRaw = config.getOrThrow<string>('MINIO_ENDPOINT');
     const port = config.get<number>('MINIO_PORT', 9000);
     const endpointBase = endpointRaw.startsWith('http') ? endpointRaw : `http://${endpointRaw}`;

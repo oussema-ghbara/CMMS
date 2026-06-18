@@ -9,8 +9,6 @@ import * as path from 'path';
 import type { SendMailDto } from '../dto/send-mail.dto';
 import { MAIL_QUEUE } from '../mail.constants';
 
-// Templates are compiled once at processor startup and reused for all jobs.
-// This avoids reading and compiling the template file on every email send.
 const templateCache = new Map<string, HandlebarsTemplateDelegate>();
 
 function getTemplate(name: string): HandlebarsTemplateDelegate {

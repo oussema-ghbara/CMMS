@@ -16,8 +16,6 @@ export class CreateReportDto {
   @IsEnum(UrgencyPerception)
   urgencyPerception: UrgencyPerception;
 
-  // §9.8: true when the requester explicitly confirms submission after seeing the
-  // duplicate-WO warning banner. Defaults to false when not provided.
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()

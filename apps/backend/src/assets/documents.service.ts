@@ -22,8 +22,6 @@ export class DocumentsService {
     private readonly storage: StorageService,
   ) {}
 
-  // ── Asset documents ──────────────────────────────────────────────────────
-
   async findByAsset(assetId: string) {
     await this.assertAssetExists(assetId);
     return this.prisma.document.findMany({
@@ -31,9 +29,7 @@ export class DocumentsService {
         entityType: DocumentEntityType.ASSET,
         entityId: assetId,
         isCurrentVersion: true,
-        // Exclude documents that are attached to a compliance certificate.
-        // Those are accessed via the certificate's own download endpoint and
-        // must not appear in — or be deletable from — the general documents list.
+
         certificate: null,
       },
       orderBy: { createdAt: 'desc' },
@@ -55,8 +51,6 @@ export class DocumentsService {
     await this.assertAssetExists(assetId);
     return this._doUpload(DocumentEntityType.ASSET, assetId, file, documentType, actorId, 'assets');
   }
-
-  // ── Part documents ───────────────────────────────────────────────────────
 
   async findByPart(partId: string) {
     await this.assertPartExists(partId);
@@ -81,8 +75,6 @@ export class DocumentsService {
     await this.assertPartExists(partId);
     return this._doUpload(DocumentEntityType.PART, partId, file, documentType, actorId, 'parts');
   }
-
-  // ── Preventive plan documents ────────────────────────────────────────────
 
   async findByPlan(planId: string) {
     await this.assertPlanExists(planId);
@@ -118,8 +110,6 @@ export class DocumentsService {
       'plans',
     );
   }
-
-  // ── Work order documents ─────────────────────────────────────────────────
 
   private static readonly WO_ALLOWED_TYPES = new Set<DocumentType>([
     DocumentType.TECHNICAL_MANUAL,
@@ -166,8 +156,6 @@ export class DocumentsService {
     );
   }
 
-  // ── Shared ───────────────────────────────────────────────────────────────
-
   async getDownloadUrl(documentId: string): Promise<string> {
     const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
     if (!doc) throw new NotFoundException(`Document ${documentId} not found`);
@@ -203,13 +191,6 @@ export class DocumentsService {
     await this.prisma.document.delete({ where: { id: documentId } });
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────────
-
-  /**
-   * Generic upload with versioning: if a document of the same type already
-   * exists for this entity, it is archived (isCurrentVersion = false) and
-   * linked to the new document via the DocumentVersionChain relation.
-   */
   private async _doUpload(
     entityType: DocumentEntityType,
     entityId: string,

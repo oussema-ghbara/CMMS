@@ -27,12 +27,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/setup') ||
     pathname.startsWith('/auth/');
 
-  // ── Public paths: always allow ──────────────────────────────────────────────
   if (isAuthPath || pathname.startsWith('/_next') || pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // ── Auth check: require user_roles cookie ───────────────────────────────────
   const userRolesCookie = request.cookies.get('user_roles');
 
   if (!userRolesCookie?.value) {
@@ -58,18 +56,16 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // ── Root redirect: send to the first matching role's home ───────────────────
   if (pathname === '/') {
     const home = roles.map((r) => ROLE_HOME[r]).find((value): value is string => !!value) ?? '/login';
     return NextResponse.redirect(new URL(home, request.url));
   }
 
-  // ── Role-based access: reject unauthorized role routes ─────────────────────
   for (const { prefix, roles: allowedRoles } of ROLE_ROUTES) {
     if (pathname.startsWith(prefix)) {
       const hasRole = allowedRoles.some((r) => roles.includes(r));
       if (!hasRole) {
-        // Redirect to the user's own dashboard
+
         const home = roles.map((r) => ROLE_HOME[r]).find((value): value is string => !!value) ?? '/login';
         return NextResponse.redirect(new URL(home, request.url));
       }

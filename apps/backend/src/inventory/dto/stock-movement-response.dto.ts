@@ -9,19 +9,6 @@ export class StockMovementActorDto {
   name: string;
 }
 
-/**
- * Shaped response for GET /stock/movements/:partId.
- *
- * Field contract (matches the frontend StockMovement interface):
- *  - quantity   Signed: positive for INCOMING/RETURN/positive-ADJUSTMENT,
- *               negative for OUTGOING/negative-ADJUSTMENT.
- *  - balanceAfter  Stock level immediately after this movement was applied.
- *               Computed server-side from the part's current stock working
- *               backwards through the movement log (DESC order = newest first).
- *  - reason     Human-readable note: explicit note, then adjustment reason, then null.
- *  - referenceId  Related entity ID (workOrderId → partRequestId → null).
- *  - actor      The user who performed the movement.
- */
 export class StockMovementResponseDto {
   @ApiProperty()
   id: string;

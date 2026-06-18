@@ -119,7 +119,6 @@ export function CategoriesTable() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
       <div
         style={{
           minHeight: 44,
@@ -176,7 +175,6 @@ export function CategoriesTable() {
         </button>
       </div>
 
-      {/* Column headers */}
       {!isLoading && !isError && filteredCategories.length > 0 && (
         <div
           style={{
@@ -196,7 +194,6 @@ export function CategoriesTable() {
         </div>
       )}
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />

@@ -197,7 +197,7 @@ export function AuditLogTable() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
+      { }
       <div
         style={{
           minHeight: 44,
@@ -248,7 +248,6 @@ export function AuditLogTable() {
         )}
       </div>
 
-      {/* Column headers */}
       {!isLoading && !!data?.data.length && (
         <div
           style={{
@@ -268,7 +267,6 @@ export function AuditLogTable() {
         </div>
       )}
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -286,7 +284,6 @@ export function AuditLogTable() {
         )}
       </div>
 
-      {/* Footer: pagination */}
       <div
         style={{
           height: 36,

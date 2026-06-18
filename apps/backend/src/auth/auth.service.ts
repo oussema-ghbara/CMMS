@@ -24,12 +24,10 @@ import type { UsersService } from '../users/users.service';
 
 const RT_PREFIX = 'rt:';
 const RT_SET_PREFIX = 'rt-set:';
-const DEFAULT_RT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const DEFAULT_RT_TTL_SECONDS = 7 * 24 * 60 * 60; 
 const DEFAULT_IDLE_TIMEOUT_HOURS = 8;
 const SESSION_IDLE_TIMEOUT_HOURS_KEY = 'SESSION_IDLE_TIMEOUT_HOURS';
 
-// Dummy hash used to keep validateUser constant-time when user is not found.
-// Generated with bcrypt.hash('dummy', 12) — not a real secret.
 const DUMMY_HASH = '$2b$12$invalidhashinvalidhashinvalidhashinvalidhashinvalidhashi';
 
 interface TokenPair {
@@ -48,15 +46,11 @@ export class AuthService {
     private readonly cfg: ConfigService,
     private readonly systemConfig: SystemConfigService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    // forwardRef because AuthModule ↔ UsersModule import each other
+
     @Inject(forwardRef(() => require('../users/users.service').UsersService))
     private readonly usersService: UsersService,
   ) {}
 
-  /**
-   * Validates email + password. Returns the User on success, null on failure.
-   * Always runs bcrypt.compare to prevent timing-based user enumeration.
-   */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
       where: { email, isActive: true },
@@ -104,7 +98,6 @@ export class AuthService {
     });
     if (!user) throw new ForbiddenException('auth.accountInactive');
 
-    // Token rotation: revoke old, issue new
     const pipeline = this.redis.pipeline();
     pipeline.del(`${RT_PREFIX}${payload.sub}:${payload.jti}`);
     pipeline.srem(`${RT_SET_PREFIX}${payload.sub}`, payload.jti);
@@ -131,13 +124,12 @@ export class AuthService {
       pipeline.srem(`${RT_SET_PREFIX}${payload.sub}`, payload.jti);
       await pipeline.exec();
     } catch {
-      // Token may be expired or invalid — still clear the cookie
+
       this.logger.warn('Logout called with invalid refresh token — clearing cookie anyway');
     }
     this.clearRefreshCookie(res);
   }
 
-  /** Revokes all refresh tokens for a user. Called on account deactivation. */
   async revokeAllUserTokens(userId: string): Promise<void> {
     const jtis = await this.redis.smembers(`${RT_SET_PREFIX}${userId}`);
     if (jtis.length === 0) return;
@@ -190,7 +182,6 @@ export class AuthService {
     });
   }
 
-  /** Returns the configured idle timeout in hours, falling back to DEFAULT_IDLE_TIMEOUT_HOURS. */
   private async getIdleTimeoutHours(): Promise<number> {
     const configuredHours = await this.systemConfig.get(SESSION_IDLE_TIMEOUT_HOURS_KEY);
     const parsedHours = Number.parseInt(configuredHours ?? '', 10);
@@ -238,7 +229,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    // Fire-and-forget — no enumeration
+
     await this.usersService.generateResetToken(email).catch((err: unknown) =>
       this.logger.error('forgotPassword error', err),
     );

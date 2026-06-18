@@ -154,7 +154,7 @@ export class CertificatesService {
 
   async archive(id: string, actorId: string): Promise<void> {
     const cert = await this.findById(id);
-    // isArchived may not exist in the current Prisma client until `prisma generate` is run
+
     if ((cert as any).isArchived) {
       throw new BadRequestException(`Certificate ${id} is already archived`);
     }
@@ -172,7 +172,6 @@ export class CertificatesService {
     return this.storage.getPresignedUrl('documents', cert.document.filePath);
   }
 
-  // Called by the expiry job
   async findExpiringSoon(): Promise<Array<{ id: string; assetId: string; expirationDate: Date; asset: { name: string } }>> {
     const in60Days = new Date();
     in60Days.setDate(in60Days.getDate() + 60);
@@ -206,11 +205,6 @@ export class CertificatesService {
     );
   }
 
-  /**
-   * Returns all non-archived certificates in EXPIRING_SOON or EXPIRED state,
-   * ordered by expiration date ascending, with their parent asset name/id.
-   * Used by the supervisor dashboard certificate-alerts panel.
-   */
   async findAlerts(): Promise<CertificateAlertItem[]> {
     const where = {
       isArchived: false,

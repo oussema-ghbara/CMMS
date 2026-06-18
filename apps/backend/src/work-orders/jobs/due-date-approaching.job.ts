@@ -13,7 +13,6 @@ const ACTIVE_STATUSES = [
   WorkOrderStatus.PENDING_VALIDATION,
 ] as const;
 
-// Avoid re-notifying within the same 23-hour window (job runs hourly).
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 const JOB_NAME = 'due-date-approaching';
@@ -63,8 +62,6 @@ export class DueDateApproachingJob {
       return;
     }
 
-    // Exclude WOs already notified within the deduplication window to avoid
-    // spamming the technician every hour for the same WO.
     const dedupSince = new Date(now.getTime() - DEDUP_WINDOW_MS);
     const alreadyNotified = await this.prisma.notification.findMany({
       where: {

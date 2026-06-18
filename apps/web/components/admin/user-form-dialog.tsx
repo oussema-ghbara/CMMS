@@ -134,7 +134,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
     >
       <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 440, maxHeight: '90vh', overflowY: 'auto' }}>
 
-        {/* Header */}
+        { }
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em', marginBottom: 2 }}>
@@ -153,7 +153,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Name */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.users.form.nameLabel')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -170,7 +170,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             )}
           </div>
 
-          {/* Email */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('admin.users.form.emailLabel')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -188,7 +188,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             )}
           </div>
 
-          {/* Roles */}
+          { }
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>
               {t('admin.users.form.rolesLabel')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -236,7 +236,6 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             )}
           </div>
 
-          {/* Hourly rate (TECHNICIAN only) */}
           {showHourlyRate && (
             <div>
               <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -255,7 +254,6 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             </div>
           )}
 
-          {/* Footer */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
             <button
               type="button"

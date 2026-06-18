@@ -13,8 +13,6 @@ import {
   OnHoldReasonType,
 } from '@gmao/shared';
 
-// ── List types ────────────────────────────────────────────────────────────────
-
 export interface WorkOrderListAsset {
   id: string;
   name: string;
@@ -57,17 +55,17 @@ export interface WorkOrderListQuery {
   status?: WorkOrderStatus;
   type?: WorkOrderType;
   priority?: WorkOrderPriority;
-  /** Filter to WOs assigned to (or having an active assignment for) this technician ID. */
+
   technicianId?: string;
   page?: number;
   limit?: number;
-  /** ISO-8601 — return only WOs closed at or after this date */
+
   closedAfter?: string;
-  /** ISO-8601 — return only WOs closed at or before this date */
+
   closedBefore?: string;
-  /** When true, return only non-terminal WOs whose dueDate is in the past */
+
   isOverdue?: boolean;
-  /** When true, return only WOs in active states: ASSIGNED, IN_PROGRESS, ON_HOLD */
+
   isActive?: boolean;
 }
 
@@ -75,8 +73,6 @@ export interface WorkOrderListResponse {
   data: WorkOrderListItem[];
   total: number;
 }
-
-// ── Detail types ──────────────────────────────────────────────────────────────
 
 export interface WorkOrderStatusLogEntry {
   id: string;
@@ -132,7 +128,7 @@ export interface WorkOrderInterventionLog {
   result: string | null;
   resultExplanation: string | null;
   hourlyRateAtTime: number | null;
-  /** True when this log was force-closed because the technician was promoted/replaced mid-intervention. */
+
   isReassignmentRemnant: boolean;
   actions: WorkOrderInterventionAction[];
 }
@@ -147,9 +143,9 @@ export interface WorkOrderValidationAction {
 
 export interface WorkOrderOnHoldPeriod {
   id: string;
-  /** Actual DB field — use this for display */
+
   reasonType: string;
-  /** Actual DB field — technician's detail note */
+
   detail: string | null;
   expectedResolutionDate: string | null;
   retryDate: string | null;
@@ -252,17 +248,17 @@ export interface WorkOrderDetail {
   partRequests: WorkOrderPartRequest[];
   sourceReport: WorkOrderSourceReport | null;
   costSummary: WorkOrderCostSummaryDetail;
-  /** Set when this WO was created as a follow-up to another (source = FOLLOW_UP). */
+
   followUpFrom: WorkOrderCrossRef | null;
-  /** Follow-up WOs created from this WO after a COULD_NOT_INTERVENE validation. */
+
   followUps: WorkOrderCrossRef[];
-  /** Active contributors assigned to this WO who have no intervention log yet. */
+
   contributorsWithoutLog: WorkOrderContributorWithoutLog[];
-  /** True when estimated vs actual intervention time differs. */
+
   hasNotableTimeDeviation: boolean;
-  /** Detailed estimate vs actual time metrics for supervisor validation context. */
+
   timeDeviation: WorkOrderTimeDeviation;
-  /** Chronological record of all priority changes. */
+
   priorityLogs: WorkOrderPriorityLogEntry[];
 }
 
@@ -274,8 +270,6 @@ export interface WorkOrderSourceReport {
   reporter: { id: string; name: string };
   createdAt: string;
 }
-
-// ── Work order documents ──────────────────────────────────────────────────────
 
 export interface WorkOrderDocument {
   id: string;
@@ -289,8 +283,6 @@ export interface WorkOrderDocument {
   uploadedBy: { id: string; name: string } | null;
 }
 
-// ── Payloads ──────────────────────────────────────────────────────────────────
-
 export interface CreateWorkOrderPayload {
   type: WorkOrderType;
   priority: WorkOrderPriority;
@@ -300,18 +292,18 @@ export interface CreateWorkOrderPayload {
   dueDate?: string;
   estimatedDurationMinutes?: number;
   forceCreate?: boolean;
-  /** Pre-assign principal technician — triggers auto-publish + assign. */
+
   principalTechnicianId?: string;
-  /** Contributor IDs — only meaningful when principalTechnicianId is provided */
+
   contributorIds?: string[];
 }
 
 export interface DurationHintsResponse {
-  /** Average closure days for last 5 closed WOs of same type on this asset */
+
   last5AssetAvgDays: number | null;
-  /** Average closure days for last 50 closed WOs of same type in the asset's category */
+
   categoryAvgDays: number | null;
-  /** Average closure days for the selected technician's last 10 closed WOs of same type */
+
   technicianAvgDays: number | null;
 }
 
@@ -335,7 +327,7 @@ export interface ReassignTechnicianPayload {
 
 export interface PromoteTechnicianPayload {
   newPrincipalId: string;
-  /** Reason recorded in the reassignment log. Defaults to TECHNICIAN_ABSENT when omitted. */
+
   reason?: WOReassignmentReason;
   reasonDetail?: string;
 }
@@ -351,12 +343,6 @@ export interface RejectValidationPayload {
   rejectionDetail?: string;
 }
 
-/**
- * When the last intervention result is COULD_NOT_INTERVENE, `assetStatusOverride`
- * is mandatory — the supervisor must explicitly declare the post-validation asset
- * status because the asset was not actually repaired.
- * For all other intervention results the field is unused and may be omitted.
- */
 export interface ValidateWorkOrderPayload {
   assetStatusOverride?: AssetStatus;
 }
@@ -367,8 +353,6 @@ export interface UpdateHoldMetadataPayload {
   resolutionNote?: string;
   supervisorAssetStatusChoice?: AssetStatus;
 }
-
-// ── Technician intervention payloads ──────────────────────────────────────────
 
 export interface InterventionActionPayload {
   actionType: InterventionActionType;
@@ -406,16 +390,12 @@ export interface CreateFollowUpPayload {
   dueDate?: string;
 }
 
-// ── Technician load ───────────────────────────────────────────────────────────
-
 export interface TechnicianLoadItem {
   technicianId: string;
   name: string;
   openWoCount: number;
   hasCritical: boolean;
 }
-
-// ── Analytics ─────────────────────────────────────────────────────────────────
 
 export interface WorkOrderAnalyticsSummary {
   total: number;
@@ -462,7 +442,7 @@ export interface TechnicianKpiItem {
   closedCount: number;
   rejectionCount: number;
   rejectionRate: number | null;
-  /** Per-rejection-reason breakdown where key is a ValidationRejectionReason enum value. */
+
   rejectionRateByCategory: Record<string, TechnicianRejectionCategoryEntry>;
   avgActiveDurationMinutes: number | null;
   firstPassRate: number | null;
@@ -538,8 +518,6 @@ export interface WorkOrderAnalyticsResponse {
     avgHoldPeriodsPerWo: number | null;
   };
 }
-
-// ── API ───────────────────────────────────────────────────────────────────────
 
 export const workOrdersApi = {
   list: (params?: WorkOrderListQuery) =>
@@ -620,8 +598,6 @@ export const workOrdersApi = {
 
   getDocumentDownloadUrl: (id: string, docId: string) =>
     api.get<string>(`/work-orders/${id}/documents/${docId}/download`).then((r) => r.data),
-
-  // ── Technician intervention actions ────────────────────────────────────────
 
   start: (id: string) =>
     api.patch<WorkOrderDetail>(`/work-orders/${id}/start`).then((r) => r.data),

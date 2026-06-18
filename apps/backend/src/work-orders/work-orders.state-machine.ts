@@ -3,9 +3,8 @@ import { WorkOrderStatus, Role } from '@gmao/db';
 
 const TERMINAL = new Set<WorkOrderStatus>([WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED]);
 
-// Explicit allowed transitions: [from][to] → roles that can perform it
 const TRANSITIONS: Partial<Record<WorkOrderStatus, Partial<Record<WorkOrderStatus, Role[]>>>> = {
-// satisfies the exhaustive enum — all keys are WorkOrderStatus values
+
   [WorkOrderStatus.DRAFT]: {
     [WorkOrderStatus.OPEN]: [Role.SUPERVISOR],
   },
@@ -24,7 +23,7 @@ const TRANSITIONS: Partial<Record<WorkOrderStatus, Partial<Record<WorkOrderStatu
   },
   [WorkOrderStatus.PENDING_VALIDATION]: {
     [WorkOrderStatus.CLOSED]: [Role.SUPERVISOR],
-    [WorkOrderStatus.IN_PROGRESS]: [Role.SUPERVISOR], // rejection path
+    [WorkOrderStatus.IN_PROGRESS]: [Role.SUPERVISOR], 
   },
 };
 

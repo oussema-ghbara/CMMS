@@ -27,18 +27,16 @@ export class ReportGenerationProcessor extends WorkerHost {
     const startTime = Date.now();
 
     try {
-      // Generate PDF
+
       const pdfBuffer = await this.reportGenerator.generateReport(workOrderId);
       const fileName = `work-order-${workOrderId}-${Date.now()}.pdf`;
       const storageKey = `reports/${fileName}`;
 
-      // Upload to storage
       await this.storage.upload('pdfs', storageKey, pdfBuffer, 'application/pdf');
       this.logger.debug(
         `PDF uploaded to storage: ${storageKey} (size: ${pdfBuffer.length} bytes)`,
       );
 
-      // Update work order with PDF reference
       await this.prisma.workOrder.update({
         where: { id: workOrderId },
         data: { reportPdfKey: storageKey },
@@ -54,7 +52,7 @@ export class ReportGenerationProcessor extends WorkerHost {
         `Failed to generate PDF report for work order ${workOrderId}: ${errorMsg}`,
         err instanceof Error ? err.stack : undefined,
       );
-      throw err; // Rethrow to allow BullMQ retry mechanism
+      throw err; 
     }
   }
 }

@@ -177,7 +177,6 @@ export class AssetsRepository {
     });
   }
 
-  // Called by WorkOrdersModule — exposed for cross-module use
   async logStatusChange(
     assetId: string,
     fromStatus: AssetStatus,

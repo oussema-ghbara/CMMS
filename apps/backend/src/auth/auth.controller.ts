@@ -41,11 +41,6 @@ interface LocalAuthRequest extends Request {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * LocalAuthGuard runs first (validates email+password via LocalStrategy),
-   * populates req.user with the User record, then the handler fires.
-   * LoginDto is validated by the global ValidationPipe before the guard runs.
-   */
   @Post('login')
   @Public()
   @UseGuards(LocalAuthGuard)

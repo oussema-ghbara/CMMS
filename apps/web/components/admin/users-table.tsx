@@ -162,7 +162,6 @@ export function UsersTable() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
       <div
         style={{
           minHeight: 44,
@@ -232,7 +231,6 @@ export function UsersTable() {
         </button>
       </div>
 
-      {/* Column headers */}
       {!isLoading && users.length > 0 && (
         <div
           style={{
@@ -252,7 +250,6 @@ export function UsersTable() {
         </div>
       )}
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />

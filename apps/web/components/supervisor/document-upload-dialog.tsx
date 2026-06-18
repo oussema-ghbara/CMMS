@@ -18,8 +18,6 @@ import {
   FORM_DIALOG_MONO,
 } from '@/components/ui/form-dialog';
 
-// COMPLIANCE_CERTIFICATE is reserved for certificate-attached files and must
-// not be selectable when uploading regular asset documents.
 const DOC_TYPES = Object.values(DocumentType).filter(
   (t) => t !== DocumentType.COMPLIANCE_CERTIFICATE,
 );

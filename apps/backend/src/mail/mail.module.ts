@@ -11,8 +11,7 @@ import { MAIL_QUEUE } from './mail.constants';
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
         connection: {
-          // BullMQ takes a connection options object, not a full URL string.
-          // We parse REDIS_URL (redis://host:port) into host/port here.
+
           host: new URL(cfg.getOrThrow<string>('REDIS_URL')).hostname,
           port: parseInt(new URL(cfg.getOrThrow<string>('REDIS_URL')).port || '6379', 10),
         },

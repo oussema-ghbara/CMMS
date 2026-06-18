@@ -9,15 +9,6 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
 
-/**
- * Authenticates each socket connection via the JWT access token supplied in
- * `socket.handshake.auth.token`.  On success the client is silently joined to
- * its personal room `user:<userId>` so that targeted pushes are trivially
- * scoped to a single user without tracking socket IDs.
- *
- * The gateway intentionally does NOT handle any incoming events — it is a
- * server-to-client push channel only.
- */
 @Injectable()
 @WebSocketGateway({
   cors: { origin: '*', credentials: true },
@@ -73,10 +64,6 @@ export class NotificationsGateway
     );
   }
 
-  /**
-   * Push a real-time event to every active socket session belonging to `userId`.
-   * Safe to call even before any socket for that user is connected (room may be empty).
-   */
   emitToUser(userId: string, event: string, data: unknown): void {
     this.server?.to(`user:${userId}`).emit(event, data);
   }

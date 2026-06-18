@@ -5,7 +5,6 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobLoggerService } from '../../job-logger/job-logger.service';
 
-// Avoid re-notifying within the same 23-hour window (job runs hourly).
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 const JOB_NAME = 'validation-reminder';

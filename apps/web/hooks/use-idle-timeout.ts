@@ -1,16 +1,5 @@
 'use client';
 
-/**
- * Implements §3.4 — SESSION_IDLE_TIMEOUT_HOURS enforcement.
- *
- * Tracks user activity (mouse, keyboard, touch, scroll). If no activity is
- * detected for the configured number of hours, calls POST /auth/logout and
- * redirects to /login.
- *
- * The idle timer is reset on every activity event. Mounting this hook inside
- * AppShell (protected routes only) ensures it is inactive on public pages.
- */
-
 import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -26,7 +15,6 @@ const ACTIVITY_EVENTS = [
   'wheel',
 ] as const;
 
-/** Minimum sensible timeout enforced client-side to avoid mis-configuration. */
 const MIN_TIMEOUT_HOURS = 0.5;
 
 export function useIdleTimeout(): void {
@@ -41,7 +29,7 @@ export function useIdleTimeout(): void {
     try {
       await api.post('/auth/logout');
     } catch {
-      // Ignore — session may already be expired
+
     }
     clearAuth();
     Cookies.remove('user_roles', { path: '/' });
@@ -61,13 +49,12 @@ export function useIdleTimeout(): void {
   );
 
   useEffect(() => {
-    // Only active when the user is authenticated and the timeout is known.
+
     if (!accessToken || !idleTimeoutHours) return;
 
     const hours = Math.max(idleTimeoutHours, MIN_TIMEOUT_HOURS);
     const timeoutMs = hours * 60 * 60 * 1000;
 
-    // Start the initial timer.
     resetTimer(timeoutMs);
 
     const handleActivity = () => resetTimer(timeoutMs);

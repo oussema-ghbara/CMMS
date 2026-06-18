@@ -170,12 +170,10 @@ export function AssetsBoard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qrDialogOpen]);
 
-  // ── List column ────────────────────────────────────────────────────────────
-
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
+      { }
       <div
         style={{
           minHeight: 44,
@@ -189,7 +187,7 @@ export function AssetsBoard() {
           flexShrink: 0,
         }}
       >
-        {/* Search */}
+        { }
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <Search
             size={13}
@@ -227,7 +225,7 @@ export function AssetsBoard() {
 
         <div style={{ width: 1, height: 16, background: 'var(--sb-border)', flexShrink: 0 }} />
 
-        {/* Status filter */}
+        { }
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value as AssetStatus | ''); setPage(1); }}
@@ -239,7 +237,6 @@ export function AssetsBoard() {
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{t(`supervisorAssets.status.${s}`)}</option>)}
         </select>
 
-        {/* Criticality filter */}
         <select
           value={criticalityFilter}
           onChange={(e) => { setCriticalityFilter(e.target.value as AssetCriticality | ''); setPage(1); }}
@@ -251,7 +248,6 @@ export function AssetsBoard() {
           {CRITICALITY_OPTIONS.map((c) => <option key={c} value={c}>{t(`supervisorAssets.criticality.${c}`)}</option>)}
         </select>
 
-        {/* Category filter */}
         <select
           value={categoryFilter}
           onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
@@ -263,7 +259,6 @@ export function AssetsBoard() {
           {(categories ?? []).map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
         </select>
 
-        {/* Reset — only when filters are active */}
         {hasActiveFilters && (
           <button
             type="button"
@@ -287,14 +282,12 @@ export function AssetsBoard() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Count */}
         {data && (
           <Mono size={9} color="var(--sb-text-tertiary)">
             {t('supervisorAssets.total', { count: data.total })}
           </Mono>
         )}
 
-        {/* QR button */}
         <button
           type="button"
           onClick={() => { setQrInput(''); setQrError(null); setQrDialogOpen(true); }}
@@ -321,7 +314,6 @@ export function AssetsBoard() {
           {t('supervisorAssets.qrLookup.button')}
         </button>
 
-        {/* Create button */}
         <button
           type="button"
           onClick={openCreate}
@@ -345,7 +337,6 @@ export function AssetsBoard() {
         </button>
       </div>
 
-      {/* Column headers */}
       {!isLoading && !isError && !!data?.data.length && (
         <div
           style={{
@@ -367,7 +358,6 @@ export function AssetsBoard() {
         </div>
       )}
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -400,7 +390,7 @@ export function AssetsBoard() {
                 onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sb-hover)'; }}
                 onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                {/* Asset name + serial */}
+
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {asset.name}
@@ -412,21 +402,18 @@ export function AssetsBoard() {
                   )}
                 </div>
 
-                {/* Category (hidden when panel open) */}
                 {!panelOpen && (
                   <Mono size={10} color="var(--sb-text-secondary)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {asset.category.name}
                   </Mono>
                 )}
 
-                {/* Location (hidden when panel open) */}
                 {!panelOpen && (
                   <div style={{ fontSize: 12, color: 'var(--sb-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {asset.location.fullPath}
                   </div>
                 )}
 
-                {/* Criticality */}
                 <span
                   style={{
                     display: 'inline-flex', alignItems: 'center',
@@ -439,7 +426,6 @@ export function AssetsBoard() {
                   {t(`supervisorAssets.criticality.${asset.criticality}`)}
                 </span>
 
-                {/* Status */}
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot, flexShrink: 0 }} />
                   {!panelOpen && (
@@ -454,7 +440,6 @@ export function AssetsBoard() {
         )}
       </div>
 
-      {/* Footer: count + pagination */}
       <div
         style={{
           height: 36,
@@ -482,8 +467,6 @@ export function AssetsBoard() {
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -510,7 +493,6 @@ export function AssetsBoard() {
         onSuccess={() => setEditingAsset(null)}
       />
 
-      {/* QR Lookup Modal */}
       {qrDialogOpen && (
         <div
           style={{
@@ -532,7 +514,7 @@ export function AssetsBoard() {
               width: 360,
             }}
           >
-            {/* Header */}
+
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
                 {t('supervisorAssets.qrLookup.dialogTitle')}
@@ -551,7 +533,6 @@ export function AssetsBoard() {
               {t('supervisorAssets.qrLookup.dialogDescription')}
             </div>
 
-            {/* Input */}
             <div style={{ marginBottom: qrError ? 8 : 20 }}>
               <Mono size={9} color="var(--sb-text-tertiary)" style={{ display: 'block', marginBottom: 6 }}>
                 {t('supervisorAssets.qrLookup.inputLabel')}
@@ -587,7 +568,6 @@ export function AssetsBoard() {
               </div>
             )}
 
-            {/* Actions */}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button
                 type="button"

@@ -5,18 +5,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { JobLoggerService } from '../job-logger/job-logger.service';
 import { NotificationType } from '@gmao/db';
 
-/** Match the dedup window of all other hourly cron jobs. */
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 const JOB_NAME = 'failed-notification-detector';
 
-/**
- * Hourly job that scans for email delivery failures in the Notification table
- * and alerts all active admin users when any are found (§1.16 / §12.4 Admin).
- *
- * Dedup: a single NOTIFICATION_DELIVERY_FAILED notification is emitted at most
- * once every 23 hours to avoid spamming admins while issues persist.
- */
 @Injectable()
 export class FailedNotificationDetectorJob {
   private readonly logger = new Logger(FailedNotificationDetectorJob.name);

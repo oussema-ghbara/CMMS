@@ -9,8 +9,7 @@ import { NotificationsController } from './notifications.controller';
 @Module({
   imports: [
     MailModule,
-    // JwtModule with empty registration — secrets are resolved at call-time
-    // via ConfigService inside the gateway, matching the pattern in AuthModule.
+
     JwtModule.register({}),
   ],
   controllers: [NotificationsController],

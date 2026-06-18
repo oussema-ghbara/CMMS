@@ -4,24 +4,10 @@ import { ReportsRepository } from '../reports.repository';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { NotificationType } from '@gmao/db';
 
-/**
- * Three-tier aging system for deferred problem reports.
- *
- * The job runs once a day at 08:00.  Each tier fires for reports whose
- * `deferredAt` crossed its threshold in the preceding 24-hour window, so
- * every report receives exactly one notification per tier, never repeated.
- *
- *  Tier     | Threshold | Window queried              | Audience
- *  ---------|-----------|-----------------------------|-----------
- *  REMINDER | 48 h      | deferredAt ∈ [now-72h, now-48h) | supervisors
- *  FOLLOW_UP| 7 d       | deferredAt ∈ [now-8d,  now-7d)  | supervisors
- *  ESCALATION| 14 d     | deferredAt ∈ [now-15d, now-14d) | supervisors
- */
 @Injectable()
 export class DeferredReportReminderJob {
   private readonly logger = new Logger(DeferredReportReminderJob.name);
 
-  // Tier definitions: { label, minHours, maxHours, type, buildTitle, buildSummary }
   private readonly TIERS = [
     {
       label: '48h',

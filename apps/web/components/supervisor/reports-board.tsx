@@ -28,8 +28,6 @@ import { TableLoading } from '@/components/ui/table-loading';
 import { TableEmpty } from '@/components/ui/table-empty';
 import { TableError } from '@/components/ui/table-error';
 
-// ── Constants ──────────────────────────────────────────────────────────────────
-
 const LIMIT = 20;
 const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
 
@@ -69,8 +67,6 @@ const ARCHIVE_REASON_OPTIONS = [
   ReportArchiveReason.REPLACED_BY_OTHER_WO,
   ReportArchiveReason.MANAGEMENT_DECISION,
 ] as const;
-
-// ── Color maps ─────────────────────────────────────────────────────────────────
 
 const URGENCY_BORDER: Record<UrgencyPerception, string> = {
   [UrgencyPerception.MACHINE_STOPPED]:   'var(--sb-p-crit)',
@@ -127,8 +123,6 @@ const WO_STATUS_BG: Record<WorkOrderStatus, string> = {
   [WorkOrderStatus.CLOSED]:             'var(--sb-s-done-bg)',
   [WorkOrderStatus.CANCELLED]:          'var(--sb-s-cancel-bg)',
 };
-
-// ── Style constants ────────────────────────────────────────────────────────────
 
 const inputS: React.CSSProperties = {
   display: 'block',
@@ -249,8 +243,6 @@ function btnDestructiveStyle(disabled = false): React.CSSProperties {
   };
 }
 
-// ── Utilities ──────────────────────────────────────────────────────────────────
-
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const rawMessage = axiosError.response?.data?.message;
@@ -285,8 +277,6 @@ function getDeferredAgingInfo(deferredAt: string | null): { label: string; color
   if (elapsedHours >= 48)  return { label: 'tier48h', color: 'var(--sb-s-active)' };
   return null;
 }
-
-// ── Atom components ────────────────────────────────────────────────────────────
 
 function ReportStatusPill({ status }: { status: ProblemReportStatus }) {
   const color = REPORT_STATUS_COLOR[status];
@@ -402,8 +392,6 @@ export function DuplicateSubmissionBadge({
     </span>
   );
 }
-
-// ── Report Detail Panel ────────────────────────────────────────────────────────
 
 type ActionPanel = 'convert' | 'reject' | 'defer' | 'archive' | 'reopen' | null;
 type PanelTab = 'detail' | 'actions';
@@ -629,7 +617,6 @@ function ReportDetailPanel({
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--sb-surface)' }}>
 
-      {/* Panel header */}
       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -675,7 +662,6 @@ function ReportDetailPanel({
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--sb-border)', background: 'var(--sb-surface)', flexShrink: 0 }}>
         {(['detail', 'actions'] as PanelTab[]).map((tab) => (
           <button
@@ -703,10 +689,8 @@ function ReportDetailPanel({
         ))}
       </div>
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
-        {/* DETAIL TAB */}
         {activeTab === 'detail' && (
           detailLoading ? (
             <TableLoading label={t('common.loading')} />
@@ -719,7 +703,6 @@ function ReportDetailPanel({
           ) : (
             <div style={{ padding: 16 }}>
 
-              {/* Active WO duplicate banner */}
               {activeWOs.length > 0 && (
                 <div style={{ padding: '10px 12px', border: '1px solid var(--sb-s-active)', background: 'var(--sb-s-active-bg)', borderRadius: 2, marginBottom: 12 }}>
                   <Mono size={9} color="var(--sb-s-active)" tracking="0.10em" style={{ marginBottom: 6 }}>
@@ -739,7 +722,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Metadata grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--sb-border)', marginBottom: 12 }}>
                 {[
                   { label: t('supervisorReports.detail.asset'),        value: detail.asset.name },
@@ -756,7 +738,6 @@ function ReportDetailPanel({
                 ))}
               </div>
 
-              {/* Description */}
               <div style={{ marginBottom: 12 }}>
                 {sectionLabel(t('common.description'))}
                 <div style={{ fontSize: 12, color: 'var(--sb-text-primary)', lineHeight: 1.7, padding: '8px 10px', background: 'var(--sb-bg)', border: '1px solid var(--sb-border)' }}>
@@ -764,7 +745,6 @@ function ReportDetailPanel({
                 </div>
               </div>
 
-              {/* Rejection note */}
               {(detail.rejectionReason || detail.rejectionDetail) && (
                 <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--sb-p-crit-bg)', border: '1px solid var(--sb-p-crit)', borderRadius: 2 }}>
                   <div style={metaLabelStyle}>{t('supervisorReports.detail.rejectedReason')}</div>
@@ -777,7 +757,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Defer note */}
               {(detail.deferNote || detail.deferredAt) && (
                 <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--sb-s-wait-bg)', border: '1px solid var(--sb-s-wait)', borderRadius: 2 }}>
                   <div style={metaLabelStyle}>{t('supervisorReports.detail.deferNote')}</div>
@@ -786,7 +765,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Archive reason */}
               {(detail.archiveReason || detail.status === ProblemReportStatus.ARCHIVED) && (
                 <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--sb-s-cancel-bg)', border: '1px solid var(--sb-s-cancel)', borderRadius: 2 }}>
                   <div style={metaLabelStyle}>{t('supervisorReports.detail.archiveReason')}</div>
@@ -796,7 +774,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Derived work orders */}
               {detail.derivedWorkOrders.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   {sectionLabel(t('supervisorReports.detail.linkedWorkOrders'))}
@@ -812,7 +789,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Cert alerts */}
               {certs.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   {sectionLabel(t('supervisorReports.detail.assetCertAlerts'))}
@@ -848,7 +824,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Intervention history */}
               {history.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   {sectionLabel(t('supervisorReports.detail.assetInterventionHistory'))}
@@ -871,7 +846,6 @@ function ReportDetailPanel({
                 </div>
               )}
 
-              {/* Comments */}
               <div>
                 {sectionLabel(t('supervisorReports.detail.comments'))}
                 {detail.comments.length === 0 ? (
@@ -947,7 +921,6 @@ function ReportDetailPanel({
           )
         )}
 
-        {/* ACTIONS TAB */}
         {activeTab === 'actions' && (
           <div style={{ padding: 16 }}>
             {!hasActions ? (
@@ -956,7 +929,7 @@ function ReportDetailPanel({
               </div>
             ) : (
               <>
-                {/* Convert */}
+
                 {canConvert && (
                   <div style={{ marginBottom: 8 }}>
                     <button
@@ -1020,7 +993,6 @@ function ReportDetailPanel({
                   </div>
                 )}
 
-                {/* Reject */}
                 {canReject && (
                   <div style={{ marginBottom: 8 }}>
                     <button
@@ -1070,7 +1042,6 @@ function ReportDetailPanel({
                   </div>
                 )}
 
-                {/* Defer */}
                 {canDefer && (
                   <div style={{ marginBottom: 8 }}>
                     <button
@@ -1108,7 +1079,6 @@ function ReportDetailPanel({
                   </div>
                 )}
 
-                {/* Archive */}
                 {canArchive && (
                   <div style={{ marginBottom: 8 }}>
                     <button
@@ -1150,7 +1120,6 @@ function ReportDetailPanel({
                   </div>
                 )}
 
-                {/* Reopen */}
                 {canReopen && (
                   <div style={{ marginBottom: 8 }}>
                     <button
@@ -1190,8 +1159,6 @@ function ReportDetailPanel({
     </div>
   );
 }
-
-// ── Reports Board ──────────────────────────────────────────────────────────────
 
 export function ReportsBoard() {
   const { t } = useTranslation();
@@ -1239,7 +1206,6 @@ export function ReportsBoard() {
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Toolbar */}
       <div
         style={{
           padding: '0 12px',
@@ -1339,7 +1305,6 @@ export function ReportsBoard() {
         <div style={{ flex: 1 }} />
       </div>
 
-      {/* Column headers */}
       {!isLoading && !isError && !!data?.data.length && (
         <div
           style={{
@@ -1361,7 +1326,6 @@ export function ReportsBoard() {
         </div>
       )}
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -1431,7 +1395,6 @@ export function ReportsBoard() {
         )}
       </div>
 
-      {/* Footer */}
       <div
         style={{
           padding: '0 16px',

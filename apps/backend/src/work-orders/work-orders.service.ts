@@ -30,11 +30,11 @@ export interface TechnicianLoadItem {
 }
 
 export interface DurationHintsResult {
-  /** Average closure time (days) of the last 5 closed WOs of the same type on this asset */
+
   last5AssetAvgDays: number | null;
-  /** Average closure time (days) of the last 50 closed WOs of the same type in the asset's category */
+
   categoryAvgDays: number | null;
-  /** Average closure time (days) of the selected technician's last 10 closed WOs of the same type (null when no technicianId given) */
+
   technicianAvgDays: number | null;
 }
 
@@ -215,16 +215,12 @@ export class WorkOrdersService {
       }
     }
 
-    // Technician validation happens in AssignmentService at the OPEN → ASSIGNED transition.
-
     const wo = await this.repo.create(
       dto,
       actorId,
       WorkOrderSource.DIRECT_CREATION,
       asset.location.fullPath,
     );
-
-    // Notifications are sent by AssignmentService when the WO transitions OPEN → ASSIGNED.
 
     return wo;
   }
@@ -305,8 +301,6 @@ export class WorkOrdersService {
       })),
     );
 
-    // §9.4, §12.4: Notify the original requester when the WO was created from a
-    // problem report and has now been cancelled.
     type SourceReport = { reporter: { id: string } };
     const sourceReport = (wo as unknown as { sourceReport: SourceReport | null }).sourceReport;
     if (sourceReport?.reporter?.id) {
@@ -322,7 +316,6 @@ export class WorkOrdersService {
       });
     }
 
-    // Cancel pending part requests and prompt return of fulfilled parts
     await this.partRequests.handleWorkOrderCancellation(id, actorId);
 
     return updated;
@@ -469,13 +462,13 @@ export class WorkOrdersService {
           },
         },
       }),
-      // All closed corrective WOs (all-time) for MTBF/MTTR/recurring-failure
+
       this.prisma.workOrder.findMany({
         where: { type: WorkOrderType.CORRECTIVE, status: WorkOrderStatus.CLOSED, closedAt: { not: null }, ...catFilter },
         select: { assetId: true, asset: { select: { name: true } }, createdAt: true, closedAt: true },
         orderBy: [{ assetId: 'asc' }, { createdAt: 'asc' }],
       }),
-      // Closed WOs in period with principal technician
+
       this.prisma.workOrder.findMany({
         where: { status: WorkOrderStatus.CLOSED, closedAt: { gte: since }, principalTechnicianId: { not: null }, ...catFilter },
         select: {
@@ -490,8 +483,7 @@ export class WorkOrdersService {
           },
         },
       }),
-      // Problem reports in period (§9.8: includes submittedDespiteWarning and
-      // closure result of derived WOs for reportAccuracyRate computation)
+
       this.prisma.problemReport.findMany({
         where: { createdAt: { gte: since } },
         select: {
@@ -508,12 +500,12 @@ export class WorkOrdersService {
           },
         },
       }),
-      // Preventive WOs in period
+
       this.prisma.workOrder.findMany({
         where: { type: WorkOrderType.PREVENTIVE, createdAt: { gte: since }, ...catFilter },
         select: { status: true, assetId: true, closedAt: true },
       }),
-      // Checklist items completed in period
+
       this.prisma.workOrderChecklistItem.findMany({
         where: {
           status: { in: [ChecklistItemStatus.DONE, ChecklistItemStatus.ANOMALY_DETECTED, ChecklistItemStatus.NOT_APPLICABLE] },
@@ -521,23 +513,23 @@ export class WorkOrdersService {
         },
         select: { status: true },
       }),
-      // Source distribution in period
+
       this.prisma.workOrder.groupBy({
         by: ['sourceType'],
         where: { createdAt: { gte: since }, ...catFilter },
         _count: { id: true },
       }),
-      // Rejection reason distribution in period
+
       this.prisma.workOrderValidation.groupBy({
         by: ['rejectionReason'],
         where: { action: 'REJECTED', createdAt: { gte: since }, rejectionReason: { not: null } },
         _count: { id: true },
       }),
-      // Reassignment count in period
+
       this.prisma.workOrderReassignment.count({ where: { createdAt: { gte: since } } }),
-      // §9.8: window config for post-preventive corrective KPI
+
       this.prisma.systemConfig.findUnique({ where: { key: 'POST_PREVENTIVE_CORRECTIVE_WINDOW_DAYS' } }),
-      // §1.3: per-plan compliance — preventive WOs in period that have a source plan
+
       this.prisma.workOrder.findMany({
         where: { type: WorkOrderType.PREVENTIVE, createdAt: { gte: since }, sourcePlanId: { not: null }, ...catFilter },
         select: {
@@ -548,7 +540,7 @@ export class WorkOrdersService {
           closedAt: true,
         },
       }),
-      // §1.3: per-checklist-item anomaly — executed items linked to a plan template item
+
       this.prisma.workOrderChecklistItem.findMany({
         where: {
           sourcePlanItemId: { not: null },
@@ -563,7 +555,6 @@ export class WorkOrdersService {
       }),
     ]);
 
-    // ── Existing KPIs ─────────────────────────────────────────────────────────
     const byStatus = Object.fromEntries(byStatusRaw.map((r) => [r.status, r._count.id]));
     const byType = Object.fromEntries(byTypeRaw.map((r) => [r.type, r._count.id]));
     const byPriority = Object.fromEntries(byPriorityRaw.map((r) => [r.priority, r._count.id]));
@@ -609,8 +600,6 @@ export class WorkOrdersService {
     costSummaryTotals.partsCost = round2(costSummaryTotals.partsCost);
     const totalCost = round2(costSummaryTotals.contractorCost + costSummaryTotals.laborCost + costSummaryTotals.partsCost);
 
-    // ── Asset KPIs ────────────────────────────────────────────────────────────
-    // MTBF: mean time between corrective failures per asset, then average across assets
     const wosByAsset = new Map<string, { createdAt: Date; closedAt: Date }[]>();
     for (const wo of correctiveWOs) {
       const list = wosByAsset.get(wo.assetId) ?? [];
@@ -665,7 +654,6 @@ export class WorkOrdersService {
       .sort((a, b) => b.totalCost - a.totalCost)
       .slice(0, 10);
 
-    // §1.4 / §2.7: per-asset breakdown — downtime, MTBF, MTTR, cost, failure count
     const perAssetMttrMap = new Map<string, { name: string; durationSumMs: number; count: number }>();
     for (const wo of correctiveWOs) {
       const durationMs = wo.closedAt!.getTime() - wo.createdAt.getTime();
@@ -731,7 +719,6 @@ export class WorkOrdersService {
       ? Math.round((preventiveClosedCount / preventiveWOsInPeriod.length) * 1000) / 1000
       : null;
 
-    // ── §9.8: Taux correctif post-préventif ──────────────────────────────────
     const postPreventiveWindowDays = parseInt(postPreventiveWindowConfig?.value ?? '7', 10);
     const closedPreventiveList = preventiveWOsInPeriod.filter(
       (w) => w.status === WorkOrderStatus.CLOSED && w.closedAt !== null,
@@ -770,13 +757,12 @@ export class WorkOrdersService {
         Math.round((triggeredCount / closedPreventiveList.length) * 1000) / 1000;
     }
 
-    // ── Technician KPIs ───────────────────────────────────────────────────────
     const techMap = new Map<string, {
       id: string; name: string; closedCount: number;
       totalActiveMins: number; activeMinsCount: number;
       firstPassCount: number; totalHoldPeriods: number;
       totalResponseMs: number; responseCount: number;
-      // §9.8: track each REJECTED validation action's reason for per-technician breakdown
+
       rejectionsByReason: Map<string, number>;
     }>();
 
@@ -794,7 +780,6 @@ export class WorkOrdersService {
       const wasRejected = wo.validationActions.some((a) => a.action === 'REJECTED');
       if (!wasRejected) entry.firstPassCount += 1;
 
-      // §9.8: accumulate rejection reason counts per technician
       for (const va of wo.validationActions) {
         if (va.action === 'REJECTED' && va.rejectionReason) {
           entry.rejectionsByReason.set(
@@ -852,7 +837,6 @@ export class WorkOrdersService {
       };
     }).sort((a, b) => b.closedCount - a.closedCount);
 
-    // ── Requester analytics ───────────────────────────────────────────────────
     const totalReports = reportsInPeriod.length;
     const convertedReports = reportsInPeriod.filter((r) => r.derivedWorkOrders.length > 0).length;
     const conversionRate = totalReports > 0 ? Math.round(convertedReports / totalReports * 1000) / 1000 : null;
@@ -866,9 +850,6 @@ export class WorkOrdersService {
       reportToActionAvgDays = Math.round(totalMs / processedReports.length / (1000 * 60 * 60 * 24) * 10) / 10;
     }
 
-    // §9.8 — report accuracy: % of converted reports whose derived WO was closed
-    // with InterventionResult.RESOLVED. Denominator is closed conversions only
-    // (pending WOs have not yet produced a closure result).
     const closedConversions = reportsInPeriod.filter((r) =>
       r.derivedWorkOrders.some((wo) => wo.status === WorkOrderStatus.CLOSED),
     );
@@ -884,25 +865,20 @@ export class WorkOrdersService {
         ? Math.round((resolvedConversions / closedConversions.length) * 1000) / 1000
         : null;
 
-    // §9.8 — duplicate submission rate: % of reports where the requester clicked
-    // "submit anyway" after seeing the duplicate-WO banner.
     const reportsWithWarning = reportsInPeriod.filter((r) => r.submittedDespiteWarning).length;
     const duplicateSubmissionRate: number | null =
       totalReports > 0
         ? Math.round((reportsWithWarning / totalReports) * 1000) / 1000
         : null;
 
-    // ── Preventive plan efficiency ────────────────────────────────────────────
     const anomalyItems = checklistItemsDone.filter((c) => c.status === ChecklistItemStatus.ANOMALY_DETECTED).length;
     const anomalyRate = checklistItemsDone.length > 0
       ? Math.round(anomalyItems / checklistItemsDone.length * 1000) / 1000
       : null;
 
-    // §1.3 — Per-plan compliance rate and per-checklist-item anomaly rate
     const compliancePerPlan = computeCompliancePerPlan(preventiveWOsPerPlan);
     const anomalyPerChecklistItem = computeAnomalyPerChecklistItem(checklistItemsPerPlanItem);
 
-    // ── Operational overview ──────────────────────────────────────────────────
     const sourceDistribution = Object.fromEntries(sourceDistRaw.map((r) => [r.sourceType, r._count.id]));
     const rejectionReasonDistribution = Object.fromEntries(
       rejectionRaw.map((r) => [r.rejectionReason!, r._count.id]),
@@ -1002,8 +978,6 @@ export class WorkOrdersService {
   async autoEscalateOverduePriorities(): Promise<{ checked: number; escalated: number; criticalNotified: number }> {
     const now = new Date();
 
-    // §4.3: CRITICAL WOs that are overdue do NOT escalate further — they trigger an
-    // immediate supervisor notification instead.
     const overdueCritical = await this.repo.findOverdueCritical(now);
     for (const wo of overdueCritical) {
       this.logger.warn(`CRITICAL WO ${wo.referenceNumber} is overdue — notifying supervisors`);
@@ -1057,13 +1031,6 @@ export class WorkOrdersService {
     }
   }
 
-  /**
-   * Creates a follow-up corrective WO linked to a CLOSED WO whose last intervention
-   * result was COULD_NOT_INTERVENE (spec §8.8 + §9.5).
-   *
-   * The new WO is created in DRAFT status, inherits the original WO's asset,
-   * and carries `followUpFromId` for the cross-reference chain.
-   */
   async createFollowUp(
     originalWoId: string,
     dto: CreateFollowUpDto,
@@ -1082,8 +1049,6 @@ export class WorkOrdersService {
       include: { location: true },
     });
 
-    // Re-use the same asset — the assetId is inherited from the original WO, not
-    // taken from the DTO, to ensure the cross-reference chain is unambiguous.
     const followUpDto: CreateWorkOrderDto = {
       type: dto.type,
       priority: dto.priority,
@@ -1105,13 +1070,6 @@ export class WorkOrdersService {
     );
   }
 
-  /**
-   * Returns per-technician WO load for active (non-terminal) work orders
-   * (spec §9.3 — technician load panel).
-   *
-   * Each entry reports the open WO count and whether any WO is CRITICAL so the
-   * supervisor can see at a glance who is overloaded.
-   */
   async getTechnicianLoad(): Promise<TechnicianLoadItem[]> {
     const terminalStatuses: WorkOrderStatus[] = [
       WorkOrderStatus.CLOSED,

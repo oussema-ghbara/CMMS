@@ -11,10 +11,8 @@ export interface ScheduledJobStatus {
   lastErrorMessage: string | null;
 }
 
-/** Maximum characters stored for an error message to prevent runaway DB writes. */
 const MAX_ERROR_LENGTH = 500;
 
-/** Avoid re-notifying admins for the same job within a 23-hour window. */
 const DEDUP_WINDOW_MS = 23 * 60 * 60 * 1000;
 
 @Injectable()

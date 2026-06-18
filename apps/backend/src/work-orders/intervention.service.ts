@@ -27,7 +27,6 @@ export class InterventionService {
     }
     assertTransitionAllowed(wo.status, WorkOrderStatus.IN_PROGRESS, [Role.TECHNICIAN]);
 
-    // Simultaneous maintenance guard
     const existingActive = await this.prisma.workOrder.findFirst({
       where: { assetId: wo.assetId, status: WorkOrderStatus.IN_PROGRESS, id: { not: woId } },
     });

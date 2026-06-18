@@ -3,7 +3,7 @@ import { Providers } from '@/components/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'GMAO — Gestion de la Maintenance',
+  title: 'GMAO (Gestion de la Maintenan)',
   description: 'Système de Gestion de la Maintenance Assistée par Ordinateur',
 };
 

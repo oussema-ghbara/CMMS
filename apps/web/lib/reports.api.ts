@@ -61,7 +61,6 @@ export interface ReportLinkedWorkOrderItem {
   createdAt: string;
 }
 
-/** §9.1: Active (non-terminal) WO on the same asset — used for duplicate detection banner. */
 export interface ReportAssetActiveWO {
   id: string;
   referenceNumber: string;
@@ -71,7 +70,6 @@ export interface ReportAssetActiveWO {
   createdAt: string;
 }
 
-/** §9.1: Compliance certificate in an alert state (EXPIRING_SOON or EXPIRED). */
 export interface ReportAssetCertAlert {
   id: string;
   certificateType: string;
@@ -81,7 +79,6 @@ export interface ReportAssetCertAlert {
   issuingAuthority: string;
 }
 
-/** §9.1: A recently closed WO on the asset, used in the intervention history sidebar. */
 export interface ReportAssetInterventionHistoryItem {
   id: string;
   referenceNumber: string;
@@ -100,14 +97,14 @@ export interface ReportDetailItem extends ReportListItem {
       code?: string | null;
       fullPath: string;
     };
-    /** §9.1: Active (non-terminal) WOs for duplicate detection. */
+
     workOrders: ReportAssetActiveWO[];
-    /** §9.1: Active compliance certificate alerts. */
+
     certificates: ReportAssetCertAlert[];
   };
   comments: ReportCommentItem[];
   derivedWorkOrders: ReportLinkedWorkOrderItem[];
-  /** §9.1: Last 5 closed WOs for the asset, most recent first. */
+
   assetInterventionHistory: ReportAssetInterventionHistoryItem[];
 }
 

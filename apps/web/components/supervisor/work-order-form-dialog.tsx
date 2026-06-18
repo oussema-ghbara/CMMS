@@ -260,7 +260,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
     >
       <div style={{ background: 'var(--sb-bg)', border: '1px solid var(--sb-border)', padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sb-text-primary)', letterSpacing: '-0.01em' }}>
             {t('supervisorWorkOrders.form.createTitle')}
@@ -275,7 +274,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
           </button>
         </div>
 
-        {/* Duplicate conflict warning */}
         {duplicateConflict && (
           <div style={{ border: '1px solid var(--sb-p-high)', background: 'rgba(234,88,12,0.06)', borderRadius: 2, padding: '12px 14px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -329,7 +327,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Type + Priority (2-col) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -361,7 +358,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             </div>
           </div>
 
-          {/* Asset */}
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorWorkOrders.form.asset')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -383,7 +379,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             )}
           </div>
 
-          {/* Duration hints */}
           {hintsEnabled && (
             <div style={{ border: '1px solid var(--sb-border)', background: 'var(--sb-surface)', borderRadius: 2, padding: '10px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -406,7 +401,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             </div>
           )}
 
-          {/* Principal Technician */}
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorWorkOrders.form.principalTechnician')}
@@ -429,7 +423,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             </select>
           </div>
 
-          {/* Technician load */}
           {(principalLoad || principalTechnicianId) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px' }}>
               <UserCheck style={{ width: 12, height: 12, color: 'var(--sb-text-tertiary)', flexShrink: 0 }} />
@@ -446,14 +439,12 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             </div>
           )}
 
-          {/* Draft/Assign hint */}
           <Mono size={8} color="var(--sb-text-tertiary)" block>
             {principalTechnicianId
               ? t('supervisorWorkOrders.form.assignedHint')
               : t('supervisorWorkOrders.form.draftHint')}
           </Mono>
 
-          {/* Contributors */}
           {principalTechnicianId && availableContributors.length > 0 && (
             <div>
               <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 6 }}>
@@ -487,7 +478,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             </div>
           )}
 
-          {/* Description */}
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorWorkOrders.form.description')} <span style={{ color: 'var(--sb-p-crit)' }}>*</span>
@@ -506,7 +496,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             )}
           </div>
 
-          {/* Internal Notes */}
           <div>
             <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
               {t('supervisorWorkOrders.form.internalNotes')}
@@ -522,7 +511,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             />
           </div>
 
-          {/* Due date + Duration (2-col) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 5 }}>
@@ -548,7 +536,6 @@ export function WorkOrderFormDialog({ open, onOpenChange }: WorkOrderFormDialogP
             </div>
           </div>
 
-          {/* Footer */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--sb-border)', marginTop: 4 }}>
             <button
               type="button"

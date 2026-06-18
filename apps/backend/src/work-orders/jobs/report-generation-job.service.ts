@@ -16,10 +16,6 @@ export class ReportGenerationJobService {
     private readonly reportQueue: Queue<GeneratePdfReportJobData>,
   ) {}
 
-  /**
-   * Enqueues a PDF report generation job for a closed work order.
-   * Fire-and-forget; failures are logged and retried by the processor.
-   */
   async enqueueReportGeneration(workOrderId: string): Promise<void> {
     await this.reportQueue.add(REPORT_GENERATION_JOB_GENERATE, { workOrderId }, {
       attempts: 3,

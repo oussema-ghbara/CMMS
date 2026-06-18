@@ -20,8 +20,6 @@ type AuthRequest = { user: { sub: string } };
 export class PartRequestsController {
   constructor(private readonly partRequests: PartRequestsService) {}
 
-  // ── Technician: submit from within a WO context ───────────────────
-
   @Post('work-orders/:woId/part-requests')
   @Roles(Role.TECHNICIAN)
   @ApiOperation({ summary: 'Submit part request for a work order (assigned Technician)' })
@@ -38,8 +36,6 @@ export class PartRequestsController {
   findByWorkOrder(@Param('woId') woId: string) {
     return this.partRequests.findByWorkOrder(woId);
   }
-
-  // ── Storekeeper: request queue ────────────────────────────────────
 
   @Get('part-requests')
   @Roles(Role.STOREKEEPER)

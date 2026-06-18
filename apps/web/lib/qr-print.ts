@@ -1,23 +1,12 @@
-/**
- * Utilities for QR code printing (§2.8).
- * The print logic is extracted into a pure function so it can be unit-tested
- * without a browser or React environment.
- */
+
 
 export interface QrPrintOptions {
-  /** The QR code value (qrCodeIdentifier). */
+
   identifier: string;
-  /** Human-readable asset name shown below the QR code. */
+
   assetName: string;
 }
 
-/**
- * Builds the HTML document string used in the print window.
- * The result is a self-contained HTML page with a centred QR SVG
- * and the asset name below it.  The caller is responsible for
- * injecting the SVG markup because QR code generation is done in
- * the React component layer.
- */
 export function buildQrPrintHtml(options: QrPrintOptions, svgMarkup: string): string {
   const { identifier, assetName } = options;
   const escaped = assetName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -80,14 +69,6 @@ export function buildQrPrintHtml(options: QrPrintOptions, svgMarkup: string): st
 </html>`;
 }
 
-/**
- * Opens a new browser window, writes the QR print document, and triggers
- * the browser's print dialog.  Returns immediately — the window handles
- * auto-close after printing.
- *
- * Not tested directly (requires a real browser); the HTML generation is
- * tested via buildQrPrintHtml.
- */
 export function openQrPrintWindow(options: QrPrintOptions, svgMarkup: string): void {
   const win = window.open('', '_blank', 'width=400,height=500');
   if (!win) return;

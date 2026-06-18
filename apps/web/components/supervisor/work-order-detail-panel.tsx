@@ -44,8 +44,6 @@ import { StatusPill } from '@/components/ui/status-pill';
 import { PriorityChip } from '@/components/ui/priority-chip';
 import { Mono } from '@/components/ui/mono';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function getErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ message?: string | string[] }>;
   const rawMessage = axiosError.response?.data?.message;
@@ -102,8 +100,6 @@ type ActionPanel =
   | null;
 
 type PanelTab = 'detail' | 'actions';
-
-// ── Style constants ────────────────────────────────────────────────────────────
 
 const MONO = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
 
@@ -202,14 +198,10 @@ function btnDestructiveStyle(disabled = false): React.CSSProperties {
   };
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 interface WorkOrderDetailPanelProps {
   workOrder: WorkOrderListItem | { id: string };
   onClose: () => void;
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPanelProps) {
   const { t } = useTranslation();
@@ -217,14 +209,11 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
   const [activeTab, setActiveTab] = useState<PanelTab>('detail');
   const [activePanel, setActivePanel] = useState<ActionPanel>(null);
 
-  // Assign form state
   const [principalId, setPrincipalId] = useState('');
   const [contributorIds, setContributorIds] = useState<string[]>([]);
 
-  // Priority change state
   const [newPriority, setNewPriority] = useState<WorkOrderPriority>(WorkOrderPriority.MEDIUM);
 
-  // Validate (COULD_NOT_INTERVENE) form state
   const [validateAssetStatusOverride, setValidateAssetStatusOverride] =
     useState<AssetStatus | ''>('');
 
@@ -240,12 +229,10 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
 
   const [isDownloadingReport, setIsDownloadingReport] = useState(false);
 
-  // Promote form state
   const [promoteNewPrincipalId, setPromoteNewPrincipalId] = useState('');
   const [promoteReason, setPromoteReason] = useState<WOReassignmentReason>(WOReassignmentReason.TECHNICIAN_ABSENT);
   const [promoteReasonDetail, setPromoteReasonDetail] = useState('');
 
-  // Cancel form state
   const { register: registerCancel, handleSubmit: handleCancelSubmit, reset: resetCancel } =
     useForm<{ reason: WOCancellationReason; detail: string; postAssetStatus: string }>({
       defaultValues: {
@@ -255,7 +242,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
       },
     });
 
-  // Reject form state
   const {
     register: registerReject,
     handleSubmit: handleRejectSubmit,
@@ -267,7 +253,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
     },
   });
 
-  // Reassign form state
   const {
     register: registerReassign,
     handleSubmit: handleReassignSubmit,
@@ -280,7 +265,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
     },
   });
 
-  // Hold metadata form state
   const [showHoldMetadataForm, setShowHoldMetadataForm] = useState(false);
   const {
     register: registerHoldMeta,
@@ -300,8 +284,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
     },
   });
 
-  // ── Queries ────────────────────────────────────────────────────────────────
-
   const { data: detail, isLoading, isError } = useQuery({
     queryKey: ['supervisor', 'work-orders', workOrder.id, 'detail'],
     queryFn: () => workOrdersApi.getById(workOrder.id),
@@ -315,8 +297,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
   });
 
   const technicians = techniciansData ?? [];
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
 
   function invalidateAll() {
     void queryClient.invalidateQueries({ queryKey: ['supervisor', 'work-orders'] });
@@ -344,8 +324,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
     );
   };
-
-  // ── Mutations ──────────────────────────────────────────────────────────────
 
   const publishMutation = useMutation({
     mutationFn: () => workOrdersApi.publish(workOrder.id),
@@ -506,8 +484,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
     authorizeSimMutation.isPending ||
     updateHoldMetaMutation.isPending;
 
-  // ── Submit handlers ────────────────────────────────────────────────────────
-
   const handleAssignSubmit = () => {
     if (!principalId) return;
     assignMutation.mutate({
@@ -561,8 +537,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
     updateHoldMetaMutation.mutate(payload);
   };
 
-  // ── Render helpers ─────────────────────────────────────────────────────────
-
   const status =
     detail?.status ??
     ('status' in workOrder ? (workOrder as WorkOrderListItem).status : undefined);
@@ -593,12 +567,10 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
     detail?.referenceNumber ??
     ('referenceNumber' in workOrder ? (workOrder as WorkOrderListItem).referenceNumber : undefined);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-      {/* Panel header */}
+      { }
       <div
         style={{
           background: 'var(--sb-surface)',
@@ -648,7 +620,7 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
         )}
       </div>
 
-      {/* Sub-tab navigation */}
+      { }
       <div
         style={{
           display: 'flex',
@@ -690,7 +662,7 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
         })}
       </div>
 
-      {/* Body */}
+      { }
       <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
 
         {isLoading ? (
@@ -703,11 +675,11 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
           </p>
         ) : detail ? (
           <>
-            {/* ── DÉTAIL tab ── */}
+            { }
             {activeTab === 'detail' && (
               <div>
 
-                {/* Metadata grid */}
+                { }
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--sb-border)', marginBottom: 16 }}>
                   <div style={{ background: 'var(--sb-bg)', padding: '9px 12px' }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 3 }}>{t('supervisorWorkOrders.detail.asset')}</Mono>
@@ -759,7 +731,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   )}
                 </div>
 
-                {/* Description */}
                 <div style={{ marginBottom: 16 }}>
                   <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 6 }}>{t('supervisorWorkOrders.detail.description')}</Mono>
                   <p style={{ fontSize: 13, color: 'var(--sb-text-primary)', lineHeight: 1.7, margin: 0, borderLeft: '2px solid var(--sb-border)', paddingLeft: 10, whiteSpace: 'pre-wrap' }}>
@@ -767,7 +738,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </p>
                 </div>
 
-                {/* Internal notes */}
                 {detail.internalNotes && (
                   <div style={{ marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 6 }}>{t('supervisorWorkOrders.detail.internalNotes')}</Mono>
@@ -775,7 +745,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Source report */}
                 {detail.sourceReport && (
                   <div style={{ border: '1px solid var(--sb-border)', padding: '10px 12px', background: 'var(--sb-hover)', marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>{t('supervisorWorkOrders.detail.sourceReport')}</Mono>
@@ -786,7 +755,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Validation signals */}
                 {status === WorkOrderStatus.PENDING_VALIDATION &&
                   (hasContributorsWithoutLog || hasNotableTimeDeviation) && (
                   <div style={{ border: '1px solid rgba(160,96,32,0.35)', background: 'var(--sb-p-high-bg)', padding: '10px 12px', marginBottom: 16 }}>
@@ -818,7 +786,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Follow-up chain */}
                 {(detail.followUpFrom || (detail.followUps && detail.followUps.length > 0)) && (
                   <div style={{ border: '1px solid var(--sb-border)', padding: '10px 12px', marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 6 }}>{t('supervisorWorkOrders.detail.followUpChain')}</Mono>
@@ -837,7 +804,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Assignments */}
                 <div style={{ paddingTop: 16, borderTop: '1px solid var(--sb-border)', marginBottom: 16 }}>
                   <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>{t('supervisorWorkOrders.detail.assignments')}</Mono>
                   {detail.assignments.length === 0 ? (
@@ -913,7 +879,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   )}
                 </div>
 
-                {/* Part requests */}
                 {detail.partRequests.length > 0 && (
                   <div style={{ paddingTop: 16, borderTop: '1px solid var(--sb-border)', marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>{t('supervisorWorkOrders.detail.partRequests')}</Mono>
@@ -948,7 +913,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* On-hold periods */}
                 {detail.onHoldPeriods.length > 0 && (
                   <div style={{ paddingTop: 16, borderTop: '1px solid var(--sb-border)', marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>{t('supervisorWorkOrders.detail.holdPeriods')}</Mono>
@@ -1061,7 +1025,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Cost summary */}
                 {detail.costSummary && (
                   <div style={{ paddingTop: 16, borderTop: '1px solid var(--sb-border)', marginBottom: 16 }}>
                     <Mono size={8} color="var(--sb-text-tertiary)" block style={{ marginBottom: 8 }}>{t('supervisorWorkOrders.detail.costSummary')}</Mono>
@@ -1082,7 +1045,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Download report */}
                 {status === WorkOrderStatus.CLOSED && (
                   <div style={{ paddingTop: 16, borderTop: '1px solid var(--sb-border)' }}>
                     <button
@@ -1112,11 +1074,9 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
               </div>
             )}
 
-            {/* ── ACTIONS tab ── */}
             {activeTab === 'actions' && !isTerminalStatus(status as WorkOrderStatus) && (
               <div>
 
-                {/* Follow-up prompt */}
                 {followUpPrompt && (
                   <div style={{ border: '1px solid rgba(58,106,140,0.4)', background: 'var(--sb-p-norm-bg)', padding: '12px 14px', marginBottom: 14 }}>
                     <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--sb-text-primary)', margin: '0 0 3px' }}>{t('supervisorWorkOrders.followUp.promptTitle')}</p>
@@ -1154,7 +1114,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Action buttons */}
                 {activePanel === null && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 2 }}>
                     {status === WorkOrderStatus.DRAFT && (
@@ -1210,7 +1169,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Publish panel */}
                 {activePanel === 'publish' && (
                   <div style={actionPanelStyle}>
                     <p style={{ fontSize: 13, color: 'var(--sb-text-secondary)', margin: '0 0 12px', lineHeight: 1.6 }}>{t('supervisorWorkOrders.actions.publishDescription')}</p>
@@ -1226,7 +1184,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Assign panel */}
                 {activePanel === 'assign' && (
                   <div style={actionPanelStyle}>
                     <p style={{ fontSize: 13, color: 'var(--sb-text-secondary)', margin: '0 0 12px', lineHeight: 1.6 }}>{t('supervisorWorkOrders.actions.assignDescription')}</p>
@@ -1274,7 +1231,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Validate panel */}
                 {activePanel === 'validate' && (
                   <div style={actionPanelStyle}>
                     {isCouldNotIntervene ? (
@@ -1339,7 +1295,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Reject panel */}
                 {activePanel === 'reject' && (
                   <form onSubmit={handleRejectSubmit(handleRejectFormSubmit)} style={actionPanelStyle}>
                     <p style={{ fontSize: 13, color: 'var(--sb-text-secondary)', margin: '0 0 12px', lineHeight: 1.6 }}>{t('supervisorWorkOrders.actions.rejectDescription')}</p>
@@ -1367,7 +1322,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </form>
                 )}
 
-                {/* Reassign panel */}
                 {activePanel === 'reassign' && (
                   <form onSubmit={handleReassignSubmit(handleReassignFormSubmit)} style={actionPanelStyle}>
                     <p style={{ fontSize: 13, color: 'var(--sb-text-secondary)', margin: '0 0 12px', lineHeight: 1.6 }}>{t('supervisorWorkOrders.actions.reassignDescription')}</p>
@@ -1404,7 +1358,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </form>
                 )}
 
-                {/* Promote panel */}
                 {activePanel === 'promote' && (
                   <div style={actionPanelStyle}>
                     <p style={{ fontSize: 13, color: 'var(--sb-text-secondary)', margin: '0 0 12px', lineHeight: 1.6 }}>{t('supervisorWorkOrders.actions.promoteDescription')}</p>
@@ -1458,7 +1411,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Authorize simultaneous panel */}
                 {activePanel === 'authorizeSim' && (
                   <div style={actionPanelStyle}>
                     <div style={{ border: '1px solid rgba(160,96,32,0.35)', background: 'var(--sb-p-high-bg)', padding: '10px 12px', marginBottom: 12 }}>
@@ -1477,7 +1429,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Change priority panel */}
                 {activePanel === 'changePriority' && (
                   <div style={actionPanelStyle}>
                     <div style={{ marginBottom: 12 }}>
@@ -1500,7 +1451,6 @@ export function WorkOrderDetailPanel({ workOrder, onClose }: WorkOrderDetailPane
                   </div>
                 )}
 
-                {/* Cancel panel */}
                 {activePanel === 'cancel' && (
                   <form onSubmit={handleCancelSubmit(handleCancelFormSubmit)} style={actionPanelStyle}>
                     <p style={{ fontSize: 13, color: 'var(--sb-text-secondary)', margin: '0 0 12px', lineHeight: 1.6 }}>{t('supervisorWorkOrders.actions.cancelDescription')}</p>

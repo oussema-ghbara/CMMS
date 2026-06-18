@@ -8,7 +8,6 @@ import { AssetStatusTransitionDto } from './dto/asset-status-transition.dto';
 import { AssetQueryDto } from './dto/asset-query.dto';
 import { AssetStatus } from '@gmao/shared';
 
-// Statuses that WorkOrdersModule sets — Supervisors cannot set these manually
 const WO_DRIVEN_STATUSES: AssetStatus[] = [
   AssetStatus.IN_MAINTENANCE,
   AssetStatus.MAINTENANCE_BLOCKED,
@@ -96,7 +95,6 @@ export class AssetsService {
     return this.repo.getStatusHistory(assetId);
   }
 
-  // Exported for WorkOrdersModule use
   logStatusChange(
     assetId: string,
     fromStatus: AssetStatus,

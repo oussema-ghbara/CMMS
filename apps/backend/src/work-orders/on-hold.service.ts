@@ -71,7 +71,7 @@ export class OnHoldService {
           },
         });
       }
-      // Lock completed checklist items so they cannot be undone after resume
+
       await tx.workOrderChecklistItem.updateMany({
         where: { workOrderId: woId, status: { not: 'PENDING' } },
         data: { isLockedByHold: true },
@@ -100,12 +100,6 @@ export class OnHoldService {
     return this.repo.findById(woId);
   }
 
-  /**
-   * Supervisor-only: update hold metadata fields (expectedResolutionDate, retryDate,
-   * or resolution plan note) on an active ON_HOLD work order without changing its state.
-   * Fixes §6.1: the supervisor note is now set exclusively by the supervisor, not the
-   * technician on resume.
-   */
   async updateHoldMetadata(woId: string, dto: UpdateHoldMetadataDto, actorId: string): Promise<WorkOrder> {
     const wo = await this.repo.findById(woId);
 
@@ -199,8 +193,7 @@ export class OnHoldService {
     ]);
 
     await this.prisma.$transaction(async (tx) => {
-      // supervisorResolutionNote is intentionally NOT written here — it is the
-      // supervisor's responsibility, set via PATCH /hold-metadata before resume.
+
       await tx.onHoldPeriod.updateMany({
         where: { workOrderId: woId, resumedAt: null },
         data: { resumedAt: new Date() },
@@ -231,8 +224,6 @@ export class OnHoldService {
       });
     });
 
-    // Notify active contributor technicians that the WO is back in progress.
-    // The principal is the actor who triggered the resume and does not need a self-notification.
     type Assignment = { technicianId: string; isPrincipal: boolean; isActive: boolean };
     const contributors = ((wo as unknown as { assignments: Assignment[] }).assignments ?? [])
       .filter((a) => !a.isPrincipal && a.isActive);

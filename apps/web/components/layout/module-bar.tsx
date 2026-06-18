@@ -14,8 +14,6 @@ export function ModuleBar() {
 
   if (!user) return null;
 
-  // Derive active module from pathname first (routes are role-scoped).
-  // Fall back to activeRole when on a non-module path (e.g. /profile).
   const moduleFromPath = SIDEBAR_MODULES.find(
     (m) => user.roles.includes(m.role) && isModuleActive(pathname, m),
   );

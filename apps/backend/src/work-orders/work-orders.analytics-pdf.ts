@@ -84,7 +84,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    // ── Header ────────────────────────────────────────────────────────────────
     doc.fontSize(18).font('Helvetica-Bold').text('Synthèse analytique maintenance');
     doc.font('Helvetica').moveDown(0.5);
     doc.fontSize(10).fillColor('#555555')
@@ -93,7 +92,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
       .text(`Généré le : ${new Date().toLocaleDateString('fr-FR', { dateStyle: 'long' })}`);
     doc.fillColor('#000000');
 
-    // ── Global indicators ─────────────────────────────────────────────────────
     heading(doc, 'Indicateurs globaux');
     doc.fontSize(10)
       .text(`Total OT : ${analytics.summary.total}`)
@@ -106,7 +104,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
       .text(`MTBF moyen : ${num(analytics.assetKpis.globalMtbfDays, 'jour(s)')}`)
       .text(`MTTR moyen : ${num(analytics.assetKpis.globalMttrHours, 'heure(s)')}`);
 
-    // ── Cost summary ──────────────────────────────────────────────────────────
     heading(doc, 'Coûts de maintenance');
     kv(doc, 'Main-d\'œuvre', cur(analytics.costSummary.laborCost));
     kv(doc, 'Pièces', cur(analytics.costSummary.partsCost));
@@ -114,7 +111,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
     doc.fontSize(10).font('Helvetica-Bold').text(`Total : ${cur(analytics.costSummary.totalCost)}`);
     doc.font('Helvetica');
 
-    // ── Top assets by failure ─────────────────────────────────────────────────
     heading(doc, 'Top équipements – pannes (max 10)');
     if (analytics.assetKpis.topByFailureFrequency.length === 0) {
       doc.fontSize(10).text('Aucune donnée sur la période.');
@@ -126,7 +122,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
       });
     }
 
-    // ── Top assets by cost ────────────────────────────────────────────────────
     heading(doc, 'Top équipements – coût (max 10)');
     if (analytics.assetKpis.topByCost.length === 0) {
       doc.fontSize(10).text('Aucune donnée sur la période.');
@@ -136,7 +131,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
       });
     }
 
-    // ── Technician KPIs ───────────────────────────────────────────────────────
     heading(doc, 'Performance techniciens (max 10)');
     if (analytics.technicianKpis.length === 0) {
       doc.fontSize(10).text('Aucune donnée sur la période.');
@@ -150,14 +144,12 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
       });
     }
 
-    // ── Requester analytics ───────────────────────────────────────────────────
     heading(doc, 'Analytiques signalements');
     kv(doc, 'Signalements soumis', String(analytics.requesterAnalytics.totalReportsSubmitted));
     kv(doc, 'Taux de conversion', pct(analytics.requesterAnalytics.conversionRate));
     kv(doc, 'Délai moy. de traitement', num(analytics.requesterAnalytics.reportToActionAvgDays, 'jour(s)'));
     kv(doc, 'Précision des signalements', pct(analytics.requesterAnalytics.reportAccuracyRate));
 
-    // ── Preventive plan efficiency ────────────────────────────────────────────
     heading(doc, 'Efficacité plans préventifs');
     kv(doc, 'Taux de conformité', pct(analytics.preventivePlanEfficiency.complianceRate));
     kv(doc, 'Taux d\'anomalies', pct(analytics.preventivePlanEfficiency.anomalyRate));
@@ -166,7 +158,6 @@ export function buildAnalyticsPdf(analytics: Analytics): Promise<Buffer> {
     kv(doc, `Correctifs post-préventifs (${analytics.preventivePlanEfficiency.postPreventiveCorrectiveWindowDays} j)`,
       pct(analytics.preventivePlanEfficiency.postPreventiveCorrectiveRate));
 
-    // ── Operational overview ──────────────────────────────────────────────────
     heading(doc, 'Vue opérationnelle');
     kv(doc, 'Réaffectations', String(analytics.operationalOverview.reassignmentCount));
     kv(doc, 'Arrêts moy. par OT', num(analytics.operationalOverview.avgHoldPeriodsPerWo));

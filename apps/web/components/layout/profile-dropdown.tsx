@@ -178,7 +178,7 @@ export function ProfileDropdown() {
           background: '#fff',
         }}
       >
-        {/* User identity */}
+
         <div
           style={{
             padding: '12px 14px',
@@ -207,7 +207,6 @@ export function ProfileDropdown() {
           </p>
         </div>
 
-        {/* Roles */}
         <div
           style={{
             padding: '10px 14px',
@@ -291,7 +290,6 @@ export function ProfileDropdown() {
           </div>
         </div>
 
-        {/* Actions */}
         <div style={{ padding: '4px 0' }}>
           <Link
             href="/profile"

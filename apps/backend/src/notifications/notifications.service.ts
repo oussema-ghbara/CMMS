@@ -58,10 +58,6 @@ export class NotificationsService {
         entityId: input.entityId,
       },
     });
-
-    // Real-time push — deliver immediately to any open socket session for the recipient.
-    // Uses @Optional() injection so the service remains usable in test contexts where
-    // the gateway is not wired up.
     this.gateway?.emitToUser(input.recipientId, 'notification', {
       id: notification.id,
       type: notification.type,

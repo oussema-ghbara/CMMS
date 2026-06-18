@@ -58,7 +58,6 @@ export function ValidationQueueBoard() {
   const listContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Header strip */}
       <div
         style={{
           padding: '0 16px',
@@ -78,7 +77,6 @@ export function ValidationQueueBoard() {
         </Mono>
       </div>
 
-      {/* Column headers */}
       {!isLoading && !isError && !!data?.data.length && (
         <div
           style={{
@@ -104,7 +102,6 @@ export function ValidationQueueBoard() {
         </div>
       )}
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <TableLoading label={t('common.loading')} />
@@ -167,7 +164,6 @@ export function ValidationQueueBoard() {
         )}
       </div>
 
-      {/* Footer: pagination */}
       <div
         style={{
           padding: '0 16px',

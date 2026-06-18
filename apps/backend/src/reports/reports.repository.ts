@@ -50,7 +50,7 @@ export class ReportsRepository {
         asset: {
           include: {
             location: true,
-            // §9.1: Active WOs on this asset — used to render the duplicate WO banner.
+
             workOrders: {
               where: { status: { notIn: [...TERMINAL_STATUSES] } },
               select: {
@@ -63,7 +63,7 @@ export class ReportsRepository {
               },
               orderBy: { createdAt: 'desc' },
             },
-            // §9.1: Compliance certificate alerts (EXPIRING_SOON or EXPIRED, non-archived).
+
             certificates: {
               where: { isArchived: false, status: { in: [...ALERT_CERT_STATUSES] } },
               select: {
@@ -90,9 +90,6 @@ export class ReportsRepository {
 
     if (!report) throw new NotFoundException(`Problem report ${id} not found`);
 
-    // §9.1: Fetch the asset's recent closed work orders as intervention history.
-    // Done separately because Prisma cannot apply two different `where` filters on
-    // the same relation in a single `include`.
     const assetInterventionHistory = await this.prisma.workOrder.findMany({
       where: {
         assetId: report.assetId,
@@ -149,16 +146,6 @@ export class ReportsRepository {
     });
   }
 
-  /**
-   * Returns deferred reports whose `deferredAt` timestamp falls inside the
-   * half-open window [now - maxHours, now - minHours).
-   *
-   * Sending once per 24-hour window (job runs daily at 08:00) for each tier
-   * guarantees exactly one notification per threshold per report:
-   *   - 48 h tier  → minHours=48, maxHours=72
-   *   - 7-day tier → minHours=168, maxHours=192
-   *   - 14-day tier→ minHours=336, maxHours=360
-   */
   async findReportsDeferredInWindow(minHours: number, maxHours: number) {
     const now = new Date();
     const lowerBound = new Date(now.getTime() - maxHours * 60 * 60 * 1000);

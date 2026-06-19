@@ -8,7 +8,6 @@ import { z } from 'zod';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { authApi } from '@/lib/auth.api';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +25,25 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+const btnPrimary: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  width: '100%', background: 'var(--sb-rail)', color: 'var(--sb-text-on-rail)',
+  border: 'none', borderRadius: 2, padding: '8px 16px',
+  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+};
+
+const btnSecondary: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  width: '100%', background: 'transparent', color: 'var(--sb-text-primary)',
+  border: '1px solid var(--sb-border)', borderRadius: 2, padding: '8px 16px',
+  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+};
+
+const btnDisabled: React.CSSProperties = {
+  ...btnPrimary,
+  background: 'var(--sb-border)', color: 'var(--sb-text-tertiary)', cursor: 'not-allowed',
+};
 
 export default function ForgotPasswordContent() {
   const router = useRouter();
@@ -57,90 +75,78 @@ export default function ForgotPasswordContent() {
 
   if (isSuccess) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              {t('common.success')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t('auth.checkEmail')}
-            </p>
-            <Button
-              onClick={() => router.push('/login')}
-              className="w-full"
-            >
-              {t('auth.backToLogin')}
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            {t('common.success')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t('auth.checkEmail')}
+          </p>
+          <button type="button" style={btnPrimary} onClick={() => router.push('/login')}>
+            {t('auth.backToLogin')}
+          </button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">
-            {t('auth.forgotPasswordTitle')}
-          </CardTitle>
-          <CardDescription>
-            {t('auth.forgotPasswordDescription')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <div className="space-y-2">
-              <Label htmlFor="email">{t('auth.email')}</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder={t('auth.emailPlaceholder')}
-                {...register('email')}
-                aria-invalid={!!errors.email}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-
-            {apiError && (
-              <div
-                role="alert"
-                className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center gap-2"
-              >
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {apiError}
-              </div>
+    <Card className="w-full max-w-md shadow-lg">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold">
+          {t('auth.forgotPasswordTitle')}
+        </CardTitle>
+        <CardDescription>
+          {t('auth.forgotPasswordDescription')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="email">{t('auth.email')}</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder={t('auth.emailPlaceholder')}
+              {...register('email')}
+              aria-invalid={!!errors.email}
+            />
+            {errors.email && (
+              <p className="text-sm text-destructive">{errors.email.message}</p>
             )}
+          </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  {t('auth.sending')}
-                </>
-              ) : (
-                t('auth.send')
-              )}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => router.push('/login')}
+          {apiError && (
+            <div
+              role="alert"
+              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center gap-2"
             >
-              {t('auth.backToLogin')}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {apiError}
+            </div>
+          )}
+
+          <button type="submit" style={isSubmitting ? btnDisabled : btnPrimary} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t('auth.sending')}
+              </>
+            ) : (
+              t('auth.send')
+            )}
+          </button>
+
+          <button type="button" style={btnSecondary} onClick={() => router.push('/login')}>
+            {t('auth.backToLogin')}
+          </button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

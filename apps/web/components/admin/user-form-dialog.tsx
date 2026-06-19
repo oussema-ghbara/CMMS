@@ -214,13 +214,10 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
                         }}
                       >
                         <input
-                          type="checkbox"
+                          type="radio"
                           style={{ width: 12, height: 12, flexShrink: 0, cursor: 'pointer', accentColor: color }}
                           checked={checked}
-                          onChange={(e) => {
-                            if (e.target.checked) field.onChange([...field.value, role]);
-                            else field.onChange(field.value.filter((r) => r !== role));
-                          }}
+                          onChange={() => field.onChange([role])}
                         />
                         <Mono size={9} color={checked ? color : 'var(--sb-text-secondary)'} tracking="0.10em" weight={checked ? 700 : 500}>
                           {t(`admin.users.roles.${role}`, { defaultValue: role })}

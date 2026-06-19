@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, Activity, ShieldCheck, AlertTriangle, FileText, HardHat } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Settings, Users, Package, Wrench, AlertCircle, CalendarClock, BarChart3, MapPin, Tags, ListChecks, Activity, ShieldCheck, AlertTriangle, FileText, PlusCircle, HardHat } from 'lucide-react';
 import { Role } from '@gmao/shared';
 import type { LucideIcon } from 'lucide-react';
 
@@ -77,6 +77,11 @@ export const SIDEBAR_MODULES: SidebarModuleItem[] = [
         labelKey: 'nav.assets',
         href: '/supervisor/assets',
         icon: Wrench,
+      },
+      {
+        labelKey: 'nav.categories',
+        href: '/supervisor/categories',
+        icon: ListChecks,
       },
       {
         labelKey: 'nav.reports',

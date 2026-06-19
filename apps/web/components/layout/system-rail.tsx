@@ -98,6 +98,7 @@ export function SystemRail() {
       style={{
         height: '34px',
         background: 'var(--sb-rail)',
+        
         display: 'flex',
         alignItems: 'center',
         padding: '0 16px',
